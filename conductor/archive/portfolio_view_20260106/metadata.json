@@ -1,0 +1,8 @@
+{
+  "track_id": "portfolio_view_20260106",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-01-06T22:38:00Z",
+  "updated_at": "2026-01-06T22:38:00Z",
+  "description": "Implement the Portfolio View: Create the UI components and logic to display account details and current positions."
+}
