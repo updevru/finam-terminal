@@ -112,7 +112,7 @@ func createAccountTable() *tview.Table {
 // createHeader creates the application header
 func createHeader() *tview.TextView {
 	h := tview.NewTextView().
-		SetText(fmt.Sprintf(" Finam Trade Terminal v%s ", appVersion)).
+		SetText(fmt.Sprintf(" Finam Terminal v%s ", appVersion)).
 		SetTextAlign(tview.AlignCenter)
 	h.SetBackgroundColor(tcell.ColorDarkCyan)
 	h.SetTextColor(tcell.ColorWhite)

@@ -1,4 +1,4 @@
-# Product Guide - Finam Trade TUI
+# Product Guide - Finam Terminal TUI
 
 ## Initial Concept
 A Go-based Terminal User Interface (TUI) application designed to interact with the Finam Trade API via gRPC. It serves as both a practical tool for traders and a reference implementation for developers.

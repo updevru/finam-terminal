@@ -1,5 +1,7 @@
 # Technology Stack - Finam Trade TUI
 
+To obtain up-to-date documentation use context7.
+
 ## Core Technologies
 - **Programming Language:** Go (v1.24.1)
 - **API Protocol:** gRPC (Google Remote Procedure Call) for high-performance communication with Finam services.

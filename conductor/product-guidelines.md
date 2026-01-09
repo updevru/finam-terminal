@@ -1,4 +1,4 @@
-# Product Guidelines - Finam Trade TUI
+# Product Guidelines - Finam Terminal TUI
 
 ## Documentation & Communication
 - **Prose Style:** Technical and concise. Documentation, log messages, and user-facing text should be precise, brief, and focused on providing direct value to developers and power users.

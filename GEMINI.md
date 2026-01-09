@@ -1,4 +1,4 @@
-# Finam Trade Test Project
+# Finam Terminal Project
 
 ## Project Overview
 

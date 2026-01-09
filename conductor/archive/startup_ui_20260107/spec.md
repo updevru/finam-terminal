@@ -1,7 +1,7 @@
 # Specification: Beautiful Startup Experience (Track: startup_ui)
 
 ## Overview
-This track implements a visually appealing and informative startup sequence for the Finam Trade TUI. It aims to improve the "first-run" experience by providing a branded splash screen and a clear progress indicator during the initialization and authentication phases.
+This track implements a visually appealing and informative startup sequence for the Finam Terminal TUI. It aims to improve the "first-run" experience by providing a branded splash screen and a clear progress indicator during the initialization and authentication phases.
 
 ## Functional Requirements
 1.  **Splash Screen Logo:**

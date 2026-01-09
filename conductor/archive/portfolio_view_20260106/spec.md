@@ -1,7 +1,7 @@
 # Spec: Portfolio View
 
 ## Overview
-The goal of this track is to implement the "Portfolio" view in the Finam Trade TUI application. This view will allow users to see their account list, select an account, and view detailed information about that account including its equity, unrealized profit/loss, and a table of current positions.
+The goal of this track is to implement the "Portfolio" view in the Finam Terminal TUI application. This view will allow users to see their account list, select an account, and view detailed information about that account including its equity, unrealized profit/loss, and a table of current positions.
 
 ## Requirements
 - **Account Selection:** Users should be able to see a list of available accounts and select one.
