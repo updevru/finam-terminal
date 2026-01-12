@@ -20,6 +20,8 @@ import (
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
+	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 )
 
 // Client is a client for the Finam Trade API
@@ -29,6 +31,7 @@ type Client struct {
 	accountsClient   accounts.AccountsServiceClient
 	marketDataClient marketdata.MarketDataServiceClient
 	assetsClient     assets.AssetsServiceClient
+	ordersClient     orders.OrdersServiceClient
 
 	token       string
 	tokenExpiry time.Time
@@ -61,6 +64,7 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		accountsClient:   accounts.NewAccountsServiceClient(conn),
 		marketDataClient: marketdata.NewMarketDataServiceClient(conn),
 		assetsClient:     assets.NewAssetsServiceClient(conn),
+		ordersClient:     orders.NewOrdersServiceClient(conn),
 		assetMicCache:    make(map[string]string),
 	}
 
@@ -147,6 +151,41 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", c.token)
 	return ctx, cancel
+}
+
+// PlaceOrder places a new order
+func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol)
+
+	var side tradeapiv1.Side
+	switch strings.ToLower(buySell) {
+	case "buy":
+		side = tradeapiv1.Side_SIDE_BUY
+	case "sell":
+		side = tradeapiv1.Side_SIDE_SELL
+	default:
+		return "", fmt.Errorf("invalid direction: %s", buySell)
+	}
+
+	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", quantity)}
+
+	req := &orders.Order{
+		AccountId: accountID,
+		Symbol:    fullSymbol,
+		Quantity:  qtyDecimal,
+		Side:      side,
+		Type:      orders.OrderType_ORDER_TYPE_MARKET,
+	}
+
+	resp, err := c.ordersClient.PlaceOrder(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to place order: %w", err)
+	}
+
+	return resp.OrderId, nil
 }
 
 // GetAccounts returns a list of all accounts
