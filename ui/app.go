@@ -1,10 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
-	"finam-terminal/api"
 	"finam-terminal/models"
 
 	"github.com/rivo/tview"
@@ -15,10 +15,18 @@ const (
 	refreshPeriod = 5 * time.Second
 )
 
+// APIClient defines the interface for the API client
+type APIClient interface {
+	GetAccounts() ([]models.AccountInfo, error)
+	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
+	GetQuotes(symbols []string) (map[string]*models.Quote, error)
+	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
+}
+
 // App represents the TUI application
 type App struct {
 	app           *tview.Application
-	client        *api.Client
+	client        APIClient
 	accounts      []models.AccountInfo
 	positions     map[string][]models.Position
 	quotes        map[string]map[string]*models.Quote
@@ -55,7 +63,7 @@ type DataMutex struct {
 }
 
 // NewApp creates a new TUI application
-func NewApp(client *api.Client, accounts []models.AccountInfo) *App {
+func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	a := &App{
 		app:         tview.NewApplication(),
 		client:      client,
@@ -72,9 +80,9 @@ func NewApp(client *api.Client, accounts []models.AccountInfo) *App {
 	
 	// Initialize OrderModal
 	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
-		// Placeholder for Phase 3 submission task
-		a.pages.HidePage("modal")
-		a.app.SetFocus(a.portfolioView.PositionsTable)
+		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
+			a.ShowError(err.Error())
+		}
 	}, func() {
 		// Cancel callback
 		a.pages.HidePage("modal")
@@ -82,6 +90,50 @@ func NewApp(client *api.Client, accounts []models.AccountInfo) *App {
 	})
 
 	return a
+}
+
+// SubmitOrder submits a new order
+func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error {
+	a.dataMutex.RLock()
+	if a.selectedIdx >= len(a.accounts) {
+		a.dataMutex.RUnlock()
+		return fmt.Errorf("no account selected")
+	}
+	accountID := a.accounts[a.selectedIdx].ID
+	a.dataMutex.RUnlock()
+
+	// Show loading status
+	a.SetStatus("Placing order...", StatusLoading)
+	
+	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
+	if err != nil {
+		a.SetStatus(fmt.Sprintf("Order failed: %v", err), StatusError)
+		return err
+	}
+
+	a.SetStatus(fmt.Sprintf("Order placed: %s", id), StatusSuccess)
+	
+	// Refresh data
+	a.loadDataAsync(accountID)
+	
+	// Close modal
+	a.pages.HidePage("modal")
+	a.app.SetFocus(a.portfolioView.PositionsTable)
+	
+	return nil
+}
+
+// ShowError displays an error modal
+func (a *App) ShowError(msg string) {
+	modal := tview.NewModal().
+		SetText(msg).
+		AddButtons([]string{"OK"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("alert")
+			a.app.SetFocus(a.orderModal.Form)
+		})
+	
+	a.pages.AddPage("alert", modal, false, true)
 }
 
 // Run starts the TUI application
