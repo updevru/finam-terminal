@@ -7,7 +7,7 @@
     - [ ] Verify tests pass and check coverage
 - [ ] Task: Conductor - User Manual Verification 'API Layer - Orders Service Integration' (Protocol in workflow.md)
 
-## Phase 2: UI Component - Order Entry Modal
+## Phase 2: UI Component - Order Entry Modal [checkpoint: 882b680]
 - [x] Task: Create the `OrderModal` primitive and layout 48b7df6
     - [ ] Write tests for modal field initialization and validation logic
     - [ ] Implement `OrderModal` in `ui/` with Instrument, Quantity, Direction, and Validity fields
