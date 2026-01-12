@@ -8,7 +8,7 @@
 - [ ] Task: Conductor - User Manual Verification 'API Layer - Orders Service Integration' (Protocol in workflow.md)
 
 ## Phase 2: UI Component - Order Entry Modal
-- [ ] Task: Create the `OrderModal` primitive and layout
+- [x] Task: Create the `OrderModal` primitive and layout 48b7df6
     - [ ] Write tests for modal field initialization and validation logic
     - [ ] Implement `OrderModal` in `ui/` with Instrument, Quantity, Direction, and Validity fields
     - [ ] Implement cycling toggle buttons for Direction (Buy/Sell) and Validity
