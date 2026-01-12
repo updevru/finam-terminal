@@ -8,7 +8,7 @@ import (
 
 func TestOrderModal_Initialization(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, func(instrument string, quantity float64, buySell string) {})
+	modal := NewOrderModal(app, func(instrument string, quantity float64, buySell string) {}, nil)
 
 	if modal == nil {
 		t.Fatal("NewOrderModal returned nil")
@@ -21,7 +21,7 @@ func TestOrderModal_Initialization(t *testing.T) {
 
 func TestOrderModal_SetInstrument(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, nil)
+	modal := NewOrderModal(app, nil, nil)
 
 	modal.SetInstrument("SBER")
 	if modal.GetInstrument() != "SBER" {
@@ -31,7 +31,7 @@ func TestOrderModal_SetInstrument(t *testing.T) {
 
 func TestOrderModal_Validation(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, nil)
+	modal := NewOrderModal(app, nil, nil)
 
 	if modal.Validate() {
 		t.Error("Expected validation to fail with empty inputs")
@@ -51,7 +51,7 @@ func TestOrderModal_Validation(t *testing.T) {
 
 func TestOrderModal_Direction(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, nil)
+	modal := NewOrderModal(app, nil, nil)
 
 	// Default direction
 	if modal.GetDirection() != "Buy" {
@@ -66,7 +66,7 @@ func TestOrderModal_Direction(t *testing.T) {
 
 func TestOrderModal_Validity(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, nil)
+	modal := NewOrderModal(app, nil, nil)
 
 	// Default
 	if modal.GetValidity() != "Day" {

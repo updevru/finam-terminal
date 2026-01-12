@@ -11,6 +11,7 @@ type OrderModal struct {
 	Form       *tview.Form
 	app        *tview.Application
 	callback   func(string, float64, string)
+	onCancel   func()
 	
 	instrument *tview.InputField
 	quantity   *tview.InputField
@@ -21,11 +22,12 @@ type OrderModal struct {
 }
 
 // NewOrderModal creates a new order modal
-func NewOrderModal(app *tview.Application, callback func(string, float64, string)) *OrderModal {
+func NewOrderModal(app *tview.Application, callback func(string, float64, string), onCancel func()) *OrderModal {
 	m := &OrderModal{
 		Form:       tview.NewForm(),
 		app:        app,
 		callback:   callback,
+		onCancel:   onCancel,
 		currentDir: "Buy",
 		currentVal: "Day",
 	}
@@ -77,8 +79,9 @@ func (m *OrderModal) setupUI() {
 
 	// Index 3: Cancel
 	m.Form.AddButton("Cancel", func() {
-		// Close modal logic handled by caller or we can do it here if we had access to pages
-		// For now, simple button.
+		if m.onCancel != nil {
+			m.onCancel()
+		}
 	})
 	
 	m.updateCreateButton()

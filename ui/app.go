@@ -27,6 +27,10 @@ type App struct {
 	stopChan      chan struct{}
 	stopOnce      sync.Once
 	portfolioView *PortfolioView
+	
+	// Layout
+	pages         *tview.Pages
+	orderModal    *OrderModal
 
 	statusMessage string
 	statusType    StatusType
@@ -60,10 +64,23 @@ func NewApp(client *api.Client, accounts []models.AccountInfo) *App {
 		quotes:      make(map[string]map[string]*models.Quote),
 		selectedIdx: 0,
 		stopChan:    make(chan struct{}),
+		pages:       tview.NewPages(),
 	}
 	a.portfolioView = NewPortfolioView(a.app)
 	a.header = createHeader()
 	a.statusBar = createStatusBar()
+	
+	// Initialize OrderModal
+	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
+		// Placeholder for Phase 3 submission task
+		a.pages.HidePage("modal")
+		a.app.SetFocus(a.portfolioView.PositionsTable)
+	}, func() {
+		// Cancel callback
+		a.pages.HidePage("modal")
+		a.app.SetFocus(a.portfolioView.PositionsTable)
+	})
+
 	return a
 }
 
@@ -76,6 +93,20 @@ func (a *App) Run() error {
 	flex.AddItem(a.header, 1, 1, false)
 	flex.AddItem(a.portfolioView.Layout, 0, 1, true)
 	flex.AddItem(a.statusBar, 1, 1, false)
+	
+	// Setup Pages
+	a.pages.AddPage("main", flex, true, true)
+	
+	// Add Modal (centered)
+	modalFlex := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(a.orderModal.Form, 14, 1, true). // Height 14 for form
+			AddItem(nil, 0, 1, false), 40, 1, true). // Width 40
+		AddItem(nil, 0, 1, false)
+	
+	a.pages.AddPage("modal", modalFlex, true, false)
 
 	// Setup input handlers
 	setupInputHandlers(a)
@@ -89,7 +120,7 @@ func (a *App) Run() error {
 	// Start background refresh
 	go a.backgroundRefresh(a)
 
-	return a.app.SetRoot(flex, true).EnableMouse(false).Run()
+	return a.app.SetRoot(a.pages, true).EnableMouse(false).Run()
 }
 
 // Stop stops the application
@@ -98,6 +129,37 @@ func (a *App) Stop() {
 		close(a.stopChan)
 		a.app.Stop()
 	})
+}
+
+// OpenOrderModal opens the order entry modal
+func (a *App) OpenOrderModal() {
+	// Get selected row
+	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	
+	// Default to empty if header or invalid
+	symbol := ""
+
+	if row > 0 {
+		// Map row to position index (row 1 -> index 0)
+		idx := row - 1
+		
+		a.dataMutex.RLock()
+		if a.selectedIdx < len(a.accounts) {
+			accID := a.accounts[a.selectedIdx].ID
+			positions := a.positions[accID]
+			if idx >= 0 && idx < len(positions) {
+				symbol = positions[idx].Ticker
+			}
+		}
+		a.dataMutex.RUnlock()
+	}
+	
+	a.orderModal.SetInstrument(symbol)
+	// Reset quantity to 0
+	a.orderModal.SetQuantity(0)
+	
+	a.pages.ShowPage("modal")
+	a.app.SetFocus(a.orderModal.Form)
 }
 
 // SetStatus updates the status bar message and type

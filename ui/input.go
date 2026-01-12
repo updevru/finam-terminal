@@ -80,6 +80,9 @@ func setupInputHandlers(app *App) {
 		case 'r', 'R':
 			refresh()
 			return nil
+		case 'a', 'A':
+			app.OpenOrderModal()
+			return nil
 		}
 		return event
 	})
