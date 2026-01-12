@@ -20,7 +20,7 @@
     - [ ] Write tests for the input handler and context-aware pre-filling
     - [ ] Update `ui/input.go` to trigger the `OrderModal` on 'A' press
     - [ ] Pass the currently selected position's symbol to the modal
-- [ ] Task: Implement submission and error handling
+- [x] Task: Implement submission and error handling fa24d56
     - [ ] Write tests for the submission flow (success/failure handling)
     - [ ] Connect "Create" button to the API client's `PlaceOrder`
     - [ ] Implement error popup for API failures and refresh logic for success
