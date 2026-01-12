@@ -4,7 +4,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Exchange Order Placement
+## [~] Track: Exchange Order Placement
 *Link: [./conductor/tracks/order_placement_20260111/](./conductor/tracks/order_placement_20260111/)*
 
 ---

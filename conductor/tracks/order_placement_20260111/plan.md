@@ -1,7 +1,7 @@
 # Implementation Plan - Exchange Order Placement
 
 ## Phase 1: API Layer - Orders Service Integration
-- [ ] Task: Implement `PlaceOrder` method in `api/client.go`
+- [x] Task: Implement `PlaceOrder` method in `api/client.go` 267da5b
     - [ ] Write failing tests for `PlaceOrder` (success and error cases) in `api/client_test.go`
     - [ ] Implement `PlaceOrder` using `OrdersClient` from Finam SDK
     - [ ] Verify tests pass and check coverage
