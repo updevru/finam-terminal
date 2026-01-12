@@ -21,7 +21,13 @@ func setupInputHandlers(app *App) {
 		if idx >= 0 && idx < len(app.accounts) {
 			app.selectedIdx = idx
 			updateAccountList(app)
-			app.portfolioView.PositionsTable.Clear()
+			
+			// Update view immediately with cached data
+			updatePositionsTable(app)
+			updateInfoPanel(app)
+			updateStatusBar(app)
+
+			// Trigger fresh data load
 			app.loadDataAsync(app.accounts[idx].ID)
 		}
 	}
