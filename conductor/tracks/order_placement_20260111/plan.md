@@ -16,7 +16,7 @@
 - [ ] Task: Conductor - User Manual Verification 'UI Component - Order Entry Modal' (Protocol in workflow.md)
 
 ## Phase 3: Integration and User Interaction
-- [ ] Task: Wire up the 'A' key and instrument pre-filling
+- [x] Task: Wire up the 'A' key and instrument pre-filling da28407
     - [ ] Write tests for the input handler and context-aware pre-filling
     - [ ] Update `ui/input.go` to trigger the `OrderModal` on 'A' press
     - [ ] Pass the currently selected position's symbol to the modal
