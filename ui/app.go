@@ -84,12 +84,22 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 			a.ShowError(err.Error())
 		}
 	}, func() {
-		// Cancel callback
-		a.pages.HidePage("modal")
-		a.app.SetFocus(a.portfolioView.PositionsTable)
+		a.CloseOrderModal()
 	})
 
 	return a
+}
+
+// CloseOrderModal closes the order modal
+func (a *App) CloseOrderModal() {
+	a.pages.HidePage("modal")
+	a.app.SetFocus(a.portfolioView.PositionsTable)
+}
+
+// IsModalOpen returns true if the order modal is currently open
+func (a *App) IsModalOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "modal"
 }
 
 // SubmitOrder submits a new order
@@ -221,7 +231,12 @@ func (a *App) SetStatus(message string, statusType StatusType) {
 	a.statusType = statusType
 	a.dataMutex.Unlock()
 
-	a.app.QueueUpdateDraw(func() {
+	// Use QueueUpdateDraw only if the app might be running. 
+	// In tests, we don't start the main loop, so this would block.
+	// tview doesn't provide a direct way to check if it's running, 
+	// but we can use a non-blocking check if we had a flag.
+	// For now, let's use a goroutine to avoid blocking the caller if the queue is full/unattended.
+	go a.app.QueueUpdateDraw(func() {
 		updateStatusBar(a)
 	})
 }

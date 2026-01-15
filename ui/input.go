@@ -88,6 +88,17 @@ func setupInputHandlers(app *App) {
 	})
 
 	app.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// If modal is open, intercept specific keys
+		if app.IsModalOpen() {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseOrderModal()
+				return nil
+			}
+			// Let the modal handle Tab and other keys
+			return event
+		}
+
 		switch event.Key() {
 		case tcell.KeyF1:
 			// Switch to PortfolioView (already there, but for consistency)
