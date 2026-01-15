@@ -66,7 +66,7 @@ func (m *OrderModal) setupUI() {
 	m.quantity = tview.NewInputField().
 		SetLabel("Quantity:   ").
 		SetFieldWidth(15).
-		SetText("0").
+		SetText("").
 		SetAcceptanceFunc(tview.InputFieldInteger).
 		SetChangedFunc(func(text string) {
 			m.updateCreateButton()
@@ -117,7 +117,11 @@ func (m *OrderModal) GetInstrument() string {
 }
 
 func (m *OrderModal) SetQuantity(q float64) {
-	m.quantity.SetText(strconv.FormatFloat(q, 'f', -1, 64))
+	if q == 0 {
+		m.quantity.SetText("")
+	} else {
+		m.quantity.SetText(strconv.FormatFloat(q, 'f', -1, 64))
+	}
 	m.updateCreateButton()
 }
 
