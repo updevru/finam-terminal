@@ -63,18 +63,3 @@ func TestOrderModal_Direction(t *testing.T) {
 		t.Errorf("Expected direction Sell after toggle, got %s", modal.GetDirection())
 	}
 }
-
-func TestOrderModal_Validity(t *testing.T) {
-	app := tview.NewApplication()
-	modal := NewOrderModal(app, nil, nil)
-
-	// Default
-	if modal.GetValidity() != "Day" {
-		t.Errorf("Expected default validity Day, got %s", modal.GetValidity())
-	}
-
-	modal.ToggleValidity()
-	if modal.GetValidity() != "GTC" {
-		t.Errorf("Expected validity GTC after toggle, got %s", modal.GetValidity())
-	}
-}

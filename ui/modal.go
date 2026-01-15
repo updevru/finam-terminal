@@ -19,7 +19,6 @@ type OrderModal struct {
 	
 	// State
 	currentDir string
-	currentVal string // Validity: Day, GTC, etc.
 }
 
 // NewOrderModal creates a new order modal
@@ -30,7 +29,6 @@ func NewOrderModal(app *tview.Application, callback func(string, float64, string
 		callback:   callback,
 		onCancel:   onCancel,
 		currentDir: "Buy",
-		currentVal: "Day",
 	}
 	m.setupUI()
 	return m
@@ -43,19 +41,19 @@ func (m *OrderModal) setupUI() {
 	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGray).
 		SetButtonTextColor(tcell.ColorWhite).
 		SetLabelColor(tcell.ColorYellow).
-		SetFieldBackgroundColor(tcell.ColorBlack).
-		SetFieldTextColor(tcell.ColorWhite)
+		SetFieldBackgroundColor(tcell.ColorWhite). // High contrast for visibility
+		SetFieldTextColor(tcell.ColorBlack)
 
 	m.instrument = tview.NewInputField().
 		SetLabel("Instrument: ").
-		SetFieldWidth(10).
+		SetFieldWidth(15).
 		SetChangedFunc(func(text string) {
 			m.updateCreateButton()
 		})
 	
 	m.quantity = tview.NewInputField().
 		SetLabel("Quantity:   ").
-		SetFieldWidth(10).
+		SetFieldWidth(15).
 		SetText("0").
 		SetAcceptanceFunc(tview.InputFieldInteger).
 		SetChangedFunc(func(text string) {
@@ -71,12 +69,7 @@ func (m *OrderModal) setupUI() {
 		m.ToggleDirection()
 	})
 
-	// Index 1: Validity
-	m.Form.AddButton("Val: "+m.currentVal, func() {
-		m.ToggleValidity()
-	})
-
-	// Index 2: Create
+	// Index 1: Create
 	m.Form.AddButton("Create", func() {
 		if m.Validate() {
 			if m.callback != nil {
@@ -85,12 +78,16 @@ func (m *OrderModal) setupUI() {
 		}
 	})
 
-	// Index 3: Cancel
+	// Index 2: Cancel
 	m.Form.AddButton("Cancel", func() {
 		if m.onCancel != nil {
 			m.onCancel()
 		}
 	})
+	
+	// Add Usage Instructions in Footer area by using an empty form item or just adding a text to the end
+	// Actually, Form doesn't have a footer, but we can add a text field without label as a separator/info
+	m.Form.AddTextView("Instructions:", "[TAB] Move  [ENTER] Select  [ESC] Close", 0, 1, true, false)
 	
 	m.updateCreateButton()
 }
@@ -129,25 +126,8 @@ func (m *OrderModal) ToggleDirection() {
 	}
 }
 
-func (m *OrderModal) ToggleValidity() {
-	// Simple toggle for now
-	if m.currentVal == "Day" {
-		m.currentVal = "GTC"
-	} else {
-		m.currentVal = "Day"
-	}
-	// Update button label (Index 1)
-	if m.Form.GetButtonCount() > 1 {
-		m.Form.GetButton(1).SetLabel("Val: " + m.currentVal)
-	}
-}
-
 func (m *OrderModal) GetDirection() string {
 	return m.currentDir
-}
-
-func (m *OrderModal) GetValidity() string {
-	return m.currentVal
 }
 
 func (m *OrderModal) Validate() bool {
@@ -161,8 +141,9 @@ func (m *OrderModal) Validate() bool {
 }
 
 func (m *OrderModal) updateCreateButton() {
-	if m.Form.GetButtonCount() > 2 {
-		btn := m.Form.GetButton(2) // Create button
+	if m.Form.GetButtonCount() > 1 {
+		btn := m.Form.GetButton(1) // Create button
 		btn.SetDisabled(!m.Validate())
 	}
 }
+
