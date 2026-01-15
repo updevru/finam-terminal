@@ -59,6 +59,7 @@ func setupInputHandlers(app *App) {
 		switch event.Key() {
 		case tcell.KeyTab:
 			app.app.SetFocus(app.portfolioView.AccountTable)
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyDown, tcell.KeyCtrlN:
 			row, _ := app.portfolioView.PositionsTable.GetSelection()
@@ -83,6 +84,9 @@ func setupInputHandlers(app *App) {
 		case 'a', 'A':
 			app.OpenOrderModal()
 			return nil
+		case 'c', 'C':
+			app.OpenCloseModal()
+			return nil
 		}
 		return event
 	})
@@ -95,7 +99,14 @@ func setupInputHandlers(app *App) {
 				app.CloseOrderModal()
 				return nil
 			}
-			// Let the modal handle Tab and other keys
+			return event
+		}
+		if app.IsCloseModalOpen() {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseCloseModal()
+				return nil
+			}
 			return event
 		}
 
@@ -103,6 +114,7 @@ func setupInputHandlers(app *App) {
 		case tcell.KeyF1:
 			// Switch to PortfolioView (already there, but for consistency)
 			app.app.SetFocus(app.portfolioView.AccountTable)
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyF2, tcell.KeyCtrlR:
 			refresh()
@@ -116,6 +128,7 @@ func setupInputHandlers(app *App) {
 			} else {
 				app.app.SetFocus(app.portfolioView.AccountTable)
 			}
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyLeft:
 			switchAccount(app.selectedIdx - 1)
