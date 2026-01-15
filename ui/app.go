@@ -165,6 +165,7 @@ func (a *App) Run() error {
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(a.orderModal.Form, 14, 1, true). // Height 14 for form
+			AddItem(a.orderModal.Footer, 1, 1, false). // Height 1 for footer
 			AddItem(nil, 0, 1, false), 40, 1, true). // Width 40
 		AddItem(nil, 0, 1, false)
 	

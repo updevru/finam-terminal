@@ -10,6 +10,7 @@ import (
 // OrderModal represents the order entry modal
 type OrderModal struct {
 	Form       *tview.Form
+	Footer     *tview.TextView // dedicated footer
 	app        *tview.Application
 	callback   func(string, float64, string)
 	onCancel   func()
@@ -25,6 +26,7 @@ type OrderModal struct {
 func NewOrderModal(app *tview.Application, callback func(string, float64, string), onCancel func()) *OrderModal {
 	m := &OrderModal{
 		Form:       tview.NewForm(),
+		Footer:     tview.NewTextView(),
 		app:        app,
 		callback:   callback,
 		onCancel:   onCancel,
@@ -36,6 +38,12 @@ func NewOrderModal(app *tview.Application, callback func(string, float64, string
 
 func (m *OrderModal) setupUI() {
 	m.Form.SetBorder(true).SetTitle(" New Order ").SetTitleAlign(tview.AlignCenter)
+	
+	// Footer styling
+	m.Footer.SetBackgroundColor(tcell.ColorGreen)
+	m.Footer.SetTextColor(tcell.ColorWhite).
+		SetTextAlign(tview.AlignCenter).
+		SetText("[TAB] Move  [ENTER] Select  [ESC] Close")
 	
 	// Form styling
 	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGray).
@@ -84,10 +92,6 @@ func (m *OrderModal) setupUI() {
 			m.onCancel()
 		}
 	})
-	
-	// Add Usage Instructions in Footer area by using an empty form item or just adding a text to the end
-	// Actually, Form doesn't have a footer, but we can add a text field without label as a separator/info
-	m.Form.AddTextView("Instructions:", "[TAB] Move  [ENTER] Select  [ESC] Close", 0, 1, true, false)
 	
 	m.updateCreateButton()
 }
