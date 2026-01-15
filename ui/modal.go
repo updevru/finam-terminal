@@ -3,6 +3,7 @@ package ui
 import (
 	"strconv"
 
+	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -37,6 +38,13 @@ func NewOrderModal(app *tview.Application, callback func(string, float64, string
 
 func (m *OrderModal) setupUI() {
 	m.Form.SetBorder(true).SetTitle(" New Order ").SetTitleAlign(tview.AlignCenter)
+	
+	// Form styling
+	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGray).
+		SetButtonTextColor(tcell.ColorWhite).
+		SetLabelColor(tcell.ColorYellow).
+		SetFieldBackgroundColor(tcell.ColorBlack).
+		SetFieldTextColor(tcell.ColorWhite)
 
 	m.instrument = tview.NewInputField().
 		SetLabel("Instrument: ").
