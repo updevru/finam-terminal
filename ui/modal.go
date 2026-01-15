@@ -16,8 +16,9 @@ type OrderModal struct {
 	callback   func(string, float64, string)
 	onCancel   func()
 	
-instrument *tview.InputField
+	instrument *tview.InputField
 	quantity   *tview.InputField
+	direction  *tview.DropDown
 	
 	// State
 	currentDir string
@@ -50,7 +51,7 @@ func (m *OrderModal) setupUI() {
 	m.Form.SetBackgroundColor(tcell.ColorBlack)
 	
 	// Form styling
-	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGray).
+	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGreen). // Darker green for idle
 		SetButtonTextColor(tcell.ColorWhite).
 		SetLabelColor(tcell.ColorYellow).
 		SetFieldBackgroundColor(tcell.ColorWhite).
@@ -72,13 +73,21 @@ func (m *OrderModal) setupUI() {
 			m.updateCreateButton()
 		})
 
+	m.direction = tview.NewDropDown().
+		SetLabel("Direction:  ").
+		SetOptions([]string{"Buy", "Sell"}, func(text string, index int) {
+			m.currentDir = text
+		}).
+		SetCurrentOption(0).
+		SetFieldWidth(15)
+	
+	// Ensure dropdown list is styled consistently
+	m.direction.SetListStyles(tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack),
+		tcell.StyleDefault.Background(tcell.ColorOrange).Foreground(tcell.ColorBlack))
+
 	m.Form.AddFormItem(m.instrument)
 	m.Form.AddFormItem(m.quantity)
-
-	// Buttons
-	m.Form.AddButton("Dir: "+m.currentDir, func() {
-		m.ToggleDirection()
-	})
+	m.Form.AddFormItem(m.direction)
 
 	m.Form.AddButton("Create", func() {
 		if m.Validate() {
@@ -94,10 +103,9 @@ func (m *OrderModal) setupUI() {
 		}
 	})
 	
-m.updateCreateButton()
+	m.updateCreateButton()
 
-	// Configure Footer
-	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
+	// Configure Footer	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
 		SetTextAlign(tview.AlignCenter).
 		SetText("[TAB] Move  [ENTER] Select  [ESC] Close")
@@ -133,20 +141,9 @@ func (m *OrderModal) GetQuantity() float64 {
 	return val
 }
 
-func (m *OrderModal) ToggleDirection() {
-	if m.currentDir == "Buy" {
-		m.currentDir = "Sell"
-	} else {
-		m.currentDir = "Buy"
-	}
-	// Update button label (Index 0)
-	if m.Form.GetButtonCount() > 0 {
-		m.Form.GetButton(0).SetLabel("Dir: " + m.currentDir)
-	}
-}
-
 func (m *OrderModal) GetDirection() string {
-	return m.currentDir
+	_, text := m.direction.GetCurrentOption()
+	return text
 }
 
 func (m *OrderModal) Validate() bool {
