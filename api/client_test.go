@@ -101,6 +101,37 @@ func TestPlaceOrder_Error(t *testing.T) {
 	}
 }
 
+func TestClosePosition_Success(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			// If we are closing a Long position (Quantity "10"), it should be a SELL
+			if in.Side != tradeapiv1.Side_SIDE_SELL {
+				return nil, grpc.ErrClientConnClosing
+			}
+			if in.Quantity.Value != "5" {
+				return nil, grpc.ErrClientConnClosing
+			}
+			return &orders.OrderState{OrderId: "999"}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"SBER": "SBER@TQBR",
+		},
+	}
+
+	// Long position
+	id, err := client.ClosePosition("test-acc", "SBER", "10", 5)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "999" {
+		t.Errorf("Expected OrderId 999, got %s", id)
+	}
+}
+
 func TestGetAccountDetails(t *testing.T) {
 	mockAccounts := &mockAccountsServiceClient{
 		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {

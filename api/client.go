@@ -89,7 +89,7 @@ func (c *Client) Close() error {
 
 // loadAssetCache loads all available instruments and their MIC codes
 func (c *Client) loadAssetCache() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := c.getContext()
 	defer cancel()
 
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
@@ -159,6 +159,11 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	defer cancel()
 
 	fullSymbol := c.getFullSymbol(symbol)
+	log.Printf("[DEBUG] PlaceOrder: input='%s', resolved='%s', cache_size=%d", symbol, fullSymbol, len(c.assetMicCache))
+
+	// if !strings.Contains(fullSymbol, "@") {
+	// 	return "", fmt.Errorf("invalid symbol format '%s': missing board/MIC (e.g. SBER@TQBR). cache_size=%d", fullSymbol, len(c.assetMicCache))
+	// }
 
 	var side tradeapiv1.Side
 	switch strings.ToLower(buySell) {
@@ -186,6 +191,18 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	}
 
 	return resp.OrderId, nil
+}
+
+// ClosePosition closes (fully or partially) an existing position
+func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
+	// Determine direction
+	pos := models.Position{Quantity: currentQuantity}
+	dir := pos.GetCloseDirection()
+	if dir == "" {
+		return "", fmt.Errorf("could not determine close direction for quantity %s", currentQuantity)
+	}
+
+	return c.PlaceOrder(accountID, symbol, dir, closeQuantity)
 }
 
 // GetAccounts returns a list of all accounts
