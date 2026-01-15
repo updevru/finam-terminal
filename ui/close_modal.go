@@ -24,6 +24,7 @@ type ClosePositionModal struct {
 
 	// State
 	currentPrice float64
+	maxQuantity  float64
 }
 
 // NewClosePositionModal creates a new close position modal
@@ -107,9 +108,17 @@ func (m *ClosePositionModal) setupUI() {
 // SetPositionData populates the modal with position details
 func (m *ClosePositionModal) SetPositionData(symbol string, quantity float64, price float64, pnl float64) {
 	m.symbolField.SetText(symbol)
-	m.quantityField.SetText(strconv.FormatFloat(quantity, 'f', -1, 64))
+	
+	// Default to absolute value for display (we always close with a positive qty, direction handled by API)
+	absQty := quantity
+	if absQty < 0 {
+		absQty = -absQty
+	}
+	
+	m.quantityField.SetText(strconv.FormatFloat(absQty, 'f', -1, 64))
 	m.priceField.SetText(fmt.Sprintf("%.2f", price))
 	m.currentPrice = price
+	m.maxQuantity = absQty
 }
 
 func (m *ClosePositionModal) GetSymbol() string {
@@ -125,5 +134,6 @@ func (m *ClosePositionModal) GetQuantity() float64 {
 }
 
 func (m *ClosePositionModal) Validate() bool {
-	return m.GetQuantity() > 0
+	qty := m.GetQuantity()
+	return qty > 0 && qty <= m.maxQuantity
 }
