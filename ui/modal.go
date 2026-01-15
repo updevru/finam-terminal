@@ -9,13 +9,14 @@ import (
 
 // OrderModal represents the order entry modal
 type OrderModal struct {
+	Layout     *tview.Flex // Main container with border
 	Form       *tview.Form
-	Footer     *tview.TextView // dedicated footer
+	Footer     *tview.TextView
 	app        *tview.Application
 	callback   func(string, float64, string)
 	onCancel   func()
 	
-	instrument *tview.InputField
+instrument *tview.InputField
 	quantity   *tview.InputField
 	
 	// State
@@ -25,6 +26,7 @@ type OrderModal struct {
 // NewOrderModal creates a new order modal
 func NewOrderModal(app *tview.Application, callback func(string, float64, string), onCancel func()) *OrderModal {
 	m := &OrderModal{
+		Layout:     tview.NewFlex(),
 		Form:       tview.NewForm(),
 		Footer:     tview.NewTextView(),
 		app:        app,
@@ -37,19 +39,21 @@ func NewOrderModal(app *tview.Application, callback func(string, float64, string
 }
 
 func (m *OrderModal) setupUI() {
-	m.Form.SetBorder(true).SetTitle(" New Order ").SetTitleAlign(tview.AlignCenter)
-	
-	// Footer styling
-	m.Footer.SetBackgroundColor(tcell.ColorGreen)
-	m.Footer.SetTextColor(tcell.ColorWhite).
-		SetTextAlign(tview.AlignCenter).
-		SetText("[TAB] Move  [ENTER] Select  [ESC] Close")
+	// Configure Main Layout (The "Window")
+	m.Layout.SetDirection(tview.FlexRow).
+		SetBorder(true).
+		SetTitle(" New Order ").
+		SetTitleAlign(tview.AlignCenter)
+
+	// Configure Form (No border, transparent)
+	m.Form.SetBorder(false)
+	m.Form.SetBackgroundColor(tcell.ColorBlack)
 	
 	// Form styling
 	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGray).
 		SetButtonTextColor(tcell.ColorWhite).
 		SetLabelColor(tcell.ColorYellow).
-		SetFieldBackgroundColor(tcell.ColorWhite). // High contrast for visibility
+		SetFieldBackgroundColor(tcell.ColorWhite).
 		SetFieldTextColor(tcell.ColorBlack)
 
 	m.instrument = tview.NewInputField().
@@ -72,12 +76,10 @@ func (m *OrderModal) setupUI() {
 	m.Form.AddFormItem(m.quantity)
 
 	// Buttons
-	// Index 0: Direction
 	m.Form.AddButton("Dir: "+m.currentDir, func() {
 		m.ToggleDirection()
 	})
 
-	// Index 1: Create
 	m.Form.AddButton("Create", func() {
 		if m.Validate() {
 			if m.callback != nil {
@@ -86,16 +88,25 @@ func (m *OrderModal) setupUI() {
 		}
 	})
 
-	// Index 2: Cancel
 	m.Form.AddButton("Cancel", func() {
 		if m.onCancel != nil {
 			m.onCancel()
 		}
 	})
 	
-	m.updateCreateButton()
-}
+m.updateCreateButton()
 
+	// Configure Footer
+	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
+	m.Footer.SetTextColor(tcell.ColorWhite).
+		SetTextAlign(tview.AlignCenter).
+		SetText("[TAB] Move  [ENTER] Select  [ESC] Close")
+
+	// Assemble Layout
+	// Form takes available space, Footer takes 1 line at bottom
+	m.Layout.AddItem(m.Form, 0, 1, true).
+		AddItem(m.Footer, 1, 1, false)
+}
 func (m *OrderModal) SetInstrument(symbol string) {
 	m.instrument.SetText(symbol)
 	m.updateCreateButton()
