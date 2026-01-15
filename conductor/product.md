@@ -16,6 +16,11 @@ A Go-based Terminal User Interface (TUI) application designed to interact with t
     - **First-Run Setup:** Automated, guided setup screen for API token configuration if not detected.
     - **Branded Splash Screen:** Large, gradient-colored "FINAM" logo on launch.
     - **Visual Progress:** Detailed initialization log with a progress bar for configuration and network steps.
+- **Order Execution:**
+    - **Quick Order Entry:** Press 'A' to open a context-aware order entry modal.
+    - **Smart Pre-filling:** Automatically detects the selected instrument from the portfolio view.
+    - **Validation:** Real-time client-side validation of order parameters.
+    - **Live Feedback:** Instant confirmation or error handling for submitted orders.
 - **Portfolio View:** 
     - **Account Selection:** Interactive list of available accounts with real-time equity and status.
     - **Account Details:** Summary area showing Account ID, Type, Status, Equity, and Unrealized PnL.
