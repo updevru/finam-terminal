@@ -186,8 +186,14 @@ func updateStatusBar(app *App) {
 		statusText = " | " + statusText
 	}
 
+	shortcuts := "[yellow]F2[white] Refresh [yellow]q[white] Quit"
+	// Check if PositionsTable is focused
+	if app.app.GetFocus() == app.portfolioView.PositionsTable {
+		shortcuts += " | [yellow]A[white] New Order [yellow]C[white] Close Pos"
+	}
+
 	app.statusBar.SetDynamicColors(true)
 	// Use colors for keys: Yellow for keys, White for description.
-	app.statusBar.SetText(fmt.Sprintf(" [yellow]F2[white] Refresh [yellow]q[white] Quit | %s | Acc: %s | Pos: %d%s ",
-		now, maskAccountID(accountID), count, statusText))
+	app.statusBar.SetText(fmt.Sprintf(" %s | %s | Acc: %s | Pos: %d%s ",
+		shortcuts, now, maskAccountID(accountID), count, statusText))
 }
