@@ -21,6 +21,9 @@ A Go-based Terminal User Interface (TUI) application designed to interact with t
     - **Smart Pre-filling:** Automatically detects the selected instrument from the portfolio view.
     - **Validation:** Real-time client-side validation of order parameters.
     - **Live Feedback:** Instant confirmation or error handling for submitted orders.
+    - **Position Closing:**
+        - **One-Key Action:** Press 'C' on any open position to initiate a close order.
+        - **Safety Modal:** Confirmation dialog displaying current price, PnL, and estimated total before execution.
 - **Portfolio View:** 
     - **Account Selection:** Interactive list of available accounts with real-time equity and status.
     - **Account Details:** Summary area showing Account ID, Type, Status, Equity, and Unrealized PnL.
