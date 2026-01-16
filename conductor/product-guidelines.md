@@ -3,6 +3,7 @@
 ## Documentation & Communication
 - **Prose Style:** Technical and concise. Documentation, log messages, and user-facing text should be precise, brief, and focused on providing direct value to developers and power users.
 - **Tone:** Professional, direct, and functional. Avoid fluff or overly conversational language.
+- **Language:** Primary documentation is in English. High-priority user-facing error messages and specific status indicators may use Russian to ensure immediate clarity for the target audience.
 
 ## TUI Design Principles
 - **Information Density:** Prioritize the efficient display of data. UI elements should be compact, allowing as much market and portfolio information as possible to be visible without overwhelming the user.
