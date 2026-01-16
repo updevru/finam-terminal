@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -317,6 +318,11 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 			CurrentPrice:  formatDecimal(pos.CurrentPrice),
 			DailyPnL:      formatDecimal(pos.DailyPnl),
 			UnrealizedPnL: formatDecimal(pos.UnrealizedPnl),
+		}
+
+		// Filter out zero positions (historical or closed)
+		if qtyVal, err := strconv.ParseFloat(position.Quantity, 64); err == nil && qtyVal == 0 {
+			continue
 		}
 
 		positions = append(positions, position)

@@ -31,3 +31,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Fix SBER Quantity Parsing
 *Link: [./conductor/tracks/fix_sber_close_qty_20260116/](./conductor/tracks/fix_sber_close_qty_20260116/)*
+
+---
+
+## [x] Track: Filter Zero Quantity Positions
+*Link: [./conductor/tracks/filter_zero_positions_20260116/](./conductor/tracks/filter_zero_positions_20260116/)*

@@ -1,0 +1,6 @@
+{
+  "id": "filter_zero_positions_20260116",
+  "type": "bugfix",
+  "description": "Filter out positions with 0 quantity from the view.",
+  "created": "2026-01-16T21:45:00Z"
+}
