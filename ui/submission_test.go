@@ -13,7 +13,7 @@ type MockAPIClient struct {
 
 func (m *MockAPIClient) GetAccounts() ([]models.AccountInfo, error) { return nil, nil }
 func (m *MockAPIClient) GetAccountDetails(id string) (*models.AccountInfo, []models.Position, error) { return nil, nil, nil }
-func (m *MockAPIClient) GetQuotes(syms []string) (map[string]*models.Quote, error) { return nil, nil }
+func (m *MockAPIClient) GetQuotes(accountID string, syms []string) (map[string]*models.Quote, error) { return nil, nil }
 func (m *MockAPIClient) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
 	if m.PlaceOrderFunc != nil {
 		return m.PlaceOrderFunc(accountID, symbol, buySell, quantity)

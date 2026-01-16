@@ -28,7 +28,7 @@ func (a *App) loadData(accountID string) {
 		for i, p := range pos {
 			symbols[i] = p.Symbol
 		}
-		if q, err := a.client.GetQuotes(symbols); err == nil {
+		if q, err := a.client.GetQuotes(accountID, symbols); err == nil {
 			a.quotes[accountID] = q
 		}
 	}
@@ -72,7 +72,7 @@ func (a *App) loadDataAsync(accountID string) {
 			for i, p := range pos {
 				symbols[i] = p.Symbol
 			}
-			quotes, err := a.client.GetQuotes(symbols)
+			quotes, err := a.client.GetQuotes(accountID, symbols)
 			if err != nil {
 				log.Printf("[WARN] Failed to get quotes for %s: %v", accountID, err)
 				a.SetStatus("Data loaded (Quotes failed)", StatusSuccess)

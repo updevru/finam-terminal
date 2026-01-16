@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,7 +21,7 @@ const (
 type APIClient interface {
 	GetAccounts() ([]models.AccountInfo, error)
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
-	GetQuotes(symbols []string) (map[string]*models.Quote, error)
+	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
 	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 }
@@ -84,7 +85,11 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	// Initialize OrderModal
 	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
 		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
-			a.ShowError(err.Error())
+			msg := err.Error()
+			if strings.Contains(msg, "PermissionDenied") {
+				msg = "У вас не достаточно прав для выставления позиции"
+			}
+			a.ShowError(msg)
 		}
 	}, func() {
 		a.CloseOrderModal()
@@ -93,7 +98,11 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	// Initialize ClosePositionModal
 	a.closeModal = NewClosePositionModal(a.app, func(quantity float64) {
 		if err := a.SubmitClosePosition(quantity); err != nil {
-			a.ShowError(err.Error())
+			msg := err.Error()
+			if strings.Contains(msg, "PermissionDenied") {
+				msg = "У вас не достаточно прав для выставления позиции"
+			}
+			a.ShowError(msg)
 		}
 	}, func() {
 		a.CloseCloseModal()
@@ -139,7 +148,11 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	
 	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
 	if err != nil {
-		a.SetStatus(fmt.Sprintf("Order failed: %v", err), StatusError)
+		msg := err.Error()
+		if strings.Contains(msg, "PermissionDenied") {
+			msg = "У вас не достаточно прав для выставления позиции"
+		}
+		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)
 		return err
 	}
 
@@ -185,7 +198,11 @@ func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	
 	id, err := a.client.ClosePosition(accountID, ticker, currentQty, closeQuantity)
 	if err != nil {
-		a.SetStatus(fmt.Sprintf("Close failed: %v", err), StatusError)
+		msg := err.Error()
+		if strings.Contains(msg, "PermissionDenied") {
+			msg = "У вас не достаточно прав для выставления позиции"
+		}
+		a.SetStatus(fmt.Sprintf("Close failed: %v", msg), StatusError)
 		return err
 	}
 

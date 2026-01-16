@@ -161,8 +161,18 @@ func updateInfoPanel(app *App) {
 func updateStatusBar(app *App) {
 	now := time.Now().Format("15:04:05")
 	app.dataMutex.RLock()
-	accountID := app.accounts[app.selectedIdx].ID
-	count := len(app.positions[accountID])
+	
+	var accountID string
+	var count int
+	
+	if app.selectedIdx >= 0 && app.selectedIdx < len(app.accounts) {
+		accountID = app.accounts[app.selectedIdx].ID
+		count = len(app.positions[accountID])
+	} else {
+		accountID = "N/A"
+		count = 0
+	}
+
 	statusMsg := app.statusMessage
 	statusType := app.statusType
 	app.dataMutex.RUnlock()

@@ -13,6 +13,15 @@ import (
 )
 
 func main() {
+	// Setup file logging
+	logFile, err := os.OpenFile("finam-terminal.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		fmt.Printf("Failed to open log file: %v\n", err)
+		os.Exit(1)
+	}
+	defer logFile.Close()
+	log.SetOutput(logFile)
+
 	// Parse command line flags
 	accountIdx := flag.Int("account", -1, "Account index to show (0-based)")
 	flag.Parse()

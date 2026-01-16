@@ -110,7 +110,7 @@ func (c *Client) loadAssetCache() error {
 }
 
 // getFullSymbol converts a ticker to full symbol with MIC
-func (c *Client) getFullSymbol(ticker string) string {
+func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	// First check local cache
 	c.assetMutex.RLock()
 	if strings.Contains(ticker, "@") {
@@ -122,31 +122,30 @@ func (c *Client) getFullSymbol(ticker string) string {
 		return fullSymbol
 	}
 	c.assetMutex.RUnlock()
-	
+
 	// Fallback: Fetch specific asset from API
 	log.Printf("[DEBUG] Cache miss for ticker: %s. Fetching from API...", ticker)
-	
+
 	ctx, cancel := c.getContext()
 	defer cancel()
-	
-	// We assume GetAsset exists and takes {AssetId} or {Symbol}?
-	// Previous compile check passed with {Symbol: "FXRL"}.
-	// But "Symbol" in proto might mean the ID or the Ticker?
-	// Let's try Ticker first, or if the field is named Symbol but expects a ticker.
-	// If the field is named Symbol, we pass the ticker.
-	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{Symbol: ticker})
+
+	// Pass AccountId to GetAssetRequest
+	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
+		Symbol:    ticker,
+		AccountId: accountID,
+	})
 	if err != nil {
 		log.Printf("[WARN] Failed to fetch asset %s: %v", ticker, err)
 		return ticker // Return original if failed
 	}
-	
+
 	if resp.Ticker != "" && resp.Board != "" {
 		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
-		
+
 		c.assetMutex.Lock()
 		c.assetMicCache[ticker] = fullSymbol
 		c.assetMutex.Unlock()
-		
+
 		log.Printf("[DEBUG] Resolved %s via API: %s", ticker, fullSymbol)
 		return fullSymbol
 	}
@@ -188,12 +187,8 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	ctx, cancel := c.getContext()
 	defer cancel()
 
-	fullSymbol := c.getFullSymbol(symbol)
-	log.Printf("[DEBUG] PlaceOrder: input='%s', resolved='%s', cache_size=%d", symbol, fullSymbol, len(c.assetMicCache))
-
-	// if !strings.Contains(fullSymbol, "@") {
-	// 	return "", fmt.Errorf("invalid symbol format '%s': missing board/MIC (e.g. SBER@TQBR). cache_size=%d", fullSymbol, len(c.assetMicCache))
-	// }
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+	log.Printf("[DEBUG] PlaceOrder: input='%s', resolved='%s'", symbol, fullSymbol)
 
 	var side tradeapiv1.Side
 	switch strings.ToLower(buySell) {
@@ -304,7 +299,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 	var positions []models.Position
 	for _, pos := range accountResp.Positions {
 		ticker := pos.Symbol
-		fullSymbol := c.getFullSymbol(ticker)
+		fullSymbol := c.getFullSymbol(ticker, accountID)
 
 		mic := ""
 		if strings.Contains(fullSymbol, "@") {
@@ -331,13 +326,13 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 }
 
 // GetQuotes returns quotes for multiple symbols
-func (c *Client) GetQuotes(symbols []string) (map[string]*models.Quote, error) {
+func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
 	quotes := make(map[string]*models.Quote)
 	for _, symbol := range symbols {
-		fullSymbol := c.getFullSymbol(symbol)
+		fullSymbol := c.getFullSymbol(symbol, accountID)
 		if !strings.Contains(fullSymbol, "@") {
 			continue
 		}
