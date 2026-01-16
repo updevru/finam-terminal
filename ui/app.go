@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
@@ -21,6 +22,7 @@ type APIClient interface {
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotes(symbols []string) (map[string]*models.Quote, error)
 	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
+	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 }
 
 // App represents the TUI application
@@ -39,6 +41,7 @@ type App struct {
 	// Layout
 	pages         *tview.Pages
 	orderModal    *OrderModal
+	closeModal    *ClosePositionModal
 
 	statusMessage string
 	statusType    StatusType
@@ -86,11 +89,24 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	}, func() {
 		a.CloseOrderModal()
 	})
+	
+	// Initialize ClosePositionModal
+	a.closeModal = NewClosePositionModal(a.app, func(quantity float64) {
+		if err := a.SubmitClosePosition(quantity); err != nil {
+			a.ShowError(err.Error())
+		}
+	}, func() {
+		a.CloseCloseModal()
+	})
 
 	return a
 }
 
-// CloseOrderModal closes the order modal
+// CloseCloseModal closes the close position modal
+func (a *App) CloseCloseModal() {
+	a.pages.HidePage("close_modal")
+	a.app.SetFocus(a.portfolioView.PositionsTable)
+}
 func (a *App) CloseOrderModal() {
 	a.pages.HidePage("modal")
 	a.app.SetFocus(a.portfolioView.PositionsTable)
@@ -100,6 +116,12 @@ func (a *App) CloseOrderModal() {
 func (a *App) IsModalOpen() bool {
 	name, _ := a.pages.GetFrontPage()
 	return name == "modal"
+}
+
+// IsCloseModalOpen returns true if the close position modal is currently open
+func (a *App) IsCloseModalOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "close_modal"
 }
 
 // SubmitOrder submits a new order
@@ -127,8 +149,53 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	a.loadDataAsync(accountID)
 	
 	// Close modal
-	a.pages.HidePage("modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.CloseOrderModal()
+	
+	return nil
+}
+
+// SubmitClosePosition submits an order to close an existing position
+func (a *App) SubmitClosePosition(closeQuantity float64) error {
+	// Get selected row to identify the position again
+	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	if row <= 0 {
+		return fmt.Errorf("no position selected")
+	}
+	idx := row - 1
+
+	a.dataMutex.RLock()
+	if a.selectedIdx >= len(a.accounts) {
+		a.dataMutex.RUnlock()
+		return fmt.Errorf("no account selected")
+	}
+	accountID := a.accounts[a.selectedIdx].ID
+	positions := a.positions[accountID]
+	
+	if idx < 0 || idx >= len(positions) {
+		a.dataMutex.RUnlock()
+		return fmt.Errorf("invalid position selection")
+	}
+	
+	pos := positions[idx]
+	ticker := pos.Symbol // Use Symbol (e.g. Ticker@MIC) instead of just Ticker
+	currentQty := pos.Quantity
+	a.dataMutex.RUnlock()
+
+	a.SetStatus("Closing position...", StatusLoading)
+	
+	id, err := a.client.ClosePosition(accountID, ticker, currentQty, closeQuantity)
+	if err != nil {
+		a.SetStatus(fmt.Sprintf("Close failed: %v", err), StatusError)
+		return err
+	}
+
+	a.SetStatus(fmt.Sprintf("Position closed: %s", id), StatusSuccess)
+	
+	// Refresh data
+	a.loadDataAsync(accountID)
+	
+	// Close modal
+	a.CloseCloseModal()
 	
 	return nil
 }
@@ -140,7 +207,11 @@ func (a *App) ShowError(msg string) {
 		AddButtons([]string{"OK"}).
 		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 			a.pages.RemovePage("alert")
-			a.app.SetFocus(a.orderModal.Form)
+			if a.IsModalOpen() {
+				a.app.SetFocus(a.orderModal.Form)
+			} else if a.IsCloseModalOpen() {
+				a.app.SetFocus(a.closeModal.Form)
+			}
 		})
 	
 	a.pages.AddPage("alert", modal, false, true)
@@ -169,6 +240,17 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false)
 	
 	a.pages.AddPage("modal", modalFlex, true, false)
+	
+	// Add Close Modal (centered)
+	closeModalFlex := tview.NewFlex().
+		AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(a.closeModal.Layout, 16, 1, true). // Height 16 (approx)
+			AddItem(nil, 0, 1, false), 50, 1, true). // Width 50
+		AddItem(nil, 0, 1, false)
+
+	a.pages.AddPage("close_modal", closeModalFlex, true, false)
 
 	// Setup input handlers
 	setupInputHandlers(a)
@@ -222,6 +304,33 @@ func (a *App) OpenOrderModal() {
 	
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
+}
+
+// OpenCloseModal opens the close position modal
+func (a *App) OpenCloseModal() {
+	// Get selected row
+	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	
+	if row > 0 {
+		idx := row - 1
+		a.dataMutex.RLock()
+		if a.selectedIdx < len(a.accounts) {
+			accID := a.accounts[a.selectedIdx].ID
+			positions := a.positions[accID]
+			if idx >= 0 && idx < len(positions) {
+				pos := positions[idx]
+				// Parse values for display
+				qty, _ := strconv.ParseFloat(pos.Quantity, 64)
+				price, _ := strconv.ParseFloat(pos.CurrentPrice, 64)
+				pnl, _ := strconv.ParseFloat(pos.UnrealizedPnL, 64)
+				
+				a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
+				a.pages.ShowPage("close_modal")
+				a.app.SetFocus(a.closeModal.Form)
+			}
+		}
+		a.dataMutex.RUnlock()
+	}
 }
 
 // SetStatus updates the status bar message and type

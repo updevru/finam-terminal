@@ -75,14 +75,16 @@ func TestSubmitClosePosition_Success(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
 	mockClient := &MockAPIClient{
 		ClosePositionFunc: func(id string, sym string, curQty string, closeQty float64) (string, error) {
-			if sym != "SBER" { return "", fmt.Errorf("wrong symbol") }
+			// CRITICAL: Verify we receive the full symbol (Ticker@MIC)
+			if sym != "SBER@TQBR" { return "", fmt.Errorf("expected symbol 'SBER@TQBR', got '%s'", sym) }
 			if closeQty != 5 { return "", fmt.Errorf("wrong qty") }
 			return "cls1", nil
 		},
 	}
 	app := NewApp(mockClient, accounts)
 	app.selectedIdx = 0
-	app.positions["acc1"] = []models.Position{{Ticker: "SBER", Quantity: "10"}}
+	// Setup position with Ticker and full Symbol
+	app.positions["acc1"] = []models.Position{{Ticker: "SBER", Symbol: "SBER@TQBR", Quantity: "10"}}
 	
 	// Mock table selection
 	app.portfolioView.PositionsTable.Select(1, 0)
