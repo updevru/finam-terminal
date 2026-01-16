@@ -4,10 +4,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [~] Track: Fix MIC Resolution Logic
+## [x] Track: Fix MIC Resolution Logic
 *Link: [./conductor/tracks/fix_mic_resolution_20260116/](./conductor/tracks/fix_mic_resolution_20260116/)*
 
-## [~] Track: Fix 'Mic must not be empty' Error
+## [x] Track: Fix 'Mic must not be empty' Error
 *Link: [./conductor/tracks/fix_close_position_mic_20260116/](./conductor/tracks/fix_close_position_mic_20260116/)*
 
 ## [x] Track: Close Position Functionality
