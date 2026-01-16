@@ -115,13 +115,13 @@ func (m *ClosePositionModal) setupUI() {
 func (m *ClosePositionModal) SetPositionData(symbol string, quantity float64, price float64, pnl float64) {
 	m.symbolField.SetText(symbol)
 
-	// Default to absolute value for display (we always close with a positive qty, direction handled by API)
+	// Keep maxQuantity state but leave the field empty for user input as requested
 	absQty := quantity
 	if absQty < 0 {
 		absQty = -absQty
 	}
 
-	m.quantityField.SetText(strconv.FormatFloat(absQty, 'f', -1, 64))
+	m.quantityField.SetText("")
 	m.priceField.SetText(fmt.Sprintf("%.2f", price))
 	m.currentPrice = price
 	m.maxQuantity = absQty

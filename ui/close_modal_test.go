@@ -31,8 +31,8 @@ func TestClosePositionModal_SetPositionData(t *testing.T) {
 	if modal.GetSymbol() != "SBER" {
 		t.Errorf("Expected symbol SBER, got %s", modal.GetSymbol())
 	}
-	if modal.GetQuantity() != 100 {
-		t.Errorf("Expected quantity 100, got %f", modal.GetQuantity())
+	if modal.GetQuantity() != 0 {
+		t.Errorf("Expected quantity 0 (empty field), got %f", modal.GetQuantity())
 	}
 }
 
@@ -78,10 +78,11 @@ func TestClosePositionModal_ValidateBehavior(t *testing.T) {
 	// Setup
 	modal := NewClosePositionModal(nil, nil, nil, nil)
 	modal.SetPositionData("TEST", 100.0, 10.0, 50.0)
+	modal.quantityField.SetText("100")
 
 	// Case 1: Default Valid
 	if !modal.Validate() {
-		t.Error("Default position data should be valid")
+		t.Error("Position data with 100 quantity should be valid")
 	}
 
 	// Case 2: Zero Quantity
