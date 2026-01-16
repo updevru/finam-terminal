@@ -92,6 +92,7 @@ func (c *Client) loadAssetCache() error {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
+	// Use empty request to get all assets (subject to API limits)
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get assets: %w", err)
@@ -110,14 +111,43 @@ func (c *Client) loadAssetCache() error {
 
 // getFullSymbol converts a ticker to full symbol with MIC
 func (c *Client) getFullSymbol(ticker string) string {
+	// First check local cache
 	c.assetMutex.RLock()
-	defer c.assetMutex.RUnlock()
-
 	if strings.Contains(ticker, "@") {
+		c.assetMutex.RUnlock()
 		return ticker
 	}
-
 	if fullSymbol, ok := c.assetMicCache[ticker]; ok {
+		c.assetMutex.RUnlock()
+		return fullSymbol
+	}
+	c.assetMutex.RUnlock()
+	
+	// Fallback: Fetch specific asset from API
+	log.Printf("[DEBUG] Cache miss for ticker: %s. Fetching from API...", ticker)
+	
+	ctx, cancel := c.getContext()
+	defer cancel()
+	
+	// We assume GetAsset exists and takes {AssetId} or {Symbol}?
+	// Previous compile check passed with {Symbol: "FXRL"}.
+	// But "Symbol" in proto might mean the ID or the Ticker?
+	// Let's try Ticker first, or if the field is named Symbol but expects a ticker.
+	// If the field is named Symbol, we pass the ticker.
+	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{Symbol: ticker})
+	if err != nil {
+		log.Printf("[WARN] Failed to fetch asset %s: %v", ticker, err)
+		return ticker // Return original if failed
+	}
+	
+	if resp.Ticker != "" && resp.Board != "" {
+		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
+		
+		c.assetMutex.Lock()
+		c.assetMicCache[ticker] = fullSymbol
+		c.assetMutex.Unlock()
+		
+		log.Printf("[DEBUG] Resolved %s via API: %s", ticker, fullSymbol)
 		return fullSymbol
 	}
 
