@@ -24,4 +24,4 @@
     - [x] Sub-task: Call API client
     - [x] Sub-task: Show success/error feedback
     - [x] Sub-task: Trigger data refresh on success
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Main UI Integration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Main UI Integration' (Protocol in workflow.md) 4726de6
