@@ -41,7 +41,7 @@ func setupInputHandlers(app *App) {
 			switchAccount(app.selectedIdx - 1)
 			return nil
 		case tcell.KeyEnter:
-			refresh()
+			// Ignore Enter key to prevent freezing issues and accidental refreshes
 			return nil
 		}
 		switch event.Rune() {
