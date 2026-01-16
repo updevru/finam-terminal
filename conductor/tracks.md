@@ -26,3 +26,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Improve Quantity Input in Modals
 *Link: [./conductor/tracks/improve_qty_input_20260116/](./conductor/tracks/improve_qty_input_20260116/)*
+
+---
+
+## [x] Track: Fix SBER Quantity Parsing
+*Link: [./conductor/tracks/fix_sber_close_qty_20260116/](./conductor/tracks/fix_sber_close_qty_20260116/)*
