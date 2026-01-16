@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,11 +17,12 @@ type ClosePositionModal struct {
 	app      *tview.Application
 	callback func(float64)
 	onCancel func()
+	onError  func(string)
 
 	// Fields
-	symbolField    *tview.InputField // Read-only
-	quantityField  *tview.InputField
-	priceField     *tview.InputField // Read-only
+	symbolField   *tview.InputField // Read-only
+	quantityField *tview.InputField
+	priceField    *tview.InputField // Read-only
 
 	// State
 	currentPrice float64
@@ -28,7 +30,7 @@ type ClosePositionModal struct {
 }
 
 // NewClosePositionModal creates a new close position modal
-func NewClosePositionModal(app *tview.Application, callback func(float64), onCancel func()) *ClosePositionModal {
+func NewClosePositionModal(app *tview.Application, callback func(float64), onCancel func(), onError func(string)) *ClosePositionModal {
 	m := &ClosePositionModal{
 		Layout:   tview.NewFlex(),
 		Form:     tview.NewForm(),
@@ -36,6 +38,7 @@ func NewClosePositionModal(app *tview.Application, callback func(float64), onCan
 		app:      app,
 		callback: callback,
 		onCancel: onCancel,
+		onError:  onError,
 	}
 	m.setupUI()
 	return m
@@ -49,7 +52,7 @@ func (m *ClosePositionModal) setupUI() {
 
 	m.Form.SetBorder(false)
 	m.Form.SetBackgroundColor(tcell.ColorBlack)
-	
+
 	// Styling
 	m.Form.SetButtonBackgroundColor(tcell.ColorDarkRed).
 		SetButtonTextColor(tcell.ColorWhite).
@@ -63,12 +66,11 @@ func (m *ClosePositionModal) setupUI() {
 		SetFieldWidth(20).
 		SetFieldBackgroundColor(tcell.ColorDarkGray).
 		SetFieldTextColor(tcell.ColorWhite)
-	
+
 	// Quantity
 	m.quantityField = tview.NewInputField().
 		SetLabel("Quantity:     ").
-		SetFieldWidth(20).
-		SetAcceptanceFunc(tview.InputFieldInteger)
+		SetFieldWidth(20)
 
 	// Last Price (Read-only)
 	m.priceField = tview.NewInputField().
@@ -85,6 +87,10 @@ func (m *ClosePositionModal) setupUI() {
 		if m.Validate() {
 			if m.callback != nil {
 				m.callback(m.GetQuantity())
+			}
+		} else {
+			if m.onError != nil {
+				m.onError(fmt.Sprintf("Invalid quantity. Must be > 0 and <= %v", m.maxQuantity))
 			}
 		}
 	})
@@ -108,13 +114,13 @@ func (m *ClosePositionModal) setupUI() {
 // SetPositionData populates the modal with position details
 func (m *ClosePositionModal) SetPositionData(symbol string, quantity float64, price float64, pnl float64) {
 	m.symbolField.SetText(symbol)
-	
+
 	// Default to absolute value for display (we always close with a positive qty, direction handled by API)
 	absQty := quantity
 	if absQty < 0 {
 		absQty = -absQty
 	}
-	
+
 	m.quantityField.SetText(strconv.FormatFloat(absQty, 'f', -1, 64))
 	m.priceField.SetText(fmt.Sprintf("%.2f", price))
 	m.currentPrice = price
@@ -126,7 +132,8 @@ func (m *ClosePositionModal) GetSymbol() string {
 }
 
 func (m *ClosePositionModal) GetQuantity() float64 {
-	val, err := strconv.ParseFloat(m.quantityField.GetText(), 64)
+	// Allow comma in user input
+	val, err := strconv.ParseFloat(strings.ReplaceAll(m.quantityField.GetText(), ",", "."), 64)
 	if err != nil {
 		return 0
 	}

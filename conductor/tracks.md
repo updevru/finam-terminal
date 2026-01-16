@@ -11,3 +11,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ## [x] Track: Fix Close Position Button Inactivity
 *Link: [./conductor/tracks/fix_close_position_bug_20260116/](./conductor/tracks/fix_close_position_bug_20260116/)*
+
+---
+
+## [x] Track: Fix Zero Max Quantity in Close Modal
+*Link: [./conductor/tracks/fix_zero_max_qty_20260116/](./conductor/tracks/fix_zero_max_qty_20260116/)*

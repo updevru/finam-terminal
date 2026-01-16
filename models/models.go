@@ -2,6 +2,7 @@ package models
 
 import (
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -32,7 +33,7 @@ type Position struct {
 // Returns "Sell" for Long positions (>0), "Buy" for Short positions (<0),
 // and empty string for zero or invalid positions.
 func (p Position) GetCloseDirection() string {
-	val, err := strconv.ParseFloat(p.Quantity, 64)
+	val, err := strconv.ParseFloat(strings.ReplaceAll(p.Quantity, ",", "."), 64)
 	if err != nil || val == 0 {
 		return ""
 	}

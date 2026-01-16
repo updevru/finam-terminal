@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -106,6 +105,8 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		}
 	}, func() {
 		a.CloseCloseModal()
+	}, func(msg string) {
+		a.ShowError(msg)
 	})
 
 	return a
@@ -337,9 +338,18 @@ func (a *App) OpenCloseModal() {
 			if idx >= 0 && idx < len(positions) {
 				pos := positions[idx]
 				// Parse values for display
-				qty, _ := strconv.ParseFloat(pos.Quantity, 64)
-				price, _ := strconv.ParseFloat(pos.CurrentPrice, 64)
-				pnl, _ := strconv.ParseFloat(pos.UnrealizedPnL, 64)
+				qty, err := parseFloat(pos.Quantity)
+				if err != nil {
+					a.ShowError(fmt.Sprintf("Invalid quantity format '%s' for %s", pos.Quantity, pos.Ticker))
+					return
+				}
+				if qty <= 0 {
+					a.ShowError(fmt.Sprintf("Position %s has non-positive quantity: %s", pos.Ticker, pos.Quantity))
+					return
+				}
+
+				price, _ := parseFloat(pos.CurrentPrice)
+				pnl, _ := parseFloat(pos.UnrealizedPnL)
 				
 				a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
 				a.pages.ShowPage("close_modal")

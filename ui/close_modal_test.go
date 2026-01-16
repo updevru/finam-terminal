@@ -8,7 +8,7 @@ import (
 
 func TestClosePositionModal_Initialization(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewClosePositionModal(app, nil, nil)
+	modal := NewClosePositionModal(app, nil, nil, nil)
 
 	if modal == nil {
 		t.Fatal("NewClosePositionModal returned nil")
@@ -24,7 +24,7 @@ func TestClosePositionModal_Initialization(t *testing.T) {
 
 func TestClosePositionModal_SetPositionData(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewClosePositionModal(app, nil, nil)
+	modal := NewClosePositionModal(app, nil, nil, nil)
 
 	modal.SetPositionData("SBER", 100, 250.5, 500.0)
 
@@ -38,7 +38,7 @@ func TestClosePositionModal_SetPositionData(t *testing.T) {
 
 func TestClosePositionModal_Validation(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewClosePositionModal(app, nil, nil)
+	modal := NewClosePositionModal(app, nil, nil, nil)
 	
 	// Set data: 100 shares
 	modal.SetPositionData("SBER", 100, 250.0, 1000.0)
@@ -71,5 +71,42 @@ func TestClosePositionModal_Validation(t *testing.T) {
 	modal.quantityField.SetText("101")
 	if modal.Validate() {
 		t.Error("Expected validation to fail for exceeding max quantity (101/100)")
+	}
+}
+
+func TestClosePositionModal_ValidateBehavior(t *testing.T) {
+	// Setup
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+	modal.SetPositionData("TEST", 100.0, 10.0, 50.0)
+
+	// Case 1: Default Valid
+	if !modal.Validate() {
+		t.Error("Default position data should be valid")
+	}
+
+	// Case 2: Zero Quantity
+	modal.quantityField.SetText("0")
+	if modal.Validate() {
+		t.Error("Zero quantity should be invalid")
+	}
+
+	// Case 3: Negative Quantity
+	modal.quantityField.SetText("-10")
+	if modal.Validate() {
+		t.Error("Negative quantity should be invalid")
+	}
+
+	// Case 4: Exceeds Max
+	modal.quantityField.SetText("101")
+	if modal.Validate() {
+		t.Error("Quantity > Max should be invalid")
+	}
+
+	// Case 5: Float Quantity (should be valid in logic, even if UI blocks it)
+	// We want to verify that the validation logic ITSELF supports floats.
+	modal.SetPositionData("TEST", 1.5, 10.0, 50.0)
+	modal.quantityField.SetText("1.5")
+	if !modal.Validate() {
+		t.Error("Float quantity 1.5 should be valid (Max 1.5)")
 	}
 }

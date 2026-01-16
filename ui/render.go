@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -21,7 +20,7 @@ func updateAccountList(app *App) {
 
 	for i, acc := range app.accounts {
 		equity := acc.Equity
-		if val, err := strconv.ParseFloat(equity, 64); err == nil {
+		if val, err := parseFloat(equity); err == nil {
 			equity = fmt.Sprintf("%.2f", val)
 		}
 
@@ -69,15 +68,15 @@ func updatePositionsTable(app *App) {
 
 		totalValue := "N/A"
 		if quote != nil && quote.Last != "N/A" {
-			qty, _ := strconv.ParseFloat(p.Quantity, 64)
-			lastPrice, _ := strconv.ParseFloat(quote.Last, 64)
+			qty, _ := parseFloat(p.Quantity)
+			lastPrice, _ := parseFloat(quote.Last)
 			totalValue = fmt.Sprintf("%.2f", qty*lastPrice)
 		}
 
 		dailyPnL := p.DailyPnL
 		var dailyColor tcell.Color = tcell.ColorWhite
 		if dailyPnL != "N/A" {
-			if val, err := strconv.ParseFloat(dailyPnL, 64); err == nil {
+			if val, err := parseFloat(dailyPnL); err == nil {
 				if val > 0 {
 					dailyPnL = "+" + dailyPnL
 					dailyColor = tcell.ColorGreen
@@ -90,7 +89,7 @@ func updatePositionsTable(app *App) {
 		unrealizedPnL := p.UnrealizedPnL
 		var unrealColor tcell.Color = tcell.ColorWhite
 		if unrealizedPnL != "N/A" {
-			if val, err := strconv.ParseFloat(unrealizedPnL, 64); err == nil {
+			if val, err := parseFloat(unrealizedPnL); err == nil {
 				if val > 0 {
 					unrealizedPnL = "+" + unrealizedPnL
 					unrealColor = tcell.ColorGreen
@@ -139,12 +138,12 @@ func updateInfoPanel(app *App) {
 	var totalPnL float64
 
 	for _, p := range pos {
-		if qty, err := strconv.ParseFloat(p.Quantity, 64); err == nil {
-			if price, err := strconv.ParseFloat(p.CurrentPrice, 64); err == nil {
+		if qty, err := parseFloat(p.Quantity); err == nil {
+			if price, err := parseFloat(p.CurrentPrice); err == nil {
 				totalValue += qty * price
 			}
 		}
-		if val, err := strconv.ParseFloat(p.DailyPnL, 64); err == nil {
+		if val, err := parseFloat(p.DailyPnL); err == nil {
 			totalPnL += val
 		}
 	}
