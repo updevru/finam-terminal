@@ -31,7 +31,7 @@ go run main.go
 ## Установка
 
 ### Готовые бинарные файлы
-Вы можете скачать скомпилированные файлы для вашей операционной системы со страницы [Releases](https://github.com/webcon/finam-trade-test/releases):
+Вы можете скачать скомпилированные файлы для вашей операционной системы со страницы [Releases](https://github.com/updevru/finam-terminal/releases):
 - **Windows** (amd64)
 - **Linux** (amd64)
 - **macOS** (Intel & Apple Silicon)
@@ -42,8 +42,8 @@ go run main.go
 Приложение доступно в GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/webcon/finam-trade-test:latest
-docker run -it --rm ghcr.io/webcon/finam-trade-test:latest
+docker pull ghcr.io/updevru/finam-terminal:latest
+docker run -it --rm ghcr.io/updevru/finam-terminal:latest
 ```
 
 ### Сборка из исходного кода
