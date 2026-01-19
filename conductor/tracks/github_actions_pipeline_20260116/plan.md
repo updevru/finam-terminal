@@ -26,7 +26,7 @@ This plan outlines the steps to automate testing, linting, building, and distrib
     - [ ] Create a dummy tag and verify that binaries are correctly built and attached to the release.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Build & Release Automation' (Protocol in workflow.md)
 
-## Phase 3: Dockerization
+## Phase 3: Dockerization [checkpoint: cc50863]
 - [x] Task: Create `Dockerfile`
     - [x] Create a multi-stage `Dockerfile` to build the Go application and create a minimal runtime image.
     - [ ] Verify the Docker image builds and runs correctly locally. (Skipped: Docker not available locally)
