@@ -20,7 +20,7 @@ This plan implements a background process to refresh the Finam API JWT token bef
 - [x] Task: Conductor - User Manual Verification 'Background Refresh Implementation' (Protocol in workflow.md) [commit: 5e3201d]
 
 ## Phase 3: Robustness & Logging
-- [ ] Task: Add retries and observability
+- [x] Task: Add retries and observability [commit: fabe2f1]
     - [ ] Implement a simple retry mechanism (e.g., 30s delay) if `authenticate` fails within the refresh loop.
     - [ ] Add `[INFO]` logging for successful refreshes and `[ERROR]` logging for failures.
     - [ ] Update `lastRefresh` timestamp on every success.
