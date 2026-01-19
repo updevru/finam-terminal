@@ -37,9 +37,9 @@ This plan outlines the steps to automate testing, linting, building, and distrib
     - [ ] Pull the image from `ghcr.io` and verify it runs as expected.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Dockerization' (Protocol in workflow.md)
 
-## Phase 4: Documentation
-- [ ] Task: Update `README.md` with Installation instructions
-    - [ ] Add a "Installation" section.
-    - [ ] Provide clear, step-by-step instructions for Windows, Linux, and macOS (downloading binaries from releases).
-    - [ ] Add a subsection for Docker usage (pulling and running the image).
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Documentation' (Protocol in workflow.md)
+## Phase 4: Documentation [checkpoint: 5a7702d]
+- [x] Task: Update `README.md` with Installation instructions
+    - [x] Add a "Installation" section.
+    - [x] Provide clear, step-by-step instructions for Windows, Linux, and macOS (downloading binaries from releases).
+    - [x] Add a subsection for Docker usage (pulling and running the image).
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Documentation' (Protocol in workflow.md) [commit: 5a7702d]
