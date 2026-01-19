@@ -4,10 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [x] **Track: GitHub Actions CI/CD Pipeline & Documentation**
-*Link: [./tracks/github_actions_pipeline_20260116/](./tracks/github_actions_pipeline_20260116/)*
-
----
-
 - [ ] **Track: Proactive token refresh to prevent expiration error**
 *Link: [./tracks/proactive_token_refresh_20260119/](./tracks/proactive_token_refresh_20260119/)*
