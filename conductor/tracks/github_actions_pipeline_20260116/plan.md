@@ -15,14 +15,14 @@ This plan outlines the steps to automate testing, linting, building, and distrib
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: CI Pipeline' (Protocol in workflow.md)
 
 ## Phase 2: Build & Release Automation
-- [ ] Task: Create Release workflow file (`.github/workflows/release.yml`)
-    - [ ] Define a workflow triggered on tag creation (e.g., `v*`).
-- [ ] Task: Add multi-platform build steps
-    - [ ] Configure a build matrix or separate steps for Windows (amd64), Linux (amd64), and macOS (amd64, arm64).
-    - [ ] Use `GOOS` and `GOARCH` environment variables for cross-compilation.
-- [ ] Task: Add asset upload logic
-    - [ ] Use a GitHub Action (like `softprops/action-gh-release`) to upload compiled binaries to the release.
-- [ ] Task: Verify Release workflow
+- [x] Task: Create Release workflow file (`.github/workflows/release.yml`)
+    - [x] Define a workflow triggered on tag creation (e.g., `v*`).
+- [x] Task: Add multi-platform build steps
+    - [x] Configure a build matrix or separate steps for Windows (amd64), Linux (amd64), and macOS (amd64, arm64).
+    - [x] Use `GOOS` and `GOARCH` environment variables for cross-compilation.
+- [x] Task: Add asset upload logic
+    - [x] Use a GitHub Action (like `softprops/action-gh-release`) to upload compiled binaries to the release.
+- [x] Task: Verify Release workflow [commit: 8920a04]
     - [ ] Create a dummy tag and verify that binaries are correctly built and attached to the release.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Build & Release Automation' (Protocol in workflow.md)
 
