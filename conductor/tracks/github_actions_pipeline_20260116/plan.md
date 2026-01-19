@@ -2,7 +2,7 @@
 
 This plan outlines the steps to automate testing, linting, building, and distribution of the `finam-terminal` application, along with updating documentation for all supported platforms.
 
-## Phase 1: CI Pipeline (Tests & Linting)
+## Phase 1: CI Pipeline (Tests & Linting) [checkpoint: 2dd4f49]
 - [x] Task: Configure `golangci-lint` locally [commit: c1896e3]
     - [x] Create or update `.golangci.yml` with project-specific linting rules.
     - [x] Run `golangci-lint run` locally and fix any existing linting issues to ensure a clean baseline.
