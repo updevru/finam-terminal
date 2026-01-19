@@ -14,7 +14,7 @@ This plan outlines the steps to automate testing, linting, building, and distrib
     - [x] Push changes to a branch and verify the workflow triggers and passes in GitHub.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: CI Pipeline' (Protocol in workflow.md)
 
-## Phase 2: Build & Release Automation
+## Phase 2: Build & Release Automation [checkpoint: b3aa8d6]
 - [x] Task: Create Release workflow file (`.github/workflows/release.yml`)
     - [x] Define a workflow triggered on tag creation (e.g., `v*`).
 - [x] Task: Add multi-platform build steps
