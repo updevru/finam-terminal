@@ -30,7 +30,24 @@ go run main.go
 
 ## Установка
 
-Для сборки из исходного кода требуется Go 1.24+.
+### Готовые бинарные файлы
+Вы можете скачать скомпилированные файлы для вашей операционной системы со страницы [Releases](https://github.com/webcon/finam-trade-test/releases):
+- **Windows** (amd64)
+- **Linux** (amd64)
+- **macOS** (Intel & Apple Silicon)
+
+Просто скачайте файл, переименуйте его в `finam-terminal` (если нужно) и запустите в терминале.
+
+### С помощью Docker
+Приложение доступно в GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/webcon/finam-trade-test:latest
+docker run -it --rm ghcr.io/webcon/finam-trade-test:latest
+```
+
+### Сборка из исходного кода
+Требуется Go 1.24+.
 
 ```bash
 # Установка зависимостей
