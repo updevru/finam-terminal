@@ -19,10 +19,10 @@ This plan implements a background process to refresh the Finam API JWT token bef
     - [ ] Make tests pass by verifying the authentication call is made before expiry.
 - [x] Task: Conductor - User Manual Verification 'Background Refresh Implementation' (Protocol in workflow.md) [commit: 5e3201d]
 
-## Phase 3: Robustness & Logging
+## Phase 3: Robustness & Logging [checkpoint: 36254f6]
 - [x] Task: Add retries and observability [commit: fabe2f1]
     - [ ] Implement a simple retry mechanism (e.g., 30s delay) if `authenticate` fails within the refresh loop.
     - [ ] Add `[INFO]` logging for successful refreshes and `[ERROR]` logging for failures.
     - [ ] Update `lastRefresh` timestamp on every success.
     - [ ] Verify unit test coverage for `api` package remains >80%.
-- [ ] Task: Conductor - User Manual Verification 'Robustness & Logging' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Robustness & Logging' (Protocol in workflow.md) [commit: e17d295]
