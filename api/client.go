@@ -79,6 +79,11 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
+	// Start background token refresh
+	refreshCtx, cancel := context.WithCancel(context.Background())
+	client.refreshCancel = cancel
+	go client.startTokenRefresh(refreshCtx)
+
 	// Load asset MIC cache
 	if err := client.loadAssetCache(); err != nil {
 		log.Printf("[WARN] Failed to load asset cache: %v", err)
@@ -92,7 +97,63 @@ func (c *Client) Close() error {
 	if c.refreshCancel != nil {
 		c.refreshCancel()
 	}
-	return c.conn.Close()
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
+// startTokenRefresh runs in a goroutine and proactively refreshes the token
+func (c *Client) startTokenRefresh(ctx context.Context) {
+	log.Printf("[INFO] Background token refresh process started")
+	for {
+		duration := c.getRefreshDuration()
+		log.Printf("[DEBUG] Next token refresh in %v", duration)
+
+		select {
+		case <-ctx.Done():
+			log.Printf("[INFO] Background token refresh process stopped")
+			return
+		case <-time.After(duration):
+			if err := c.authenticate(c.apiToken); err != nil {
+				log.Printf("[ERROR] Token refresh failed: %v. Retrying in 30s...", err)
+				// Retry after a short delay on failure
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(30 * time.Second):
+					continue
+				}
+			}
+			c.tokenMutex.Lock()
+			c.lastRefresh = time.Now()
+			c.tokenMutex.Unlock()
+			log.Printf("[INFO] Token refreshed successfully")
+		}
+	}
+}
+
+// getRefreshDuration calculates how long to wait before the next refresh
+func (c *Client) getRefreshDuration() time.Duration {
+	c.tokenMutex.RLock()
+	expiry := c.tokenExpiry
+	c.tokenMutex.RUnlock()
+
+	// Refresh 2 minutes before actual expiry
+	refreshAt := expiry.Add(-2 * time.Minute)
+	duration := time.Until(refreshAt)
+
+	// If already past refresh time or expiry is too soon, refresh in 1 second
+	if duration <= 0 {
+		return 1 * time.Second
+	}
+
+	// Fallback/Safety: If expiry is very far or missing, default to 10 minutes
+	if duration > 10*time.Hour || expiry.IsZero() {
+		return 10 * time.Minute
+	}
+
+	return duration
 }
 
 // getExpiryFromToken extracts the expiration time from a JWT token
@@ -208,9 +269,17 @@ func (c *Client) authenticate(apiToken string) error {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
+	// The original code had c.tokenExpiry = time.Now().Add(50 * time.Minute)
+	// This has been updated to parse expiry from the token.
+	expiry, err := c.getExpiryFromToken(resp.Token)
+	if err != nil {
+		log.Printf("[WARN] Could not parse expiry from token: %v. Using default 50m.", err)
+		expiry = time.Now().Add(50 * time.Minute)
+	}
+
 	c.tokenMutex.Lock()
 	c.token = resp.Token
-	c.tokenExpiry = time.Now().Add(50 * time.Minute)
+	c.tokenExpiry = expiry
 	c.tokenMutex.Unlock()
 
 	log.Println("[INFO] Authentication successful")

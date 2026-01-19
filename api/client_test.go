@@ -26,10 +26,15 @@ func (m *mockAccountsServiceClient) GetAccount(ctx context.Context, in *accounts
 type mockAuthServiceClient struct {
 	auth.AuthServiceClient
 	TokenDetailsFunc func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error)
+	AuthFunc         func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error)
 }
 
 func (m *mockAuthServiceClient) TokenDetails(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
 	return m.TokenDetailsFunc(ctx, in, opts...)
+}
+
+func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+	return m.AuthFunc(ctx, in, opts...)
 }
 
 // mockOrdersServiceClient is a manual mock for orders.OrdersServiceClient
