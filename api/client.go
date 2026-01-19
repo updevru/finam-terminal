@@ -3,8 +3,11 @@ package api
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,10 +19,12 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
+	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 )
 
 // Client is a client for the Finam Trade API
@@ -29,10 +34,16 @@ type Client struct {
 	accountsClient   accounts.AccountsServiceClient
 	marketDataClient marketdata.MarketDataServiceClient
 	assetsClient     assets.AssetsServiceClient
+	ordersClient     orders.OrdersServiceClient
 
 	token       string
 	tokenExpiry time.Time
 	tokenMutex  sync.RWMutex
+
+	// New fields for auto-refresh
+	apiToken      string
+	lastRefresh   time.Time
+	refreshCancel context.CancelFunc
 
 	// Cache for instrument MIC codes
 	assetMicCache map[string]string // ticker -> symbol@mic
@@ -43,11 +54,7 @@ type Client struct {
 func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 	tlsConfig := tls.Config{MinVersion: tls.VersionTLS12}
 
-	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer connCancel()
-
-	conn, err := grpc.DialContext(
-		connCtx,
+	conn, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)),
 	)
@@ -61,14 +68,21 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		accountsClient:   accounts.NewAccountsServiceClient(conn),
 		marketDataClient: marketdata.NewMarketDataServiceClient(conn),
 		assetsClient:     assets.NewAssetsServiceClient(conn),
+		ordersClient:     orders.NewOrdersServiceClient(conn),
+		apiToken:         apiToken,
 		assetMicCache:    make(map[string]string),
 	}
 
 	// Authenticate
 	if err := client.authenticate(apiToken); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
+
+	// Start background token refresh
+	refreshCtx, cancel := context.WithCancel(context.Background())
+	client.refreshCancel = cancel
+	go client.startTokenRefresh(refreshCtx)
 
 	// Load asset MIC cache
 	if err := client.loadAssetCache(); err != nil {
@@ -80,14 +94,111 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 
 // Close closes the gRPC connection
 func (c *Client) Close() error {
-	return c.conn.Close()
+	if c.refreshCancel != nil {
+		c.refreshCancel()
+	}
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
+}
+
+// startTokenRefresh runs in a goroutine and proactively refreshes the token
+func (c *Client) startTokenRefresh(ctx context.Context) {
+	log.Printf("[INFO] Background token refresh process started")
+	for {
+		duration := c.getRefreshDuration()
+		log.Printf("[DEBUG] Next token refresh in %v", duration)
+
+		select {
+		case <-ctx.Done():
+			log.Printf("[INFO] Background token refresh process stopped")
+			return
+		case <-time.After(duration):
+			if err := c.authenticate(c.apiToken); err != nil {
+				log.Printf("[ERROR] Token refresh failed: %v. Retrying in 30s...", err)
+				// Retry after a short delay on failure
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(30 * time.Second):
+					continue
+				}
+			}
+			c.tokenMutex.Lock()
+			c.lastRefresh = time.Now()
+			c.tokenMutex.Unlock()
+			log.Printf("[INFO] Token refreshed successfully")
+		}
+	}
+}
+
+// getRefreshDuration calculates how long to wait before the next refresh
+func (c *Client) getRefreshDuration() time.Duration {
+	c.tokenMutex.RLock()
+	expiry := c.tokenExpiry
+	c.tokenMutex.RUnlock()
+
+	// Refresh 2 minutes before actual expiry
+	refreshAt := expiry.Add(-2 * time.Minute)
+	duration := time.Until(refreshAt)
+
+	// If already past refresh time or expiry is too soon, refresh in 1 second
+	if duration <= 0 {
+		return 1 * time.Second
+	}
+
+	// Fallback/Safety: If expiry is very far or missing, default to 10 minutes
+	if duration > 10*time.Hour || expiry.IsZero() {
+		return 10 * time.Minute
+	}
+
+	return duration
+}
+
+// getExpiryFromToken extracts the expiration time from a JWT token
+func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid token format")
+	}
+
+	payload := parts[1]
+	// Add padding if needed (JWTs are raw url encoded, but robustness helps)
+	if l := len(payload) % 4; l > 0 {
+		payload += strings.Repeat("=", 4-l)
+	}
+	
+	data, err := base64.RawURLEncoding.DecodeString(parts[1]) // Try RawURLEncoding first (standard)
+	if err != nil {
+		// Fallback to standard URL encoding if raw fails
+		data, err = base64.URLEncoding.DecodeString(payload)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed to decode payload: %w", err)
+		}
+	}
+
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+
+	if err := json.Unmarshal(data, &claims); err != nil {
+		return time.Time{}, fmt.Errorf("failed to unmarshal claims: %w", err)
+	}
+
+	if claims.Exp == 0 {
+		return time.Time{}, fmt.Errorf("exp claim missing")
+	}
+
+	return time.Unix(claims.Exp, 0), nil
 }
 
 // loadAssetCache loads all available instruments and their MIC codes
 func (c *Client) loadAssetCache() error {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := c.getContext()
 	defer cancel()
 
+	// Use empty request to get all assets (subject to API limits)
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
 		return fmt.Errorf("failed to get assets: %w", err)
@@ -105,15 +216,43 @@ func (c *Client) loadAssetCache() error {
 }
 
 // getFullSymbol converts a ticker to full symbol with MIC
-func (c *Client) getFullSymbol(ticker string) string {
+func (c *Client) getFullSymbol(ticker string, accountID string) string {
+	// First check local cache
 	c.assetMutex.RLock()
-	defer c.assetMutex.RUnlock()
-
 	if strings.Contains(ticker, "@") {
+		c.assetMutex.RUnlock()
 		return ticker
 	}
-
 	if fullSymbol, ok := c.assetMicCache[ticker]; ok {
+		c.assetMutex.RUnlock()
+		return fullSymbol
+	}
+	c.assetMutex.RUnlock()
+
+	// Fallback: Fetch specific asset from API
+	log.Printf("[DEBUG] Cache miss for ticker: %s. Fetching from API...", ticker)
+
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	// Pass AccountId to GetAssetRequest
+	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
+		Symbol:    ticker,
+		AccountId: accountID,
+	})
+	if err != nil {
+		log.Printf("[WARN] Failed to fetch asset %s: %v", ticker, err)
+		return ticker // Return original if failed
+	}
+
+	if resp.Ticker != "" && resp.Board != "" {
+		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
+
+		c.assetMutex.Lock()
+		c.assetMicCache[ticker] = fullSymbol
+		c.assetMutex.Unlock()
+
+		log.Printf("[DEBUG] Resolved %s via API: %s", ticker, fullSymbol)
 		return fullSymbol
 	}
 
@@ -130,9 +269,17 @@ func (c *Client) authenticate(apiToken string) error {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
+	// The original code had c.tokenExpiry = time.Now().Add(50 * time.Minute)
+	// This has been updated to parse expiry from the token.
+	expiry, err := c.getExpiryFromToken(resp.Token)
+	if err != nil {
+		log.Printf("[WARN] Could not parse expiry from token: %v. Using default 50m.", err)
+		expiry = time.Now().Add(50 * time.Minute)
+	}
+
 	c.tokenMutex.Lock()
 	c.token = resp.Token
-	c.tokenExpiry = time.Now().Add(50 * time.Minute)
+	c.tokenExpiry = expiry
 	c.tokenMutex.Unlock()
 
 	log.Println("[INFO] Authentication successful")
@@ -147,6 +294,54 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", c.token)
 	return ctx, cancel
+}
+
+// PlaceOrder places a new order
+func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+	log.Printf("[DEBUG] PlaceOrder: input='%s', resolved='%s'", symbol, fullSymbol)
+
+	var side tradeapiv1.Side
+	switch strings.ToLower(buySell) {
+	case "buy":
+		side = tradeapiv1.Side_SIDE_BUY
+	case "sell":
+		side = tradeapiv1.Side_SIDE_SELL
+	default:
+		return "", fmt.Errorf("invalid direction: %s", buySell)
+	}
+
+	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", quantity)}
+
+	req := &orders.Order{
+		AccountId: accountID,
+		Symbol:    fullSymbol,
+		Quantity:  qtyDecimal,
+		Side:      side,
+		Type:      orders.OrderType_ORDER_TYPE_MARKET,
+	}
+
+	resp, err := c.ordersClient.PlaceOrder(ctx, req)
+	if err != nil {
+		return "", fmt.Errorf("failed to place order: %w", err)
+	}
+
+	return resp.OrderId, nil
+}
+
+// ClosePosition closes (fully or partially) an existing position
+func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
+	// Determine direction
+	pos := models.Position{Quantity: currentQuantity}
+	dir := pos.GetCloseDirection()
+	if dir == "" {
+		return "", fmt.Errorf("could not determine close direction for quantity %s", currentQuantity)
+	}
+
+	return c.PlaceOrder(accountID, symbol, dir, closeQuantity)
 }
 
 // GetAccounts returns a list of all accounts
@@ -218,7 +413,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 	var positions []models.Position
 	for _, pos := range accountResp.Positions {
 		ticker := pos.Symbol
-		fullSymbol := c.getFullSymbol(ticker)
+		fullSymbol := c.getFullSymbol(ticker, accountID)
 
 		mic := ""
 		if strings.Contains(fullSymbol, "@") {
@@ -238,6 +433,11 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 			UnrealizedPnL: formatDecimal(pos.UnrealizedPnl),
 		}
 
+		// Filter out zero positions (historical or closed)
+		if qtyVal, err := strconv.ParseFloat(position.Quantity, 64); err == nil && qtyVal == 0 {
+			continue
+		}
+
 		positions = append(positions, position)
 	}
 
@@ -245,13 +445,13 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 }
 
 // GetQuotes returns quotes for multiple symbols
-func (c *Client) GetQuotes(symbols []string) (map[string]*models.Quote, error) {
+func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
 	quotes := make(map[string]*models.Quote)
 	for _, symbol := range symbols {
-		fullSymbol := c.getFullSymbol(symbol)
+		fullSymbol := c.getFullSymbol(symbol, accountID)
 		if !strings.Contains(fullSymbol, "@") {
 			continue
 		}

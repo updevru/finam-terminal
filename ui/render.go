@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -21,7 +20,7 @@ func updateAccountList(app *App) {
 
 	for i, acc := range app.accounts {
 		equity := acc.Equity
-		if val, err := strconv.ParseFloat(equity, 64); err == nil {
+		if val, err := parseFloat(equity); err == nil {
 			equity = fmt.Sprintf("%.2f", val)
 		}
 
@@ -69,15 +68,15 @@ func updatePositionsTable(app *App) {
 
 		totalValue := "N/A"
 		if quote != nil && quote.Last != "N/A" {
-			qty, _ := strconv.ParseFloat(p.Quantity, 64)
-			lastPrice, _ := strconv.ParseFloat(quote.Last, 64)
+			qty, _ := parseFloat(p.Quantity)
+			lastPrice, _ := parseFloat(quote.Last)
 			totalValue = fmt.Sprintf("%.2f", qty*lastPrice)
 		}
 
 		dailyPnL := p.DailyPnL
-		var dailyColor tcell.Color = tcell.ColorWhite
+		dailyColor := tcell.ColorWhite
 		if dailyPnL != "N/A" {
-			if val, err := strconv.ParseFloat(dailyPnL, 64); err == nil {
+			if val, err := parseFloat(dailyPnL); err == nil {
 				if val > 0 {
 					dailyPnL = "+" + dailyPnL
 					dailyColor = tcell.ColorGreen
@@ -88,9 +87,9 @@ func updatePositionsTable(app *App) {
 		}
 
 		unrealizedPnL := p.UnrealizedPnL
-		var unrealColor tcell.Color = tcell.ColorWhite
+		unrealColor := tcell.ColorWhite
 		if unrealizedPnL != "N/A" {
-			if val, err := strconv.ParseFloat(unrealizedPnL, 64); err == nil {
+			if val, err := parseFloat(unrealizedPnL); err == nil {
 				if val > 0 {
 					unrealizedPnL = "+" + unrealizedPnL
 					unrealColor = tcell.ColorGreen
@@ -139,19 +138,14 @@ func updateInfoPanel(app *App) {
 	var totalPnL float64
 
 	for _, p := range pos {
-		if qty, err := strconv.ParseFloat(p.Quantity, 64); err == nil {
-			if price, err := strconv.ParseFloat(p.CurrentPrice, 64); err == nil {
+		if qty, err := parseFloat(p.Quantity); err == nil {
+			if price, err := parseFloat(p.CurrentPrice); err == nil {
 				totalValue += qty * price
 			}
 		}
-		if val, err := strconv.ParseFloat(p.DailyPnL, 64); err == nil {
+		if val, err := parseFloat(p.DailyPnL); err == nil {
 			totalPnL += val
 		}
-	}
-
-	pnlStr := fmt.Sprintf("%+.2f", totalPnL)
-	if totalPnL >= 0 {
-		pnlStr = "+" + pnlStr
 	}
 
 	app.portfolioView.UpdateSummary(acc)
@@ -161,8 +155,18 @@ func updateInfoPanel(app *App) {
 func updateStatusBar(app *App) {
 	now := time.Now().Format("15:04:05")
 	app.dataMutex.RLock()
-	accountID := app.accounts[app.selectedIdx].ID
-	count := len(app.positions[accountID])
+	
+	var accountID string
+	var count int
+	
+	if app.selectedIdx >= 0 && app.selectedIdx < len(app.accounts) {
+		accountID = app.accounts[app.selectedIdx].ID
+		count = len(app.positions[accountID])
+	} else {
+		accountID = "N/A"
+		count = 0
+	}
+
 	statusMsg := app.statusMessage
 	statusType := app.statusType
 	app.dataMutex.RUnlock()
@@ -186,8 +190,14 @@ func updateStatusBar(app *App) {
 		statusText = " | " + statusText
 	}
 
+	shortcuts := "[yellow]F2[white] Refresh [yellow]q[white] Quit"
+	// Check if PositionsTable is focused
+	if app.app.GetFocus() == app.portfolioView.PositionsTable {
+		shortcuts += " | [yellow]A[white] New Order [yellow]C[white] Close Pos"
+	}
+
 	app.statusBar.SetDynamicColors(true)
 	// Use colors for keys: Yellow for keys, White for description.
-	app.statusBar.SetText(fmt.Sprintf(" [yellow]F2[white] Refresh [yellow]q[white] Quit | %s | Acc: %s | Pos: %d%s ",
-		now, maskAccountID(accountID), count, statusText))
+	app.statusBar.SetText(fmt.Sprintf(" %s | %s | Acc: %s | Pos: %d%s ",
+		shortcuts, now, maskAccountID(accountID), count, statusText))
 }

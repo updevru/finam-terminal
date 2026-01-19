@@ -6,6 +6,8 @@ import (
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 	"google.golang.org/genproto/googleapis/type/decimal"
 	"google.golang.org/grpc"
 )
@@ -24,10 +26,115 @@ func (m *mockAccountsServiceClient) GetAccount(ctx context.Context, in *accounts
 type mockAuthServiceClient struct {
 	auth.AuthServiceClient
 	TokenDetailsFunc func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error)
+	AuthFunc         func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error)
 }
 
 func (m *mockAuthServiceClient) TokenDetails(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
 	return m.TokenDetailsFunc(ctx, in, opts...)
+}
+
+func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+	return m.AuthFunc(ctx, in, opts...)
+}
+
+// mockOrdersServiceClient is a manual mock for orders.OrdersServiceClient
+type mockOrdersServiceClient struct {
+	orders.OrdersServiceClient
+	PlaceOrderFunc func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
+}
+
+func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+	return m.PlaceOrderFunc(ctx, in, opts...)
+}
+
+func TestPlaceOrder_Success(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.AccountId != "test-acc" {
+				return nil, grpc.ErrClientConnClosing // Just a dummy error
+			}
+			if in.Symbol != "SBER@TQBR" {
+				return nil, grpc.ErrClientConnClosing
+			}
+			if in.Side != tradeapiv1.Side_SIDE_BUY {
+				return nil, grpc.ErrClientConnClosing
+			}
+			if in.Quantity == nil || in.Quantity.Value != "10" {
+				return nil, grpc.ErrClientConnClosing
+			}
+
+			return &orders.OrderState{
+				OrderId: "12345",
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"SBER": "SBER@TQBR",
+		},
+	}
+
+	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if txID != "12345" {
+		t.Errorf("Expected TransactionID 12345, got %s", txID)
+	}
+}
+
+func TestPlaceOrder_Error(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			return nil, grpc.ErrClientConnClosing
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"SBER": "SBER@TQBR",
+		},
+	}
+
+	_, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10)
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+}
+
+func TestClosePosition_Success(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			// If we are closing a Long position (Quantity "10"), it should be a SELL
+			if in.Side != tradeapiv1.Side_SIDE_SELL {
+				return nil, grpc.ErrClientConnClosing
+			}
+			if in.Quantity.Value != "5" {
+				return nil, grpc.ErrClientConnClosing
+			}
+			return &orders.OrderState{OrderId: "999"}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"SBER": "SBER@TQBR",
+		},
+	}
+
+	// Long position
+	id, err := client.ClosePosition("test-acc", "SBER", "10", 5)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "999" {
+		t.Errorf("Expected OrderId 999, got %s", id)
+	}
 }
 
 func TestGetAccountDetails(t *testing.T) {

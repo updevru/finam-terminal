@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"strconv"
+	"strings"
+	"time"
+)
 
 // AccountInfo represents account information from Finam API
 type AccountInfo struct {
@@ -23,6 +27,20 @@ type Position struct {
 	DailyPnL      string
 	UnrealizedPnL string
 	TotalValue    string
+}
+
+// GetCloseDirection returns the inverse direction needed to close the position.
+// Returns "Sell" for Long positions (>0), "Buy" for Short positions (<0),
+// and empty string for zero or invalid positions.
+func (p Position) GetCloseDirection() string {
+	val, err := strconv.ParseFloat(strings.ReplaceAll(p.Quantity, ",", "."), 64)
+	if err != nil || val == 0 {
+		return ""
+	}
+	if val > 0 {
+		return "Sell"
+	}
+	return "Buy"
 }
 
 // Quote represents a market quote

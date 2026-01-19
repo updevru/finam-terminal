@@ -1,0 +1,6 @@
+{
+  "id": "improve_qty_input_20260116",
+  "type": "improvement",
+  "description": "Make quantity field empty by default in modals.",
+  "created": "2026-01-16T21:26:00Z"
+}

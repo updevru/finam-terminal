@@ -21,7 +21,13 @@ func setupInputHandlers(app *App) {
 		if idx >= 0 && idx < len(app.accounts) {
 			app.selectedIdx = idx
 			updateAccountList(app)
-			app.portfolioView.PositionsTable.Clear()
+			
+			// Update view immediately with cached data
+			updatePositionsTable(app)
+			updateInfoPanel(app)
+			updateStatusBar(app)
+
+			// Trigger fresh data load
 			app.loadDataAsync(app.accounts[idx].ID)
 		}
 	}
@@ -35,7 +41,7 @@ func setupInputHandlers(app *App) {
 			switchAccount(app.selectedIdx - 1)
 			return nil
 		case tcell.KeyEnter:
-			refresh()
+			// Ignore Enter key to prevent freezing issues and accidental refreshes
 			return nil
 		}
 		switch event.Rune() {
@@ -53,6 +59,7 @@ func setupInputHandlers(app *App) {
 		switch event.Key() {
 		case tcell.KeyTab:
 			app.app.SetFocus(app.portfolioView.AccountTable)
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyDown, tcell.KeyCtrlN:
 			row, _ := app.portfolioView.PositionsTable.GetSelection()
@@ -74,15 +81,40 @@ func setupInputHandlers(app *App) {
 		case 'r', 'R':
 			refresh()
 			return nil
+		case 'a', 'A':
+			app.OpenOrderModal()
+			return nil
+		case 'c', 'C':
+			app.OpenCloseModal()
+			return nil
 		}
 		return event
 	})
 
 	app.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// If modal is open, intercept specific keys
+		if app.IsModalOpen() {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseOrderModal()
+				return nil
+			}
+			return event
+		}
+		if app.IsCloseModalOpen() {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseCloseModal()
+				return nil
+			}
+			return event
+		}
+
 		switch event.Key() {
 		case tcell.KeyF1:
 			// Switch to PortfolioView (already there, but for consistency)
 			app.app.SetFocus(app.portfolioView.AccountTable)
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyF2, tcell.KeyCtrlR:
 			refresh()
@@ -96,6 +128,7 @@ func setupInputHandlers(app *App) {
 			} else {
 				app.app.SetFocus(app.portfolioView.AccountTable)
 			}
+			updateStatusBar(app)
 			return nil
 		case tcell.KeyLeft:
 			switchAccount(app.selectedIdx - 1)

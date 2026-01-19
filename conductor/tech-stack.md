@@ -18,3 +18,6 @@ To obtain up-to-date documentation use context7.
 ## Project Management
 - **Dependency Management:** Go Modules (`go.mod`, `go.sum`).
 - **Environment Management:** `.env` file for local development configuration.
+- **CI/CD:** GitHub Actions for automated testing, linting, and multi-platform releases.
+- **Code Quality:** `golangci-lint` for static analysis and linting.
+- **Distribution:** GitHub Container Registry (ghcr.io) for Docker images.

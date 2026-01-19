@@ -71,11 +71,11 @@ func (pv *PortfolioView) UpdateSummary(acc models.AccountInfo) {
 		pnl = fmt.Sprintf("%.2f", val)
 	}
 
-	fmt.Fprintf(pv.SummaryArea, " Account ID: %s\n", acc.ID)
-	fmt.Fprintf(pv.SummaryArea, " Type:       %s\n", acc.Type)
-	fmt.Fprintf(pv.SummaryArea, " Status:     %s\n", acc.Status)
-	fmt.Fprintf(pv.SummaryArea, " Equity:     %s\n", equity)
-	fmt.Fprintf(pv.SummaryArea, " Total PnL:  %s\n", pnl)
+	_, _ = fmt.Fprintf(pv.SummaryArea, " Account ID: %s\n", acc.ID)
+	_, _ = fmt.Fprintf(pv.SummaryArea, " Type:       %s\n", acc.Type)
+	_, _ = fmt.Fprintf(pv.SummaryArea, " Status:     %s\n", acc.Status)
+	_, _ = fmt.Fprintf(pv.SummaryArea, " Equity:     %s\n", equity)
+	_, _ = fmt.Fprintf(pv.SummaryArea, " Total PnL:  %s\n", pnl)
 }
 
 // UpdatePositions populates the positions table

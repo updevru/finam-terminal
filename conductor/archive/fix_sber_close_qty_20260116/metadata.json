@@ -1,0 +1,6 @@
+{
+  "id": "fix_sber_close_qty_20260116",
+  "type": "bugfix",
+  "description": "Fix parsing of quantity strings with spaces/separators (e.g., SBER).",
+  "created": "2026-01-16T21:35:00Z"
+}
