@@ -10,14 +10,14 @@ This plan implements a background process to refresh the Finam API JWT token bef
     - [ ] Ensure tests pass by correctly decoding the JWT payload.
 - [x] Task: Conductor - User Manual Verification 'Foundation & Data Structure Changes' (Protocol in workflow.md) [commit: 2c9783d]
 
-## Phase 2: Background Refresh Implementation
+## Phase 2: Background Refresh Implementation [checkpoint: f0b5f97]
 - [x] Task: Implement background refresh lifecycle [commit: 3d6be9e]
     - [ ] Write failing tests (or descriptive stubs) for the refresh loop triggering authentication.
     - [ ] Implement `startTokenRefresh(ctx context.Context)` method in `api/client.go` containing the `for` loop and `time.After`.
     - [ ] Update `NewClient` to initialize the refresh context and launch the goroutine.
     - [ ] Update `Close()` in `api/client.go` to invoke the `refreshCancel` function.
     - [ ] Make tests pass by verifying the authentication call is made before expiry.
-- [ ] Task: Conductor - User Manual Verification 'Background Refresh Implementation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Background Refresh Implementation' (Protocol in workflow.md) [commit: 5e3201d]
 
 ## Phase 3: Robustness & Logging
 - [ ] Task: Add retries and observability
