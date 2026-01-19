@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -17,12 +19,12 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 
+	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
-	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 )
 
 // Client is a client for the Finam Trade API
@@ -37,6 +39,11 @@ type Client struct {
 	token       string
 	tokenExpiry time.Time
 	tokenMutex  sync.RWMutex
+
+	// New fields for auto-refresh
+	apiToken      string
+	lastRefresh   time.Time
+	refreshCancel context.CancelFunc
 
 	// Cache for instrument MIC codes
 	assetMicCache map[string]string // ticker -> symbol@mic
@@ -62,6 +69,7 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		marketDataClient: marketdata.NewMarketDataServiceClient(conn),
 		assetsClient:     assets.NewAssetsServiceClient(conn),
 		ordersClient:     orders.NewOrdersServiceClient(conn),
+		apiToken:         apiToken,
 		assetMicCache:    make(map[string]string),
 	}
 
@@ -81,7 +89,47 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 
 // Close closes the gRPC connection
 func (c *Client) Close() error {
+	if c.refreshCancel != nil {
+		c.refreshCancel()
+	}
 	return c.conn.Close()
+}
+
+// getExpiryFromToken extracts the expiration time from a JWT token
+func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return time.Time{}, fmt.Errorf("invalid token format")
+	}
+
+	payload := parts[1]
+	// Add padding if needed (JWTs are raw url encoded, but robustness helps)
+	if l := len(payload) % 4; l > 0 {
+		payload += strings.Repeat("=", 4-l)
+	}
+	
+	data, err := base64.RawURLEncoding.DecodeString(parts[1]) // Try RawURLEncoding first (standard)
+	if err != nil {
+		// Fallback to standard URL encoding if raw fails
+		data, err = base64.URLEncoding.DecodeString(payload)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("failed to decode payload: %w", err)
+		}
+	}
+
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+
+	if err := json.Unmarshal(data, &claims); err != nil {
+		return time.Time{}, fmt.Errorf("failed to unmarshal claims: %w", err)
+	}
+
+	if claims.Exp == 0 {
+		return time.Time{}, fmt.Errorf("exp claim missing")
+	}
+
+	return time.Unix(claims.Exp, 0), nil
 }
 
 // loadAssetCache loads all available instruments and their MIC codes
