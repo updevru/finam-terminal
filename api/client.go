@@ -47,11 +47,7 @@ type Client struct {
 func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 	tlsConfig := tls.Config{MinVersion: tls.VersionTLS12}
 
-	connCtx, connCancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer connCancel()
-
-	conn, err := grpc.DialContext(
-		connCtx,
+	conn, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)),
 	)
@@ -71,7 +67,7 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 
 	// Authenticate
 	if err := client.authenticate(apiToken); err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 

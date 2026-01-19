@@ -7,33 +7,6 @@ import (
 	"time"
 )
 
-// loadData loads account data from API
-func (a *App) loadData(accountID string) {
-	a.dataMutex.Lock()
-	defer a.dataMutex.Unlock()
-
-	_, pos, err := a.client.GetAccountDetails(accountID)
-	if err != nil {
-		log.Printf("[WARN] Failed to load positions: %v", err)
-		a.positions[accountID] = []models.Position{}
-		a.quotes[accountID] = make(map[string]*models.Quote)
-		return
-	}
-
-	a.positions[accountID] = pos
-	a.quotes[accountID] = make(map[string]*models.Quote)
-
-	if len(pos) > 0 {
-		symbols := make([]string, len(pos))
-		for i, p := range pos {
-			symbols[i] = p.Symbol
-		}
-		if q, err := a.client.GetQuotes(accountID, symbols); err == nil {
-			a.quotes[accountID] = q
-		}
-	}
-}
-
 // loadDataAsync loads account data from API asynchronously, preventing UI blocking.
 func (a *App) loadDataAsync(accountID string) {
 	// Skip "Updating..." status to avoid UI lockups on start
@@ -116,7 +89,7 @@ func (a *App) loadDataAsync(accountID string) {
 }
 
 // backgroundRefresh runs periodic data refresh
-func (a *App) backgroundRefresh(app *App) {
+func (a *App) backgroundRefresh() {
 	// Initial refresh immediately
 	time.Sleep(500 * time.Millisecond) // Give more time for UI start
 	a.app.QueueUpdateDraw(func() {

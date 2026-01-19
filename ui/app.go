@@ -280,7 +280,7 @@ func (a *App) Run() error {
 	updateStatusBar(a)
 
 	// Start background refresh
-	go a.backgroundRefresh(a)
+	go a.backgroundRefresh()
 
 	return a.app.SetRoot(a.pages, true).EnableMouse(false).Run()
 }

@@ -32,7 +32,8 @@ func TestOpenCloseModal(t *testing.T) {
 		t.Errorf("Expected symbol SBER, got %s", app.closeModal.GetSymbol())
 	}
 
-	if app.closeModal.GetQuantity() != 10 {
-		t.Errorf("Expected quantity 10, got %f", app.closeModal.GetQuantity())
+	// Quantity field is intentionally cleared for user input
+	if app.closeModal.GetQuantity() != 0 {
+		t.Errorf("Expected quantity 0, got %f", app.closeModal.GetQuantity())
 	}
 }

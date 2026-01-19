@@ -19,12 +19,13 @@ func main() {
 		fmt.Printf("Failed to open log file: %v\n", err)
 		os.Exit(1)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 	log.SetOutput(logFile)
 
 	// Parse command line flags
 	accountIdx := flag.Int("account", -1, "Account index to show (0-based)")
 	flag.Parse()
+	_ = accountIdx // Silence unused variable warning until feature is implemented
 
 	ui.PrintConsoleSplash()
 
@@ -93,10 +94,6 @@ func main() {
 	if err := ui.RunStartupSteps(steps); err != nil {
 		fmt.Printf("Startup failed: %v\n", err)
 		os.Exit(1)
-	}
-
-	if *accountIdx >= 0 && *accountIdx < len(accounts) {
-		// Log this? TUI handles it.
 	}
 
 	// Start TUI

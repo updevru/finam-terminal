@@ -74,7 +74,7 @@ func updatePositionsTable(app *App) {
 		}
 
 		dailyPnL := p.DailyPnL
-		var dailyColor tcell.Color = tcell.ColorWhite
+		dailyColor := tcell.ColorWhite
 		if dailyPnL != "N/A" {
 			if val, err := parseFloat(dailyPnL); err == nil {
 				if val > 0 {
@@ -87,7 +87,7 @@ func updatePositionsTable(app *App) {
 		}
 
 		unrealizedPnL := p.UnrealizedPnL
-		var unrealColor tcell.Color = tcell.ColorWhite
+		unrealColor := tcell.ColorWhite
 		if unrealizedPnL != "N/A" {
 			if val, err := parseFloat(unrealizedPnL); err == nil {
 				if val > 0 {
@@ -146,11 +146,6 @@ func updateInfoPanel(app *App) {
 		if val, err := parseFloat(p.DailyPnL); err == nil {
 			totalPnL += val
 		}
-	}
-
-	pnlStr := fmt.Sprintf("%+.2f", totalPnL)
-	if totalPnL >= 0 {
-		pnlStr = "+" + pnlStr
 	}
 
 	app.portfolioView.UpdateSummary(acc)
