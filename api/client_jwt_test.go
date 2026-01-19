@@ -96,3 +96,44 @@ func TestTokenRefreshLoop(t *testing.T) {
 
 	client.Close()
 }
+
+/*
+func TestTokenRefreshRetry(t *testing.T) {
+	// ...
+}
+*/
+
+func TestLastRefreshUpdate(t *testing.T) {
+	mockAuth := &mockAuthServiceClient{
+		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+			expTime := time.Now().Add(2 * time.Second).Unix()
+			payloadJson := fmt.Sprintf(`{"exp":%d}`, expTime)
+			payload := base64.RawURLEncoding.EncodeToString([]byte(payloadJson))
+			token := fmt.Sprintf("header.%s.sig", payload)
+			return &auth.AuthResponse{Token: token}, nil
+		},
+	}
+
+	client := &Client{
+		authClient: mockAuth,
+		apiToken:   "test-secret",
+	}
+
+	initialRefresh := client.lastRefresh
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	client.refreshCancel = cancel
+	go client.startTokenRefresh(ctx)
+
+	time.Sleep(1100 * time.Millisecond)
+
+	client.tokenMutex.RLock()
+	currentRefresh := client.lastRefresh
+	client.tokenMutex.RUnlock()
+
+	if currentRefresh.Before(initialRefresh) || currentRefresh.Equal(initialRefresh) {
+		t.Errorf("Expected lastRefresh to be updated, got initial %v, current %v", initialRefresh, currentRefresh)
+	}
+
+	client.Close()
+}
