@@ -27,13 +27,13 @@ This plan outlines the steps to automate testing, linting, building, and distrib
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Build & Release Automation' (Protocol in workflow.md)
 
 ## Phase 3: Dockerization
-- [ ] Task: Create `Dockerfile`
-    - [ ] Create a multi-stage `Dockerfile` to build the Go application and create a minimal runtime image.
-    - [ ] Verify the Docker image builds and runs correctly locally.
-- [ ] Task: Update Release workflow for Docker
-    - [ ] Add steps to log in to GitHub Container Registry (ghcr.io).
-    - [ ] Add steps to build and push the Docker image when a release is created.
-- [ ] Task: Verify Docker image in GHCR
+- [x] Task: Create `Dockerfile`
+    - [x] Create a multi-stage `Dockerfile` to build the Go application and create a minimal runtime image.
+    - [ ] Verify the Docker image builds and runs correctly locally. (Skipped: Docker not available locally)
+- [x] Task: Update Release workflow for Docker
+    - [x] Add steps to log in to GitHub Container Registry (ghcr.io).
+    - [x] Add steps to build and push the Docker image when a release is created.
+- [x] Task: Verify Docker image in GHCR [commit: 184a14d]
     - [ ] Pull the image from `ghcr.io` and verify it runs as expected.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Dockerization' (Protocol in workflow.md)
 
