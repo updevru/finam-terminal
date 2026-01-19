@@ -3,15 +3,15 @@
 This plan outlines the steps to automate testing, linting, building, and distribution of the `finam-terminal` application, along with updating documentation for all supported platforms.
 
 ## Phase 1: CI Pipeline (Tests & Linting)
-- [ ] Task: Configure `golangci-lint` locally
-    - [ ] Create or update `.golangci.yml` with project-specific linting rules.
-    - [ ] Run `golangci-lint run` locally and fix any existing linting issues to ensure a clean baseline.
-- [ ] Task: Create PR workflow file (`.github/workflows/ci.yml`)
-    - [ ] Define a workflow triggered on pull requests to the main branch.
-    - [ ] Add a job to setup the Go environment.
-    - [ ] Add steps to run `go test ./...` and `golangci-lint`.
-- [ ] Task: Verify PR workflow
-    - [ ] Push changes to a branch and verify the workflow triggers and passes in GitHub.
+- [x] Task: Configure `golangci-lint` locally [commit: c1896e3]
+    - [x] Create or update `.golangci.yml` with project-specific linting rules.
+    - [x] Run `golangci-lint run` locally and fix any existing linting issues to ensure a clean baseline.
+- [x] Task: Create PR workflow file (`.github/workflows/ci.yml`) [commit: e83cce9]
+    - [x] Define a workflow triggered on pull requests to the main branch.
+    - [x] Add a job to setup the Go environment.
+    - [x] Add steps to run `go test ./...` and `golangci-lint`.
+- [x] Task: Verify PR workflow [commit: e83cce9]
+    - [x] Push changes to a branch and verify the workflow triggers and passes in GitHub.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: CI Pipeline' (Protocol in workflow.md)
 
 ## Phase 2: Build & Release Automation
