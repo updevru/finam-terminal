@@ -3,7 +3,7 @@
 This plan implements a background process to refresh the Finam API JWT token before it expires, preventing "Unauthenticated" errors during long sessions.
 
 ## Phase 1: Foundation & Data Structure Changes
-- [ ] Task: Update `Client` struct and implement JWT parsing
+- [x] Task: Update Client struct and implement JWT parsing [commit: b3f2865]
     - [ ] Write failing tests in `api/client_test.go` for extracting expiry from a JWT string.
     - [ ] Update `Client` struct in `api/client.go` to store `apiToken` (string), `lastRefresh` (time.Time), and a `refreshCancel` (context.CancelFunc).
     - [ ] Implement a private helper `getExpiryFromToken(token string) (time.Time, error)` in `api/client.go`.
