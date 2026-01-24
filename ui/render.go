@@ -37,18 +37,16 @@ func updateAccountList(app *App) {
 func updatePositionsTable(app *App) {
 	app.portfolioView.PositionsTable.Clear()
 
-	headers := []string{"Symbol", "Qty", "AvgPrice", "Current", "Daily P&L", "", "Unreal P&L"}
+	headers := []string{"Symbol", "Qty", "AvgPrice", "Current", "Daily P&L", "Value", "Unreal P&L"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
 		Bold(true)
 
 	for i, h := range headers {
-		align := tview.AlignCenter
+		align := tview.AlignRight
 		if i == 0 {
 			align = tview.AlignLeft
-		} else if h == "" {
-			align = tview.AlignRight
 		}
 		cell := tview.NewTableCell(h).
 			SetStyle(headerStyle).
