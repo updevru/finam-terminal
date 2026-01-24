@@ -52,7 +52,8 @@ func updatePositionsTable(app *App) {
 		}
 		cell := tview.NewTableCell(h).
 			SetStyle(headerStyle).
-			SetAlign(align)
+			SetAlign(align).
+			SetExpansion(1)
 		app.portfolioView.PositionsTable.SetCell(0, i, cell)
 	}
 
