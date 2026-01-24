@@ -16,6 +16,7 @@ This plan outlines the steps to modify the terminal UI so that the Positions tab
 - [x] Task: Conductor - User Manual Verification 'Implementation' (Protocol in workflow.md)
 
 ## Phase 3: Finalization
-- [ ] Task: Verify the UI manually across different terminal widths.
-- [ ] Task: Ensure code follows project style guides and has adequate documentation.
-- [ ] Task: Conductor - User Manual Verification 'Finalization' (Protocol in workflow.md)
+- [x] Task: Verify the UI manually across different terminal widths.
+- [x] Task: Ensure code follows project style guides and has adequate documentation.
+- [x] Task: Fix column headers (Total Value) and alignment (Match data alignment) based on user feedback. [a387aa8]
+- [x] Task: Conductor - User Manual Verification 'Finalization' (Protocol in workflow.md)

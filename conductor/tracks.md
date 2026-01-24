@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [~] **Track: Modify the UI so that the Positions table automatically expands to occupy the full width of its container.**
+- [x] **Track: Modify the UI so that the Positions table automatically expands to occupy the full width of its container.**
 *Link: [./tracks/full_width_positions_table_20260124/](./tracks/full_width_positions_table_20260124/)*
