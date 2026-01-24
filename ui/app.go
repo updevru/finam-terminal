@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -84,11 +83,7 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	// Initialize OrderModal
 	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
 		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
-			msg := err.Error()
-			if strings.Contains(msg, "PermissionDenied") {
-				msg = "У вас не достаточно прав для выставления позиции"
-			}
-			a.ShowError(msg)
+			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
 		a.CloseOrderModal()
@@ -97,11 +92,7 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	// Initialize ClosePositionModal
 	a.closeModal = NewClosePositionModal(a.app, func(quantity float64) {
 		if err := a.SubmitClosePosition(quantity); err != nil {
-			msg := err.Error()
-			if strings.Contains(msg, "PermissionDenied") {
-				msg = "У вас не достаточно прав для выставления позиции"
-			}
-			a.ShowError(msg)
+			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
 		a.CloseCloseModal()
@@ -149,10 +140,7 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	
 	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
 	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "PermissionDenied") {
-			msg = "У вас не достаточно прав для выставления позиции"
-		}
+		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)
 		return err
 	}
@@ -199,10 +187,7 @@ func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	
 	id, err := a.client.ClosePosition(accountID, ticker, currentQty, closeQuantity)
 	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "PermissionDenied") {
-			msg = "У вас не достаточно прав для выставления позиции"
-		}
+		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Close failed: %v", msg), StatusError)
 		return err
 	}
