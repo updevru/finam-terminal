@@ -7,7 +7,7 @@ This plan outlines the steps to modify the terminal UI so that the Positions tab
 - [x] Task: Analyze existing table tests in `ui/portfolio_test.go` to understand how to verify layout properties.
 - [x] Task: Conductor - User Manual Verification 'Analysis' (Protocol in workflow.md) [Skipped: Analysis only]
 
-## Phase 2: Implementation (TDD)
+## Phase 2: Implementation (TDD) [checkpoint: d21e50e]
 - [x] Task: Implement full-width behavior for the Positions table. [7ec78c9]
     - [x] Write a failing test in `ui/portfolio_test.go` (or a new test file) that asserts the table's expansion property is enabled (TDD Red).
     - [x] Update the Positions table configuration in the UI code to enable horizontal expansion and proportional column scaling (TDD Green).
