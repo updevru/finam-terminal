@@ -82,3 +82,21 @@ go build -o finam-trade.exe main.go
 *   `models/`: Data types.
 *   `ui/`: TUI implementation (views, controllers).
 *   `.env`: Local configuration (git-ignored).
+
+## API Implementation Details
+
+### Retrieving Security Prices
+
+1.  **Market Data (Quotes)**
+    *   **Service:** `MarketDataServiceClient`
+    *   **Method:** `LastQuote`
+    *   **File:** `api/client.go` (`GetQuotes`)
+    *   **Key Field:** `Last` (Last trade price)
+    *   **Usage:** Ticker lookup, general price checks.
+
+2.  **Portfolio Positions**
+    *   **Service:** `AccountsServiceClient`
+    *   **Method:** `GetAccount`
+    *   **File:** `api/client.go` (`GetAccountDetails`)
+    *   **Key Field:** `CurrentPrice` (Broker's valuation price)
+    *   **Usage:** Calculating equity, PnL, and position value.
