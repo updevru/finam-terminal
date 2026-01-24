@@ -13,7 +13,7 @@ func TestOpenCloseModal(t *testing.T) {
 	app.positions["acc1"] = []models.Position{
 		{Ticker: "SBER", Quantity: "10", CurrentPrice: "250.50", UnrealizedPnL: "100"},
 	}
-	
+
 	// Mock table selection (row 1 is first position)
 	app.portfolioView.PositionsTable.Select(1, 0)
 

@@ -33,9 +33,8 @@ func TestApplyOrangeRedGradientANSI(t *testing.T) {
 	if !strings.Contains(coloredText, "\x1b[38;2;") {
 		t.Error("ApplyOrangeRedGradientANSI should contain ANSI color codes")
 	}
-	
+
 	if !strings.HasSuffix(coloredText, "\x1b[0m") {
 		t.Error("ApplyOrangeRedGradientANSI should reset colors at the end")
 	}
 }
-

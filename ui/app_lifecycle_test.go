@@ -11,9 +11,9 @@ func TestApp_Stop_Concurrency(t *testing.T) {
 	// Setup minimal app dependencies
 	mockClient := &api.Client{}
 	accounts := []models.AccountInfo{{ID: "test-acc", Type: "Test", Equity: "100.00"}}
-	
+
 	app := NewApp(mockClient, accounts)
-	
+
 	// Start a goroutine that simulates the background refresh or other activity
 	// checking stopChan, similar to how the real app works
 	go func() {
@@ -44,7 +44,7 @@ func TestApp_Stop_Concurrency(t *testing.T) {
 	// Wait for both to finish
 	<-done
 	<-done
-	
-	// If we didn't panic, we passed. 
+
+	// If we didn't panic, we passed.
 	// The panic usually happens because closing a closed channel panics.
 }

@@ -8,11 +8,11 @@ import (
 func TestRunStartupSteps(t *testing.T) {
 	steps := []StartupStep{
 		{
-			Name: "Test Step 1",
+			Name:   "Test Step 1",
 			Action: func() error { return nil },
 		},
 		{
-			Name: "Test Step 2",
+			Name:   "Test Step 2",
 			Action: func() error { return nil },
 		},
 	}
@@ -25,7 +25,7 @@ func TestRunStartupSteps(t *testing.T) {
 func TestRunStartupSteps_Failure(t *testing.T) {
 	steps := []StartupStep{
 		{
-			Name: "Fail Step",
+			Name:   "Fail Step",
 			Action: func() error { return errors.New("boom") },
 		},
 	}

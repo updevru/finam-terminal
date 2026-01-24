@@ -2,8 +2,8 @@ package ui
 
 import (
 	"log"
-	"strings"
 	"strconv"
+	"strings"
 	"unicode"
 )
 
@@ -60,7 +60,7 @@ func parseFloat(s string) (float64, error) {
 		}
 	}
 	s = sb.String()
-	
+
 	s = strings.ReplaceAll(s, ",", ".")
 	return strconv.ParseFloat(s, 64)
 }

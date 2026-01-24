@@ -39,10 +39,10 @@ func TestClosePositionModal_SetPositionData(t *testing.T) {
 func TestClosePositionModal_Validation(t *testing.T) {
 	app := tview.NewApplication()
 	modal := NewClosePositionModal(app, nil, nil, nil)
-	
+
 	// Set data: 100 shares
 	modal.SetPositionData("SBER", 100, 250.0, 1000.0)
-	
+
 	// Empty/Zero
 	modal.quantityField.SetText("0")
 	if modal.Validate() {

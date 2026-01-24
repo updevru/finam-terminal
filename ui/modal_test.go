@@ -60,7 +60,7 @@ func TestOrderModal_Direction(t *testing.T) {
 
 	// Change selection to Sell (index 1)
 	modal.direction.SetCurrentOption(1)
-	
+
 	if modal.GetDirection() != "Sell" {
 		t.Errorf("Expected direction Sell after change, got %s", modal.GetDirection())
 	}

@@ -9,17 +9,17 @@ import (
 
 // OrderModal represents the order entry modal
 type OrderModal struct {
-	Layout     *tview.Flex // Main container with border
-	Form       *tview.Form
-	Footer     *tview.TextView
-	app        *tview.Application
-	callback   func(string, float64, string)
-	onCancel   func()
-	
+	Layout   *tview.Flex // Main container with border
+	Form     *tview.Form
+	Footer   *tview.TextView
+	app      *tview.Application
+	callback func(string, float64, string)
+	onCancel func()
+
 	instrument *tview.InputField
 	quantity   *tview.InputField
 	direction  *tview.DropDown
-	
+
 	// State
 	currentDir string
 }
@@ -49,13 +49,13 @@ func (m *OrderModal) setupUI() {
 	// Configure Form (No border, transparent)
 	m.Form.SetBorder(false)
 	m.Form.SetBackgroundColor(tcell.ColorBlack)
-	
+
 	// Form styling
 	m.Form.SetButtonBackgroundColor(tcell.ColorDarkGreen). // Darker green for idle
-		SetButtonTextColor(tcell.ColorWhite).
-		SetLabelColor(tcell.ColorYellow).
-		SetFieldBackgroundColor(tcell.ColorWhite).
-		SetFieldTextColor(tcell.ColorBlack)
+								SetButtonTextColor(tcell.ColorWhite).
+								SetLabelColor(tcell.ColorYellow).
+								SetFieldBackgroundColor(tcell.ColorWhite).
+								SetFieldTextColor(tcell.ColorBlack)
 
 	m.instrument = tview.NewInputField().
 		SetLabel("Instrument: ").
@@ -63,7 +63,7 @@ func (m *OrderModal) setupUI() {
 		SetChangedFunc(func(text string) {
 			m.updateCreateButton()
 		})
-	
+
 	m.quantity = tview.NewInputField().
 		SetLabel("Quantity:   ").
 		SetFieldWidth(15).
@@ -80,7 +80,7 @@ func (m *OrderModal) setupUI() {
 		}).
 		SetCurrentOption(0).
 		SetFieldWidth(15)
-	
+
 	// Ensure dropdown list is styled consistently
 	m.direction.SetListStyles(tcell.StyleDefault.Background(tcell.ColorWhite).Foreground(tcell.ColorBlack),
 		tcell.StyleDefault.Background(tcell.ColorOrange).Foreground(tcell.ColorBlack))
@@ -102,7 +102,7 @@ func (m *OrderModal) setupUI() {
 			m.onCancel()
 		}
 	})
-	
+
 	m.updateCreateButton()
 
 	// Configure Footer	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
@@ -162,4 +162,3 @@ func (m *OrderModal) updateCreateButton() {
 		btn.SetDisabled(!m.Validate())
 	}
 }
-
