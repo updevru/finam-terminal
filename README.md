@@ -1,6 +1,18 @@
-# Finam Terminal
+<div align="center">
+
+[![Go](https://github.com/updevru/finam-terminal/actions/workflows/ci.yml/badge.svg)](https://github.com/updevru/finam-terminal/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/updevru/finam-terminal)](https://goreportcard.com/report/github.com/updevru/finam-terminal)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/updevru/finam-terminal)](https://github.com/updevru/finam-terminal/releases)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/updevru/finam-terminal)](https://github.com/updevru/finam-terminal)
+
+<h1>Finam Terminal</h1>
 
 Finam Terminal — это терминальный интерфейс (TUI) для торговли и просмотра рыночных данных через API брокера Финам. Приложение написано на Go и работает прямо в консоли.
+
+</div>
+
+![](media/demo.gif)
 
 ## Установка
 
@@ -87,3 +99,21 @@ go test ./...
 go test -coverprofile=coverage.out ./...
 go tool cover -func=coverage.out
 ```
+
+### Разработка с Gemini и Conductor
+
+Этот проект использует **Gemini CLI** и расширение [**Conductor**](https://github.com/gemini-cli-extensions/conductor) для планирования и реализации задач.
+
+- **Conductor** — это фреймворк для управления состоянием проекта и планирования треков (задач) в папке `conductor/`.
+- Все крупные изменения должны сопровождаться обновлением соответствующих спецификаций (`spec.md`) и планов (`plan.md`).
+
+**Основные команды для работы:**
+
+*   **Создание и описание задачи:**
+    ```bash
+    /conductor:newTrack "Описание задачи"
+    ```
+*   **Реализация созданной задачи:**
+    ```bash
+    /conductor:implement
+    ```

@@ -168,7 +168,7 @@ func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
 	if l := len(payload) % 4; l > 0 {
 		payload += strings.Repeat("=", 4-l)
 	}
-	
+
 	data, err := base64.RawURLEncoding.DecodeString(parts[1]) // Try RawURLEncoding first (standard)
 	if err != nil {
 		// Fallback to standard URL encoding if raw fails
