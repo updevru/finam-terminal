@@ -54,7 +54,7 @@ func TestPortfolioView_UpdateAccounts(t *testing.T) {
 	// The test TestPortfolioView_UpdateAccounts tests pv.UpdateAccounts.
 	// I should probably remove UpdateAccounts from components.go if it's unused, or update it to match.
 	// Let's update pv.UpdateAccounts to match the new design (no status) to keep the component consistent.
-	
+
 	pv.UpdateAccounts(accounts)
 
 	if pv.AccountTable.GetRowCount() != 3 { // 1 header + 2 data

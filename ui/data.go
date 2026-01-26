@@ -17,14 +17,14 @@ func (a *App) loadDataAsync(accountID string) {
 		_, pos, err := a.client.GetAccountDetails(accountID)
 		if err != nil {
 			log.Printf("[WARN] Failed to load positions for %s: %v", accountID, err)
-			
+
 			errMsg := "Error loading data"
 			if err != nil && (err.Error() == "context deadline exceeded" || strings.Contains(err.Error(), "DeadlineExceeded")) {
 				errMsg = "Connection Timeout"
 			}
 			// Update status only on error or completion
 			a.SetStatus(errMsg, StatusError)
-			
+
 			// On error, we can schedule a UI update to clear data
 			a.app.QueueUpdateDraw(func() {
 				a.dataMutex.Lock()

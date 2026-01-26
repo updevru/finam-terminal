@@ -8,12 +8,12 @@ import (
 
 // FinamLogo is the ASCII art representation of the FINAM logo.
 const FinamLogo = `
-███████╗██╗███╗   ███╗ █████╗ ███╗   ███╗
-██╔════╝██║████╗ ████║██╔══██╗████╗ ████║
-█████╗  ██║██╔████╔██║███████║██╔████╔██║
-██╔══╝  ██║██║╚██╔╝██║██╔══██║██║╚██╔╝██║
-██║     ██║██║ ╚═╝ ██║██║  ██║██║ ╚═╝ ██║
-╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝
+███████╗██╗███╗   ██╗  █████╗ ███╗   ███╗
+██╔════╝██║████╗  ██║ ██╔══██╗████╗ ████║
+█████╗  ██║██╔██╗ ██║ ███████║██╔████╔██║
+██╔══╝  ██║██║╚██╗██║ ██╔══██║██║╚██╔╝██║
+██║     ██║██║ ╚████║ ██║  ██║██║ ╚═╝ ██║
+╚═╝     ╚═╝╚═╝  ╚═══╝ ╚═╝  ╚═╝╚═╝     ╚═╝
 `
 
 // SplashScreen represents the startup screen component.
@@ -38,24 +38,19 @@ func NewSplashScreen() *SplashScreen {
 		AddItem(logo, 8, 1, false). // Logo height is roughly 8 lines including padding
 		AddItem(nil, 0, 1, false)
 
-		return &SplashScreen{
+	return &SplashScreen{
 
-			Layout: layout,
+		Layout: layout,
 
-			Logo:   logo,
-
-		}
-
+		Logo: logo,
 	}
 
-	
+}
 
-	// PrintConsoleSplash prints the gradient logo to stdout.
+// PrintConsoleSplash prints the gradient logo to stdout.
 
-	func PrintConsoleSplash() {
+func PrintConsoleSplash() {
 
-		fmt.Println(ApplyOrangeRedGradientANSI(FinamLogo))
+	fmt.Println(ApplyOrangeRedGradientANSI(FinamLogo))
 
-	}
-
-	
+}

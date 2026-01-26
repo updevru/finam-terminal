@@ -21,7 +21,7 @@ func setupInputHandlers(app *App) {
 		if idx >= 0 && idx < len(app.accounts) {
 			app.selectedIdx = idx
 			updateAccountList(app)
-			
+
 			// Update view immediately with cached data
 			updatePositionsTable(app)
 			updateInfoPanel(app)

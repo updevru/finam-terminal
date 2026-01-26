@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -37,11 +36,11 @@ type App struct {
 	stopChan      chan struct{}
 	stopOnce      sync.Once
 	portfolioView *PortfolioView
-	
+
 	// Layout
-	pages         *tview.Pages
-	orderModal    *OrderModal
-	closeModal    *ClosePositionModal
+	pages      *tview.Pages
+	orderModal *OrderModal
+	closeModal *ClosePositionModal
 
 	statusMessage string
 	statusType    StatusType
@@ -80,28 +79,20 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	a.portfolioView = NewPortfolioView(a.app)
 	a.header = createHeader()
 	a.statusBar = createStatusBar()
-	
+
 	// Initialize OrderModal
 	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
 		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
-			msg := err.Error()
-			if strings.Contains(msg, "PermissionDenied") {
-				msg = "У вас не достаточно прав для выставления позиции"
-			}
-			a.ShowError(msg)
+			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
 		a.CloseOrderModal()
 	})
-	
+
 	// Initialize ClosePositionModal
 	a.closeModal = NewClosePositionModal(a.app, func(quantity float64) {
 		if err := a.SubmitClosePosition(quantity); err != nil {
-			msg := err.Error()
-			if strings.Contains(msg, "PermissionDenied") {
-				msg = "У вас не достаточно прав для выставления позиции"
-			}
-			a.ShowError(msg)
+			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
 		a.CloseCloseModal()
@@ -146,25 +137,22 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 
 	// Show loading status
 	a.SetStatus("Placing order...", StatusLoading)
-	
+
 	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
 	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "PermissionDenied") {
-			msg = "У вас не достаточно прав для выставления позиции"
-		}
+		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)
 		return err
 	}
 
 	a.SetStatus(fmt.Sprintf("Order placed: %s", id), StatusSuccess)
-	
+
 	// Refresh data
 	a.loadDataAsync(accountID)
-	
+
 	// Close modal
 	a.CloseOrderModal()
-	
+
 	return nil
 }
 
@@ -184,37 +172,34 @@ func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	}
 	accountID := a.accounts[a.selectedIdx].ID
 	positions := a.positions[accountID]
-	
+
 	if idx < 0 || idx >= len(positions) {
 		a.dataMutex.RUnlock()
 		return fmt.Errorf("invalid position selection")
 	}
-	
+
 	pos := positions[idx]
 	ticker := pos.Symbol // Use Symbol (e.g. Ticker@MIC) instead of just Ticker
 	currentQty := pos.Quantity
 	a.dataMutex.RUnlock()
 
 	a.SetStatus("Closing position...", StatusLoading)
-	
+
 	id, err := a.client.ClosePosition(accountID, ticker, currentQty, closeQuantity)
 	if err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, "PermissionDenied") {
-			msg = "У вас не достаточно прав для выставления позиции"
-		}
+		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Close failed: %v", msg), StatusError)
 		return err
 	}
 
 	a.SetStatus(fmt.Sprintf("Position closed: %s", id), StatusSuccess)
-	
+
 	// Refresh data
 	a.loadDataAsync(accountID)
-	
+
 	// Close modal
 	a.CloseCloseModal()
-	
+
 	return nil
 }
 
@@ -231,7 +216,7 @@ func (a *App) ShowError(msg string) {
 				a.app.SetFocus(a.closeModal.Form)
 			}
 		})
-	
+
 	a.pages.AddPage("alert", modal, false, true)
 }
 
@@ -244,28 +229,28 @@ func (a *App) Run() error {
 	flex.AddItem(a.header, 1, 1, false)
 	flex.AddItem(a.portfolioView.Layout, 0, 1, true)
 	flex.AddItem(a.statusBar, 1, 1, false)
-	
+
 	// Setup Pages
 	a.pages.AddPage("main", flex, true, true)
-	
+
 	// Add Modal (centered)
 	modalFlex := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(a.orderModal.Layout, 15, 1, true). // Height 15 (14 form + 1 footer)
-			AddItem(nil, 0, 1, false), 40, 1, true). // Width 40
+			AddItem(nil, 0, 1, false), 40, 1, true).   // Width 40
 		AddItem(nil, 0, 1, false)
-	
+
 	a.pages.AddPage("modal", modalFlex, true, false)
-	
+
 	// Add Close Modal (centered)
 	closeModalFlex := tview.NewFlex().
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
 			AddItem(a.closeModal.Layout, 16, 1, true). // Height 16 (approx)
-			AddItem(nil, 0, 1, false), 50, 1, true). // Width 50
+			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("close_modal", closeModalFlex, true, false)
@@ -297,14 +282,14 @@ func (a *App) Stop() {
 func (a *App) OpenOrderModal() {
 	// Get selected row
 	row, _ := a.portfolioView.PositionsTable.GetSelection()
-	
+
 	// Default to empty if header or invalid
 	symbol := ""
 
 	if row > 0 {
 		// Map row to position index (row 1 -> index 0)
 		idx := row - 1
-		
+
 		a.dataMutex.RLock()
 		if a.selectedIdx < len(a.accounts) {
 			accID := a.accounts[a.selectedIdx].ID
@@ -315,11 +300,11 @@ func (a *App) OpenOrderModal() {
 		}
 		a.dataMutex.RUnlock()
 	}
-	
+
 	a.orderModal.SetInstrument(symbol)
 	// Reset quantity to 0
 	a.orderModal.SetQuantity(0)
-	
+
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -328,7 +313,7 @@ func (a *App) OpenOrderModal() {
 func (a *App) OpenCloseModal() {
 	// Get selected row
 	row, _ := a.portfolioView.PositionsTable.GetSelection()
-	
+
 	if row > 0 {
 		idx := row - 1
 		a.dataMutex.RLock()
@@ -350,7 +335,7 @@ func (a *App) OpenCloseModal() {
 
 				price, _ := parseFloat(pos.CurrentPrice)
 				pnl, _ := parseFloat(pos.UnrealizedPnL)
-				
+
 				a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
 				a.pages.ShowPage("close_modal")
 				a.app.SetFocus(a.closeModal.Form)
@@ -367,9 +352,9 @@ func (a *App) SetStatus(message string, statusType StatusType) {
 	a.statusType = statusType
 	a.dataMutex.Unlock()
 
-	// Use QueueUpdateDraw only if the app might be running. 
+	// Use QueueUpdateDraw only if the app might be running.
 	// In tests, we don't start the main loop, so this would block.
-	// tview doesn't provide a direct way to check if it's running, 
+	// tview doesn't provide a direct way to check if it's running,
 	// but we can use a non-blocking check if we had a flag.
 	// For now, let's use a goroutine to avoid blocking the caller if the queue is full/unattended.
 	go a.app.QueueUpdateDraw(func() {
