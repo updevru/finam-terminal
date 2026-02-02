@@ -47,6 +47,7 @@ type Client struct {
 
 	// Cache for instrument MIC codes
 	assetMicCache map[string]string // ticker -> symbol@mic
+	securityCache []models.SecurityInfo
 	assetMutex    sync.RWMutex
 }
 
@@ -71,6 +72,7 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		ordersClient:     orders.NewOrdersServiceClient(conn),
 		apiToken:         apiToken,
 		assetMicCache:    make(map[string]string),
+		securityCache:    make([]models.SecurityInfo, 0),
 	}
 
 	// Authenticate
@@ -207,8 +209,13 @@ func (c *Client) loadAssetCache() error {
 	c.assetMutex.Lock()
 	defer c.assetMutex.Unlock()
 
+	c.securityCache = make([]models.SecurityInfo, 0, len(resp.Assets))
 	for _, asset := range resp.Assets {
 		c.assetMicCache[asset.Ticker] = asset.Symbol
+		c.securityCache = append(c.securityCache, models.SecurityInfo{
+			Ticker: asset.Ticker,
+			Name:   asset.Name,
+		})
 	}
 
 	log.Printf("[INFO] Loaded %d instruments into cache", len(c.assetMicCache))
@@ -483,6 +490,94 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			Low:       formatDecimal(q.Low),
 			Close:     formatDecimal(q.Close),
 			Timestamp: q.Timestamp.AsTime(),
+		}
+	}
+
+	return quotes, nil
+}
+
+// SearchSecurities searches for securities by ticker or name
+func (c *Client) SearchSecurities(query string) ([]models.SecurityInfo, error) {
+	c.assetMutex.RLock()
+	defer c.assetMutex.RUnlock()
+
+	if len(c.securityCache) == 0 {
+		return nil, nil
+	}
+
+	query = strings.ToLower(query)
+	var results []models.SecurityInfo
+
+	for _, sec := range c.securityCache {
+		if strings.Contains(strings.ToLower(sec.Ticker), query) || strings.Contains(strings.ToLower(sec.Name), query) {
+			results = append(results, sec)
+			if len(results) >= 50 { // Limit results
+				break
+			}
+		}
+	}
+
+	return results, nil
+}
+
+// GetSnapshots returns initial prices for a list of securities
+func (c *Client) GetSnapshots(symbols []string) (map[string]models.Quote, error) {
+	if len(symbols) == 0 {
+		return nil, nil
+	}
+
+	// We can reuse GetQuotes logic but return values directly
+	// Or just use GetQuotes as it already fetches LastQuote
+	// However, GetQuotes takes accountID and resolves symbols.
+	// For search results, we usually have Tickers, need to resolve to full symbol.
+	// Search results already come from cache which has full symbol?
+	// No, SecurityInfo has Ticker.
+
+	// Helper to get quotes without account ID context if possible?
+	// MarketDataServiceClient.LastQuote needs Symbol.
+
+	// Let's rely on the cache to resolve tickers to full symbols.
+	// But GetQuotes uses getFullSymbol which uses accountID to fetch if missing.
+	// Here we might not have accountID context easily in the UI search component?
+	// The search component will likely pass tickers.
+	// If we don't have accountID, we can pass empty string to getFullSymbol?
+	// getFullSymbol needs accountID only for "Fallback: Fetch specific asset from API".
+	// If it's in cache (which it should be for search results), it returns immediately.
+
+	// So we can use GetQuotes with empty accountID?
+	// GetQuotes returns *models.Quote.
+
+	// Let's implement a simplified version or wrapper.
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	quotes := make(map[string]models.Quote)
+	for _, ticker := range symbols {
+		fullSymbol := c.getFullSymbol(ticker, "") // Empty accountID
+		if !strings.Contains(fullSymbol, "@") {
+			continue
+		}
+
+		resp, err := c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{
+			Symbol: fullSymbol,
+		})
+		if err != nil {
+			log.Printf("[WARN] Failed to get snapshot for %s: %v", fullSymbol, err)
+			continue
+		}
+
+		q := resp.Quote
+		if q == nil {
+			continue
+		}
+
+		quotes[ticker] = models.Quote{
+			Symbol:    fullSymbol,
+			Last:      formatDecimal(q.Last),
+			LastSize:  formatDecimal(q.LastSize),
+			Volume:    formatDecimal(q.Volume),
+			Timestamp: q.Timestamp.AsTime(),
+			// Add other fields if needed for the table
 		}
 	}
 
