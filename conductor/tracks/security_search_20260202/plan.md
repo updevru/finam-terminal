@@ -7,13 +7,13 @@
 - [x] Task: Write unit tests for `SearchSecurities` and `GetSnapshots` in `api/client_test.go`. 16d23a0
 - [x] Task: Conductor - User Manual Verification 'Phase 1: API & Data Model Enhancements' (Protocol in workflow.md) a55d3f1
 
-## Phase 2: Search UI Component [ ]
-- [ ] Task: Create `ui/search.go` and define `SearchModal` struct and layout.
-- [ ] Task: Implement basic rendering of the search window with input field and empty table.
-- [ ] Task: Implement debounced input handling (~300ms) to trigger search.
-- [ ] Task: Implement `Tab` key navigation between search input and results table.
-- [ ] Task: Write unit tests for `SearchModal` navigation and debouncing in `ui/search_test.go`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Search UI Component' (Protocol in workflow.md)
+## Phase 2: Search UI Component [x] [checkpoint: c013d66]
+- [x] Task: Create `ui/search.go` and define `SearchModal` struct and layout. bbd2d29
+- [x] Task: Implement basic rendering of the search window with input field and empty table. 377d524
+- [x] Task: Implement debounced input handling (~300ms) to trigger search. 377d524
+- [x] Task: Implement `Tab` key navigation between search input and results table. 377d524
+- [x] Task: Write unit tests for `SearchModal` navigation and debouncing in `ui/search_test.go`. 377d524
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Search UI Component' (Protocol in workflow.md) c013d66
 
 ## Phase 3: Integration & Live Data [ ]
 - [ ] Task: Integrate 'S' key in `ui/app.go` to open the `SearchModal`.
