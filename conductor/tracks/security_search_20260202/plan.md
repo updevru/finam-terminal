@@ -1,11 +1,11 @@
 # Implementation Plan: Security Search Window (S-Key)
 
-## Phase 1: API & Data Model Enhancements [ ]
-- [ ] Task: Update `models/models.go` to include `SecurityInfo` for search results (Ticker, Name, Lot, Currency).
-- [ ] Task: Implement `SearchSecurities` in `api/client.go` to wrap the assets search API.
-- [ ] Task: Implement `GetSnapshots` in `api/client.go` to fetch initial prices for search results.
-- [ ] Task: Write unit tests for `SearchSecurities` and `GetSnapshots` in `api/client_test.go`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: API & Data Model Enhancements' (Protocol in workflow.md)
+## Phase 1: API & Data Model Enhancements [x] [checkpoint: a55d3f1]
+- [x] Task: Update `models/models.go` to include `SecurityInfo` for search results (Ticker, Name, Lot, Currency). a299c7e
+- [x] Task: Implement `SearchSecurities` in `api/client.go` to wrap the assets search API. 16d23a0
+- [x] Task: Implement `GetSnapshots` in `api/client.go` to fetch initial prices for search results. 16d23a0
+- [x] Task: Write unit tests for `SearchSecurities` and `GetSnapshots` in `api/client_test.go`. 16d23a0
+- [x] Task: Conductor - User Manual Verification 'Phase 1: API & Data Model Enhancements' (Protocol in workflow.md) a55d3f1
 
 ## Phase 2: Search UI Component [ ]
 - [ ] Task: Create `ui/search.go` and define `SearchModal` struct and layout.
