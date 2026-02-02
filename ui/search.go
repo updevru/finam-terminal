@@ -2,8 +2,11 @@ package ui
 
 import (
 	"finam-terminal/models"
+	"fmt"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"sync"
+	"time"
 )
 
 // APISearchClient defines the interface for search operations
@@ -14,17 +17,19 @@ type APISearchClient interface {
 
 // SearchModal represents the security search window
 type SearchModal struct {
-	Layout   *tview.Flex
-	Input    *tview.InputField
-	Table    *tview.Table
-	Footer   *tview.TextView
-	
+	Layout *tview.Flex
+	Input  *tview.InputField
+	Table  *tview.Table
+	Footer *tview.TextView
+
 	app      *tview.Application
 	client   APISearchClient
 	onSelect func(ticker string)
 	onCancel func()
-	
-	results  []models.SecurityInfo
+
+	results     []models.SecurityInfo
+	searchTimer *time.Timer
+	timerMutex  sync.Mutex
 }
 
 // NewSearchModal creates a new security search modal
@@ -82,8 +87,90 @@ func (m *SearchModal) setupUI() {
 		AddItem(m.Table, 0, 1, false).
 		AddItem(m.Footer, 1, 1, false)
 
+	// SetChangedFunc for debounced search
+	m.Input.SetChangedFunc(func(text string) {
+		m.timerMutex.Lock()
+		if m.searchTimer != nil {
+			m.searchTimer.Stop()
+		}
+		m.searchTimer = time.AfterFunc(300*time.Millisecond, func() {
+			m.PerformSearch(text)
+		})
+		m.timerMutex.Unlock()
+	})
+
 	// Setup Input Handlers for navigation
 	m.setupHandlers()
+}
+
+// PerformSearch executes the search and updates the UI
+func (m *SearchModal) PerformSearch(query string) {
+	if query == "" {
+		m.app.QueueUpdateDraw(func() {
+			m.results = nil
+			m.updateTable(nil)
+		})
+		return
+	}
+
+	if m.client == nil {
+		return
+	}
+
+	results, err := m.client.SearchSecurities(query)
+	if err != nil {
+		// Handle error (maybe show in status or table)
+		return
+	}
+
+	// Fetch snapshots for results
+	var tickers []string
+	for _, res := range results {
+		tickers = append(tickers, res.Ticker)
+	}
+
+	quotes, _ := m.client.GetSnapshots(tickers)
+
+	m.app.QueueUpdateDraw(func() {
+		m.results = results
+		m.updateTable(quotes)
+	})
+}
+
+func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
+	// Clear existing rows (except header)
+	m.Table.Clear()
+
+	// Restore headers
+	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
+	for i, h := range headers {
+		m.Table.SetCell(0, i, tview.NewTableCell(h).
+			SetTextColor(tcell.ColorYellow).
+			SetSelectable(false).
+			SetAlign(tview.AlignCenter))
+	}
+
+	if len(m.results) == 0 {
+		return
+	}
+
+	for i, res := range m.results {
+		row := i + 1
+		m.Table.SetCell(row, 0, tview.NewTableCell(res.Ticker).SetTextColor(tcell.ColorWhite))
+		m.Table.SetCell(row, 1, tview.NewTableCell(res.Name).SetTextColor(tcell.ColorWhite))
+		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+
+		if q, ok := quotes[res.Ticker]; ok {
+			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
+			// Change % would need more data (Close price), but for now we put N/A or empty
+			m.Table.SetCell(row, 5, tview.NewTableCell("N/A").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
+		} else {
+			m.Table.SetCell(row, 4, tview.NewTableCell("...").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
+			m.Table.SetCell(row, 5, tview.NewTableCell("...").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
+		}
+	}
+	m.Table.ScrollToBeginning()
 }
 
 func (m *SearchModal) setupHandlers() {
