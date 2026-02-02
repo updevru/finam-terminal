@@ -33,22 +33,9 @@ func TestNewSearchModal(t *testing.T) {
 	}
 }
 
-type mockSearchClient struct {
-	SearchSecuritiesFunc func(query string) ([]models.SecurityInfo, error)
-	GetSnapshotsFunc     func(symbols []string) (map[string]models.Quote, error)
-}
-
-func (m *mockSearchClient) SearchSecurities(query string) ([]models.SecurityInfo, error) {
-	return m.SearchSecuritiesFunc(query)
-}
-
-func (m *mockSearchClient) GetSnapshots(symbols []string) (map[string]models.Quote, error) {
-	return m.GetSnapshotsFunc(symbols)
-}
-
 func TestSearchModal_Search(t *testing.T) {
 	app := tview.NewApplication()
-	client := &mockSearchClient{
+	client := &mockClient{
 		SearchSecuritiesFunc: func(query string) ([]models.SecurityInfo, error) {
 			return []models.SecurityInfo{
 				{Ticker: "SBER", Name: "Sberbank", Lot: 10, Currency: "RUB"},

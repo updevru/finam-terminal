@@ -30,19 +30,21 @@ type SearchModal struct {
 	results     []models.SecurityInfo
 	searchTimer *time.Timer
 	timerMutex  sync.Mutex
+	refreshStop chan struct{}
 }
 
 // NewSearchModal creates a new security search modal
 func NewSearchModal(app *tview.Application, client APISearchClient, onSelect func(ticker string), onCancel func()) *SearchModal {
 	m := &SearchModal{
-		Layout:   tview.NewFlex(),
-		Input:    tview.NewInputField(),
-		Table:    tview.NewTable(),
-		Footer:   tview.NewTextView(),
-		app:      app,
-		client:   client,
-		onSelect: onSelect,
-		onCancel: onCancel,
+		Layout:      tview.NewFlex(),
+		Input:       tview.NewInputField(),
+		Table:       tview.NewTable(),
+		Footer:      tview.NewTextView(),
+		app:         app,
+		client:      client,
+		onSelect:    onSelect,
+		onCancel:    onCancel,
+		refreshStop: make(chan struct{}),
 	}
 	m.setupUI()
 	return m
@@ -105,6 +107,8 @@ func (m *SearchModal) setupUI() {
 
 // PerformSearch executes the search and updates the UI
 func (m *SearchModal) PerformSearch(query string) {
+	m.stopRefresh()
+
 	if query == "" {
 		m.app.QueueUpdateDraw(func() {
 			m.results = nil
@@ -135,6 +139,62 @@ func (m *SearchModal) PerformSearch(query string) {
 		m.results = results
 		m.updateTable(quotes)
 	})
+
+	if len(results) > 0 {
+		m.startRefresh()
+	}
+}
+
+func (m *SearchModal) stopRefresh() {
+	m.timerMutex.Lock()
+	defer m.timerMutex.Unlock()
+	close(m.refreshStop)
+	m.refreshStop = make(chan struct{})
+}
+
+func (m *SearchModal) startRefresh() {
+	m.timerMutex.Lock()
+	stopChan := m.refreshStop
+	m.timerMutex.Unlock()
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stopChan:
+				return
+			case <-ticker.C:
+				m.timerMutex.Lock()
+				if len(m.results) == 0 {
+					m.timerMutex.Unlock()
+					continue
+				}
+				var tickers []string
+				for _, res := range m.results {
+					tickers = append(tickers, res.Ticker)
+				}
+				m.timerMutex.Unlock()
+
+				quotes, err := m.client.GetSnapshots(tickers)
+				if err == nil {
+					m.app.QueueUpdateDraw(func() {
+						m.updatePrices(quotes)
+					})
+				}
+			}
+		}
+	}()
+}
+
+func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
+	for i, res := range m.results {
+		if q, ok := quotes[res.Ticker]; ok {
+			row := i + 1
+			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
+		}
+	}
 }
 
 func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
@@ -180,6 +240,7 @@ func (m *SearchModal) setupHandlers() {
 			m.app.SetFocus(m.Table)
 			return nil
 		case tcell.KeyEscape:
+			m.stopRefresh()
 			if m.onCancel != nil {
 				m.onCancel()
 			}
@@ -194,6 +255,7 @@ func (m *SearchModal) setupHandlers() {
 			m.app.SetFocus(m.Input)
 			return nil
 		case tcell.KeyEscape:
+			m.stopRefresh()
 			if m.onCancel != nil {
 				m.onCancel()
 			}
@@ -203,6 +265,7 @@ func (m *SearchModal) setupHandlers() {
 				row, _ := m.Table.GetSelection()
 				if row > 0 && row <= len(m.results) {
 					ticker := m.results[row-1].Ticker
+					m.stopRefresh()
 					if m.onSelect != nil {
 						m.onSelect(ticker)
 					}

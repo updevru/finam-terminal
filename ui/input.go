@@ -87,6 +87,9 @@ func setupInputHandlers(app *App) {
 		case 'c', 'C':
 			app.OpenCloseModal()
 			return nil
+		case 's', 'S':
+			app.OpenSearchModal()
+			return nil
 		}
 		return event
 	})
@@ -105,6 +108,14 @@ func setupInputHandlers(app *App) {
 			switch event.Key() {
 			case tcell.KeyEscape:
 				app.CloseCloseModal()
+				return nil
+			}
+			return event
+		}
+		if app.IsSearchModalOpen() {
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseSearchModal()
 				return nil
 			}
 			return event
@@ -143,6 +154,9 @@ func setupInputHandlers(app *App) {
 			return nil
 		case 'r', 'R':
 			refresh()
+			return nil
+		case 's', 'S':
+			app.OpenSearchModal()
 			return nil
 		}
 		return event

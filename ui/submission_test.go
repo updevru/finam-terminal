@@ -6,34 +6,9 @@ import (
 	"testing"
 )
 
-type MockAPIClient struct {
-	PlaceOrderFunc    func(accountID string, symbol string, buySell string, quantity float64) (string, error)
-	ClosePositionFunc func(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
-}
-
-func (m *MockAPIClient) GetAccounts() ([]models.AccountInfo, error) { return nil, nil }
-func (m *MockAPIClient) GetAccountDetails(id string) (*models.AccountInfo, []models.Position, error) {
-	return nil, nil, nil
-}
-func (m *MockAPIClient) GetQuotes(accountID string, syms []string) (map[string]*models.Quote, error) {
-	return nil, nil
-}
-func (m *MockAPIClient) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
-	if m.PlaceOrderFunc != nil {
-		return m.PlaceOrderFunc(accountID, symbol, buySell, quantity)
-	}
-	return "123", nil
-}
-func (m *MockAPIClient) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
-	if m.ClosePositionFunc != nil {
-		return m.ClosePositionFunc(accountID, symbol, currentQuantity, closeQuantity)
-	}
-	return "999", nil
-}
-
 func TestSubmitOrder_Success(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
-	mockClient := &MockAPIClient{
+	mockClient := &mockClient{
 		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
 			if id != "acc1" {
 				return "", fmt.Errorf("wrong account")
@@ -61,7 +36,7 @@ func TestSubmitOrder_Success(t *testing.T) {
 
 func TestSubmitOrder_Error(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
-	mockClient := &MockAPIClient{
+	mockClient := &mockClient{
 		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
 			return "", fmt.Errorf("api error")
 		},
@@ -83,7 +58,7 @@ func TestSubmitOrder_Error(t *testing.T) {
 
 func TestSubmitClosePosition_Success(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
-	mockClient := &MockAPIClient{
+	mockClient := &mockClient{
 		ClosePositionFunc: func(id string, sym string, curQty string, closeQty float64) (string, error) {
 			// CRITICAL: Verify we receive the full symbol (Ticker@MIC)
 			if sym != "SBER@TQBR" {
@@ -114,7 +89,7 @@ func TestSubmitClosePosition_Success(t *testing.T) {
 
 func TestSubmitClosePosition_Error(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
-	mockClient := &MockAPIClient{
+	mockClient := &mockClient{
 		ClosePositionFunc: func(id string, sym string, curQty string, closeQty float64) (string, error) {
 			return "", fmt.Errorf("api error")
 		},

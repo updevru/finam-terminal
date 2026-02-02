@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"finam-terminal/api"
 	"finam-terminal/models"
 	"testing"
 	"time"
@@ -9,7 +8,7 @@ import (
 
 func TestApp_Stop_Concurrency(t *testing.T) {
 	// Setup minimal app dependencies
-	mockClient := &api.Client{}
+	mockClient := &mockClient{}
 	accounts := []models.AccountInfo{{ID: "test-acc", Type: "Test", Equity: "100.00"}}
 
 	app := NewApp(mockClient, accounts)
