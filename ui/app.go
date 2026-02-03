@@ -7,6 +7,7 @@ import (
 
 	"finam-terminal/models"
 
+	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
 	"github.com/rivo/tview"
 )
 
@@ -294,16 +295,8 @@ func (a *App) Run() error {
 
 	a.pages.AddPage("close_modal", closeModalFlex, true, false)
 
-	// Add Search Modal (full width/height)
-	searchModalFlex := tview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(a.searchModal.Layout, 0, 1, true).
-			AddItem(nil, 0, 1, false), 0, 1, true).
-		AddItem(nil, 0, 1, false)
-
-	a.pages.AddPage("search_modal", searchModalFlex, true, false)
+	// Add Search Modal (full screen)
+	a.pages.AddPage("search_modal", a.searchModal.Layout, true, false)
 
 	// Setup input handlers
 	setupInputHandlers(a)

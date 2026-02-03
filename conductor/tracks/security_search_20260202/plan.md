@@ -15,15 +15,17 @@
 - [x] Task: Write unit tests for `SearchModal` navigation and debouncing in `ui/search_test.go`. 377d524
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Search UI Component' (Protocol in workflow.md) c013d66
 
-## Phase 3: Integration & Live Data [~]
-- [x] Task: Integrate 'S' key in `ui/app.go` to open the `SearchModal`. 274e896
-- [x] Task: Implement live market data updates for the visible search results in `ui/search.go`. 377d524
-- [x] Task: Implement 'A' key handler in `SearchModal` to trigger `OrderModal` with selected security. 377d524
-- [x] Task: Write integration tests for opening Search and transitioning to Buy Modal in `ui/search_integration_test.go`. 377d524
+## Phase 3: Integration & Live Data [x] [checkpoint: 4ccc0cd]
+- [x] Task: Integrate 'S' key in `ui/app.go` to open the `SearchModal`. 4ccc0cd
+- [x] Task: Implement live market data updates for the visible search results in `ui/search.go`. 4ccc0cd
+- [x] Task: Implement 'A' key handler in `SearchModal` to trigger `OrderModal` with selected security. 4ccc0cd
+- [x] Task: Write integration tests for opening Search and transitioning to Buy Modal in `ui/search_integration_test.go`. 4ccc0cd
 - [~] Task: Conductor - User Manual Verification 'Phase 3: Integration & Live Data' (Protocol in workflow.md)
 
-## Phase 4: Refinement & Final Polish [ ]
-- [ ] Task: Polish search result formatting (colors for change %, column alignment).
-- [ ] Task: Add error handling/loading indicators for search operations.
-- [ ] Task: Final code review and documentation update (GoDoc).
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Refinement & Final Polish' (Protocol in workflow.md)
+## Phase 4: Refinement & Final Polish [x]
+- [x] Task: Make Search Window full-screen and Table full-width. 4ccc0cd (plus subsequent fixes)
+- [x] Task: Fix Russian character input in search field. (Added tcell/encoding import)
+- [x] Task: Polish search result formatting (colors for change %, column alignment).
+- [x] Task: Add error handling/loading indicators for search operations. 4ccc0cd
+- [x] Task: Final code review and documentation update (GoDoc).
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Refinement & Final Polish' (Protocol in workflow.md)

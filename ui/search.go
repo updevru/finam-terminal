@@ -31,6 +31,9 @@ type SearchModal struct {
 	searchTimer *time.Timer
 	timerMutex  sync.Mutex
 	refreshStop chan struct{}
+
+	searching bool
+	lastError string
 }
 
 // NewSearchModal creates a new security search modal
@@ -69,14 +72,8 @@ func (m *SearchModal) setupUI() {
 		SetBorder(true).
 		SetTitle(" Results ")
 
-	// Header row for table
-	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
-	for i, h := range headers {
-		m.Table.SetCell(0, i, tview.NewTableCell(h).
-			SetTextColor(tcell.ColorYellow).
-			SetSelectable(false).
-			SetAlign(tview.AlignCenter))
-	}
+	// Set header cells with expansion where needed
+	m.updateTableHeader()
 
 	// Footer
 	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
@@ -112,6 +109,8 @@ func (m *SearchModal) PerformSearch(query string) {
 	if query == "" {
 		m.app.QueueUpdateDraw(func() {
 			m.results = nil
+			m.searching = false
+			m.lastError = ""
 			m.updateTable(nil)
 		})
 		return
@@ -121,9 +120,28 @@ func (m *SearchModal) PerformSearch(query string) {
 		return
 	}
 
+	m.app.QueueUpdateDraw(func() {
+		m.searching = true
+		m.lastError = ""
+		m.updateTable(nil)
+	})
+
 	results, err := m.client.SearchSecurities(query)
 	if err != nil {
-		// Handle error (maybe show in status or table)
+		m.app.QueueUpdateDraw(func() {
+			m.searching = false
+			m.lastError = extractUserMessage(err)
+			m.updateTable(nil)
+		})
+		return
+	}
+
+	if len(results) == 0 {
+		m.app.QueueUpdateDraw(func() {
+			m.searching = false
+			m.results = nil
+			m.updateTable(nil)
+		})
 		return
 	}
 
@@ -136,6 +154,7 @@ func (m *SearchModal) PerformSearch(query string) {
 	quotes, _ := m.client.GetSnapshots(tickers)
 
 	m.app.QueueUpdateDraw(func() {
+		m.searching = false
 		m.results = results
 		m.updateTable(quotes)
 	})
@@ -197,38 +216,113 @@ func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
 	}
 }
 
+func (m *SearchModal) updateTableHeader() {
+	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
+	for i, h := range headers {
+		cell := tview.NewTableCell(h).
+			SetTextColor(tcell.ColorYellow).
+			SetSelectable(false).
+			SetAlign(tview.AlignCenter)
+
+		// Expand Name column
+		if i == 1 {
+			cell.SetExpansion(1)
+		}
+
+		m.Table.SetCell(0, i, cell)
+	}
+}
+
 func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 	// Clear existing rows (except header)
 	m.Table.Clear()
 
 	// Restore headers
-	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
-	for i, h := range headers {
-		m.Table.SetCell(0, i, tview.NewTableCell(h).
+	m.updateTableHeader()
+
+	if m.searching {
+		m.Table.SetCell(1, 0, tview.NewTableCell("Searching...").
 			SetTextColor(tcell.ColorYellow).
-			SetSelectable(false).
-			SetAlign(tview.AlignCenter))
+			SetAlign(tview.AlignCenter).
+			SetSelectable(false))
+		return
+	}
+
+	if m.lastError != "" {
+		m.Table.SetCell(1, 0, tview.NewTableCell("Error: "+m.lastError).
+			SetTextColor(tcell.ColorRed).
+			SetAlign(tview.AlignCenter).
+			SetSelectable(false))
+		return
 	}
 
 	if len(m.results) == 0 {
+		m.Table.SetCell(1, 0, tview.NewTableCell("No results found").
+			SetTextColor(tcell.ColorGray).
+			SetAlign(tview.AlignCenter).
+			SetSelectable(false))
 		return
 	}
 
 	for i, res := range m.results {
 		row := i + 1
-		m.Table.SetCell(row, 0, tview.NewTableCell(res.Ticker).SetTextColor(tcell.ColorWhite))
-		m.Table.SetCell(row, 1, tview.NewTableCell(res.Name).SetTextColor(tcell.ColorWhite))
-		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+		// Ticker
+		m.Table.SetCell(row, 0, tview.NewTableCell(res.Ticker).
+			SetTextColor(tcell.ColorWhite).
+			SetMaxWidth(12))
+
+		// Name (Expandable)
+		m.Table.SetCell(row, 1, tview.NewTableCell(res.Name).
+			SetTextColor(tcell.ColorWhite).
+			SetExpansion(1))
+
+		// Lot
+		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter).
+			SetMaxWidth(6))
+
+		// Currency
+		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter).
+			SetMaxWidth(8))
+
+		// Price & Change %
+		priceCell := tview.NewTableCell("...").
+			SetTextColor(tcell.ColorGray).
+			SetAlign(tview.AlignRight).
+			SetMaxWidth(10)
+		
+		changeCell := tview.NewTableCell("").
+			SetAlign(tview.AlignRight).
+			SetMaxWidth(10)
 
 		if q, ok := quotes[res.Ticker]; ok {
-			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
-			// Change % would need more data (Close price), but for now we put N/A or empty
-			m.Table.SetCell(row, 5, tview.NewTableCell("N/A").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
+			priceCell.SetText(q.Last).SetTextColor(tcell.ColorGreen)
+
+			// Calculate change
+			if last, err := parseFloat(q.Last); err == nil {
+				if prevClose, err := parseFloat(q.Close); err == nil && prevClose > 0 {
+					change := ((last - prevClose) / prevClose) * 100
+					changeStr := fmt.Sprintf("%.2f%%", change)
+					if change > 0 {
+						changeCell.SetText("+" + changeStr).SetTextColor(tcell.ColorGreen)
+					} else if change < 0 {
+						changeCell.SetText(changeStr).SetTextColor(tcell.ColorRed)
+					} else {
+						changeCell.SetText(changeStr).SetTextColor(tcell.ColorGray)
+					}
+				} else {
+					changeCell.SetText("N/A").SetTextColor(tcell.ColorGray)
+				}
+			}
 		} else {
-			m.Table.SetCell(row, 4, tview.NewTableCell("...").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
-			m.Table.SetCell(row, 5, tview.NewTableCell("...").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignRight))
+			changeCell.SetText("...").SetTextColor(tcell.ColorGray)
 		}
+		
+		m.Table.SetCell(row, 4, priceCell)
+		m.Table.SetCell(row, 5, changeCell)
 	}
 	m.Table.ScrollToBeginning()
 }
