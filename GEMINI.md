@@ -20,6 +20,7 @@ The project follows a clean modular structure:
 *   **`ui/`**: Manages the Terminal User Interface.
     *   `app.go`: Main `App` struct, state management, and lifecycle (Run/Stop).
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
+    *   `search.go`: Dedicated search window for finding securities.
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
 *   **`models/`**: Shared data structures used across the application to represent accounts, quotes, and positions.
 
@@ -94,7 +95,13 @@ go build -o finam-trade.exe main.go
     *   **Key Field:** `Last` (Last trade price)
     *   **Usage:** Ticker lookup, general price checks.
 
-2.  **Portfolio Positions**
+2.  **Security Search**
+    *   **Service:** `InstrumentsServiceClient`
+    *   **Method:** `GetSecurities`
+    *   **File:** `api/client.go` (`SearchSecurities`)
+    *   **Usage:** Finding assets by ticker or name.
+
+3.  **Portfolio Positions**
     *   **Service:** `AccountsServiceClient`
     *   **Method:** `GetAccount`
     *   **File:** `api/client.go` (`GetAccountDetails`)

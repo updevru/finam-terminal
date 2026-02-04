@@ -81,9 +81,8 @@ func (m *SearchModal) setupUI() {
 	// Footer
 	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
-		SetTextAlign(tview.AlignCenter).
-		SetDynamicColors(true).
-		SetText("[TAB] Switch Focus  [UP/DOWN] Navigate  [A] Buy  [ESC] Close")
+		SetTextAlign(tview.AlignLeft).
+		SetDynamicColors(true)
 
 	// Assemble
 	m.Layout.AddItem(m.Input, 1, 1, true).
@@ -359,7 +358,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 }
 
 func (m *SearchModal) updateFooter() {
-	shortcuts := "[yellow][TAB][white] Focus [yellow][UP/DOWN][white] Navigate [yellow][A][white] Buy [yellow][ESC][white] Close"
+	shortcuts := " [yellow]TAB[white] Switch Focus [yellow]UP/DOWN[white] Navigate [yellow]ENTER/A[white] Buy [yellow]ESC[white] Close"
 	status := ""
 	if m.searching {
 		status = " | [yellow]Searching...[white]"
@@ -397,6 +396,16 @@ func (m *SearchModal) setupHandlers() {
 			m.stopRefresh()
 			if m.onCancel != nil {
 				m.onCancel()
+			}
+			return nil
+		case tcell.KeyEnter:
+			row, _ := m.Table.GetSelection()
+			if row > 0 && row <= len(m.results) {
+				ticker := m.results[row-1].Ticker
+				m.stopRefresh()
+				if m.onSelect != nil {
+					m.onSelect(ticker)
+				}
 			}
 			return nil
 		case tcell.KeyRune:

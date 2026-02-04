@@ -1,0 +1,48 @@
+description = "Update CHANGELOG.md, README.md, and GEMINI.md for a new release"
+prompt = """
+You are tasked with updating the project documentation for a new release.
+Arguments (version and optional date): {{args}}
+
+Follow these steps precisely:
+
+1. **Information Gathering**:
+   - If version is not provided in {{args}}, ask the user for it.
+   - Run `git diff main..HEAD --name-only` to identify files changed in this branch relative to main.
+   - Look for directories in `conductor/archive/` that appear in the diff.
+
+2. **Data Extraction**:
+   - For each new track directory found in `archive/`:
+     - Read `spec.md` (preferred) or `plan.md`.
+     - Extract the title (the first H1 header, stripping 'Spec:' or 'Plan:').
+     - Extract the first sentence of the 'Overview' section.
+     - Note the track ID (the folder name without the date suffix).
+
+3. **Update CHANGELOG.md**:
+   - Read the current `CHANGELOG.md` to understand formatting.
+   - Categorize entries (Added, Changed, Fixed).
+   - Prepare a new entry:
+     ```markdown
+     ## [vX.Y.Z] - YYYY-MM-DD
+
+     ### [Category]
+     - **Title**: Description (track_id).
+     ```
+   - Insert this new entry before the first existing version entry.
+
+4. **Update README.md**:
+   - Analyze the new changes. If there are significant new features or changes (e.g., new windows, commands, or setup steps):
+     - Update the 'Возможности' (Features) section.
+     - Update any other relevant sections (Installation, UI components description, etc.).
+     - If changes are minor (just fixes), skip updating README.md.
+
+5. **Update GEMINI.md**:
+   - This file provides context for AI assistants.
+   - Update it to reflect the current state of the project:
+     - Mention new features or architectural changes.
+     - Update 'API Implementation Details' if new services or methods were integrated.
+     - Ensure 'Directory Structure' or 'Key Technologies' are up to date.
+
+6. **Final Verification**:
+   - Show the summary of changes made to all three files (CHANGELOG.md, README.md, GEMINI.md) to the user.
+   - Ask for confirmation before finalizing the file writes.
+"""
