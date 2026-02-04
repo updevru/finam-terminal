@@ -3,10 +3,11 @@ package ui
 import (
 	"finam-terminal/models"
 	"fmt"
-	"github.com/gdamore/tcell/v2"
-	"github.com/rivo/tview"
 	"sync"
 	"time"
+
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 // APISearchClient defines the interface for search operations
