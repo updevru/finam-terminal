@@ -114,16 +114,16 @@ func TestSaveTokenToUserHome(t *testing.T) {
 func TestLoad(t *testing.T) {
 	// Clear env vars that might interfere
 	origToken := os.Getenv("FINAM_API_TOKEN")
-	os.Unsetenv("FINAM_API_TOKEN")
-	defer os.Setenv("FINAM_API_TOKEN", origToken)
+	_ = os.Unsetenv("FINAM_API_TOKEN")
+	defer func() { _ = os.Setenv("FINAM_API_TOKEN", origToken) }()
 
 	origAddr := os.Getenv("FINAM_GRPC_ADDR")
-	os.Unsetenv("FINAM_GRPC_ADDR")
-	defer os.Setenv("FINAM_GRPC_ADDR", origAddr)
+	_ = os.Unsetenv("FINAM_GRPC_ADDR")
+	defer func() { _ = os.Setenv("FINAM_GRPC_ADDR", origAddr) }()
 
 	origInterval := os.Getenv("REFRESH_INTERVAL")
-	os.Unsetenv("REFRESH_INTERVAL")
-	defer os.Setenv("REFRESH_INTERVAL", origInterval)
+	_ = os.Unsetenv("REFRESH_INTERVAL")
+	defer func() { _ = os.Setenv("REFRESH_INTERVAL", origInterval) }()
 
 	t.Run("DefaultValues", func(t *testing.T) {
 		cfg, err := Load()
@@ -139,12 +139,12 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("EnvValues", func(t *testing.T) {
-		os.Setenv("FINAM_API_TOKEN", "env-token")
-		os.Setenv("FINAM_GRPC_ADDR", "custom-addr")
-		os.Setenv("REFRESH_INTERVAL", "10")
-		defer os.Unsetenv("FINAM_API_TOKEN")
-		defer os.Unsetenv("FINAM_GRPC_ADDR")
-		defer os.Unsetenv("REFRESH_INTERVAL")
+		_ = os.Setenv("FINAM_API_TOKEN", "env-token")
+		_ = os.Setenv("FINAM_GRPC_ADDR", "custom-addr")
+		_ = os.Setenv("REFRESH_INTERVAL", "10")
+		defer func() { _ = os.Unsetenv("FINAM_API_TOKEN") }()
+		defer func() { _ = os.Unsetenv("FINAM_GRPC_ADDR") }()
+		defer func() { _ = os.Unsetenv("REFRESH_INTERVAL") }()
 
 		cfg, err := Load()
 		if err != nil {
@@ -162,8 +162,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("InvalidInterval", func(t *testing.T) {
-		os.Setenv("REFRESH_INTERVAL", "not-a-number")
-		defer os.Unsetenv("REFRESH_INTERVAL")
+		_ = os.Setenv("REFRESH_INTERVAL", "not-a-number")
+		defer func() { _ = os.Unsetenv("REFRESH_INTERVAL") }()
 		cfg, err := Load()
 		if err != nil {
 			t.Fatal(err)

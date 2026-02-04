@@ -5,34 +5,16 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"runtime"
 
 	"finam-terminal/api"
 	"finam-terminal/config"
 	"finam-terminal/models"
+	"finam-terminal/platform"
 	"finam-terminal/ui"
-
-	"golang.org/x/sys/windows"
 )
 
-func enableWindowsUTF8() {
-	if runtime.GOOS != "windows" {
-		return
-	}
-	// Force UTF-8 and use the native console driver for tcell.
-	// This driver handles keyboard layouts much better than the VT driver on Windows.
-	os.Setenv("TCELL_UTF8", "1")
-	os.Setenv("TCELL_DRIVER", "console")
-	
-	// Set console code pages using both syscall and command line for maximum compatibility
-	_ = windows.SetConsoleCP(65001)
-	_ = windows.SetConsoleOutputCP(65001)
-	_ = exec.Command("chcp", "65001").Run()
-}
-
 func main() {
-	enableWindowsUTF8()
+	platform.EnableUTF8()
 
 	// Setup file logging
 	logFile, err := os.OpenFile("finam-terminal.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)

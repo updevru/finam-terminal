@@ -94,7 +94,7 @@ func TestTokenRefreshLoop(t *testing.T) {
 		t.Error("Expected at least one call to authenticate in the refresh loop")
 	}
 
-	client.Close()
+	_ = client.Close()
 }
 
 /*
@@ -135,5 +135,5 @@ func TestLastRefreshUpdate(t *testing.T) {
 		t.Errorf("Expected lastRefresh to be updated, got initial %v, current %v", initialRefresh, currentRefresh)
 	}
 
-	client.Close()
+	_ = client.Close()
 }

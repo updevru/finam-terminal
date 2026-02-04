@@ -79,16 +79,16 @@ func TestPlaceOrder_Success(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
 			if in.AccountId != "test-acc" {
-				return nil, grpc.ErrClientConnClosing // Just a dummy error
+				return nil, context.Canceled // Just a dummy error
 			}
 			if in.Symbol != "SBER@TQBR" {
-				return nil, grpc.ErrClientConnClosing
+				return nil, context.Canceled
 			}
 			if in.Side != tradeapiv1.Side_SIDE_BUY {
-				return nil, grpc.ErrClientConnClosing
+				return nil, context.Canceled
 			}
 			if in.Quantity == nil || in.Quantity.Value != "10" {
-				return nil, grpc.ErrClientConnClosing
+				return nil, context.Canceled
 			}
 
 			return &orders.OrderState{
@@ -117,7 +117,7 @@ func TestPlaceOrder_Success(t *testing.T) {
 func TestPlaceOrder_Error(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
-			return nil, grpc.ErrClientConnClosing
+			return nil, context.Canceled
 		},
 	}
 
@@ -139,10 +139,10 @@ func TestClosePosition_Success(t *testing.T) {
 		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
 			// If we are closing a Long position (Quantity "10"), it should be a SELL
 			if in.Side != tradeapiv1.Side_SIDE_SELL {
-				return nil, grpc.ErrClientConnClosing
+				return nil, context.Canceled
 			}
 			if in.Quantity.Value != "5" {
-				return nil, grpc.ErrClientConnClosing
+				return nil, context.Canceled
 			}
 			return &orders.OrderState{OrderId: "999"}, nil
 		},
@@ -312,7 +312,7 @@ func TestGetAccounts(t *testing.T) {
 			mockMarketData := &mockMarketDataServiceClient{
 				LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
 					if in.Symbol == "AAPL" { // AAPL is not resolved in cache for this test unless we add it
-						return nil, grpc.ErrClientConnClosing
+						return nil, context.Canceled
 					}
 					if in.Symbol == "SBER@TQBR" {
 						return &marketdata.QuoteResponse{
