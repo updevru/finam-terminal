@@ -43,3 +43,26 @@ func TestPosition_GetCloseDirection(t *testing.T) {
 		})
 	}
 }
+
+func TestSecurityInfoStructure(t *testing.T) {
+	// Verify SecurityInfo struct exists with correct fields
+	sec := SecurityInfo{
+		Ticker:   "AAPL",
+		Name:     "Apple Inc.",
+		Lot:      100,
+		Currency: "USD",
+	}
+
+	if sec.Ticker != "AAPL" {
+		t.Errorf("Expected Ticker AAPL, got %s", sec.Ticker)
+	}
+	if sec.Name != "Apple Inc." {
+		t.Errorf("Expected Name Apple Inc., got %s", sec.Name)
+	}
+	if sec.Lot != 100 {
+		t.Errorf("Expected Lot 100, got %d", sec.Lot)
+	}
+	if sec.Currency != "USD" {
+		t.Errorf("Expected Currency USD, got %s", sec.Currency)
+	}
+}

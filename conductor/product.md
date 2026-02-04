@@ -24,6 +24,10 @@ A Go-based Terminal User Interface (TUI) application designed to interact with t
     - **Position Closing:**
         - **One-Key Action:** Press 'C' on any open position to initiate a close order.
         - **Safety Modal:** Confirmation dialog displaying current price, PnL, and estimated total before execution.
+    - **Security Search:**
+        - **Full-Screen Search:** Press 'S' to open a dedicated, full-width search window.
+        - **Real-Time Discovery:** Instantly search for securities by ticker or name with live price updates.
+        - **Seamless Trading:** Select any search result and press 'A' to immediately open a pre-filled buy order.
 - **Proactive Session Management:**
     - **Background Token Refresh:** Automatically monitors and refreshes the API authentication token before expiration, ensuring uninterrupted long-running trading sessions.
 - **Portfolio View:** 

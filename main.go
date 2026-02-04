@@ -9,10 +9,13 @@ import (
 	"finam-terminal/api"
 	"finam-terminal/config"
 	"finam-terminal/models"
+	"finam-terminal/platform"
 	"finam-terminal/ui"
 )
 
 func main() {
+	platform.EnableUTF8()
+
 	// Setup file logging
 	logFile, err := os.OpenFile("finam-terminal.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {

@@ -105,10 +105,11 @@ func (m *OrderModal) setupUI() {
 
 	m.updateCreateButton()
 
-	// Configure Footer	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
+	// Configure Footer
+	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
-		SetTextAlign(tview.AlignCenter).
-		SetText("[TAB] Move  [ENTER] Select  [ESC] Close")
+		SetTextAlign(tview.AlignLeft).
+		SetText(" [yellow]TAB[white] Move  [yellow]ENTER[white] Select  [yellow]ESC[white] Close")
 
 	// Assemble Layout
 	// Form takes available space, Footer takes 1 line at bottom

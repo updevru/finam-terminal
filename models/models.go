@@ -67,3 +67,11 @@ type AccountSummary struct {
 	TotalUnrealPnL float64
 	PositionsCount int
 }
+
+// SecurityInfo represents basic information about a security from search results
+type SecurityInfo struct {
+	Ticker   string
+	Name     string
+	Lot      int32
+	Currency string
+}

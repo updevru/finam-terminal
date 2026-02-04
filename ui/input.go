@@ -87,26 +87,31 @@ func setupInputHandlers(app *App) {
 		case 'c', 'C':
 			app.OpenCloseModal()
 			return nil
+		case 's', 'S':
+			app.OpenSearchModal()
+			return nil
 		}
 		return event
 	})
 
 	app.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// If modal is open, intercept specific keys
-		if app.IsModalOpen() {
-			switch event.Key() {
-			case tcell.KeyEscape:
-				app.CloseOrderModal()
-				return nil
+		// If any modal is open, only handle Escape globally (if needed) or pass to focused widget
+		if app.IsModalOpen() || app.IsCloseModalOpen() || app.IsSearchModalOpen() {
+			if event.Key() == tcell.KeyEscape {
+				if app.IsModalOpen() {
+					app.CloseOrderModal()
+					return nil
+				}
+				if app.IsCloseModalOpen() {
+					app.CloseCloseModal()
+					return nil
+				}
+				if app.IsSearchModalOpen() {
+					app.CloseSearchModal()
+					return nil
+				}
 			}
-			return event
-		}
-		if app.IsCloseModalOpen() {
-			switch event.Key() {
-			case tcell.KeyEscape:
-				app.CloseCloseModal()
-				return nil
-			}
+			// Return event to be handled by the modal's internal components (e.g. InputField)
 			return event
 		}
 
@@ -143,6 +148,9 @@ func setupInputHandlers(app *App) {
 			return nil
 		case 'r', 'R':
 			refresh()
+			return nil
+		case 's', 'S':
+			app.OpenSearchModal()
 			return nil
 		}
 		return event

@@ -7,6 +7,7 @@ import (
 
 	"finam-terminal/models"
 
+	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
 	"github.com/rivo/tview"
 )
 
@@ -22,6 +23,10 @@ type APIClient interface {
 	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
 	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
+
+	// Search operations
+	SearchSecurities(query string) ([]models.SecurityInfo, error)
+	GetSnapshots(symbols []string) (map[string]models.Quote, error)
 }
 
 // App represents the TUI application
@@ -38,9 +43,10 @@ type App struct {
 	portfolioView *PortfolioView
 
 	// Layout
-	pages      *tview.Pages
-	orderModal *OrderModal
-	closeModal *ClosePositionModal
+	pages       *tview.Pages
+	orderModal  *OrderModal
+	closeModal  *ClosePositionModal
+	searchModal *SearchModal
 
 	statusMessage string
 	statusType    StatusType
@@ -100,6 +106,14 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		a.ShowError(msg)
 	})
 
+	// Initialize SearchModal
+	a.searchModal = NewSearchModal(a.app, a.client, func(ticker string) {
+		a.CloseSearchModal()
+		a.OpenOrderModalWithTicker(ticker)
+	}, func() {
+		a.CloseSearchModal()
+	})
+
 	return a
 }
 
@@ -111,6 +125,32 @@ func (a *App) CloseCloseModal() {
 func (a *App) CloseOrderModal() {
 	a.pages.HidePage("modal")
 	a.app.SetFocus(a.portfolioView.PositionsTable)
+}
+
+// OpenSearchModal opens the security search modal
+func (a *App) OpenSearchModal() {
+	a.pages.ShowPage("search_modal")
+	a.app.SetFocus(a.searchModal.Input)
+}
+
+// CloseSearchModal closes the security search modal
+func (a *App) CloseSearchModal() {
+	a.pages.HidePage("search_modal")
+	a.app.SetFocus(a.portfolioView.PositionsTable)
+}
+
+// IsSearchModalOpen returns true if the search modal is currently open
+func (a *App) IsSearchModalOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "search_modal"
+}
+
+// OpenOrderModalWithTicker opens the order entry modal with a pre-populated ticker
+func (a *App) OpenOrderModalWithTicker(ticker string) {
+	a.orderModal.SetInstrument(ticker)
+	a.orderModal.SetQuantity(0)
+	a.pages.ShowPage("modal")
+	a.app.SetFocus(a.orderModal.Form)
 }
 
 // IsModalOpen returns true if the order modal is currently open
@@ -254,6 +294,9 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("close_modal", closeModalFlex, true, false)
+
+	// Add Search Modal (full screen)
+	a.pages.AddPage("search_modal", a.searchModal.Layout, true, false)
 
 	// Setup input handlers
 	setupInputHandlers(a)

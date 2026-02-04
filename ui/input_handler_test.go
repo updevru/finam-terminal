@@ -8,7 +8,7 @@ import (
 )
 
 func TestInputHandler_ModalOpen_EscClosesModal(t *testing.T) {
-	app := NewApp(nil, nil)
+	app := NewApp(&mockClient{}, nil)
 
 	// Manually open modal
 	app.pages.AddPage("modal", tview.NewBox(), true, true)
@@ -34,7 +34,7 @@ func TestInputHandler_ModalOpen_EscClosesModal(t *testing.T) {
 }
 
 func TestInputHandler_ModalOpen_TabPassedThrough(t *testing.T) {
-	app := NewApp(nil, nil)
+	app := NewApp(&mockClient{}, nil)
 
 	// Manually open modal
 	app.pages.AddPage("modal", tview.NewBox(), true, true)
@@ -56,7 +56,7 @@ func TestInputHandler_ModalOpen_TabPassedThrough(t *testing.T) {
 }
 
 func TestInputHandler_ModalClosed_TabSwitchesFocus(t *testing.T) {
-	app := NewApp(nil, nil)
+	app := NewApp(&mockClient{}, nil)
 	// Ensure modal is closed
 	app.pages.HidePage("modal")
 

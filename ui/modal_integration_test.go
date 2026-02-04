@@ -7,7 +7,7 @@ import (
 
 func TestOpenCloseModal(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
-	mockClient := &MockAPIClient{}
+	mockClient := &mockClient{}
 	app := NewApp(mockClient, accounts)
 	app.selectedIdx = 0
 	app.positions["acc1"] = []models.Position{

@@ -52,10 +52,10 @@ func extractUserMessage(err error) string {
 // parseFloat parses a string to float64, handling commas as decimal separators
 // and removing whitespace (including NBSP).
 func parseFloat(s string) (float64, error) {
-	// Remove all whitespace
+	// Remove all whitespace using runes to be safe
 	var sb strings.Builder
 	for _, r := range s {
-		if !unicode.IsSpace(r) {
+		if !unicode.IsSpace(r) && r != '\u00A0' { // Handle regular space and NBSP
 			sb.WriteRune(r)
 		}
 	}
