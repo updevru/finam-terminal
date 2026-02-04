@@ -70,7 +70,7 @@ func TestSearchModal_Search(t *testing.T) {
 		t.Errorf("Expected cell text SBER, got %s", cell.Text)
 	}
 	
-	priceCell := modal.Table.GetCell(1, 4)
+	priceCell := modal.Table.GetCell(1, 3)
 	if priceCell.Text != "250.00" {
 		t.Errorf("Expected price 250.00, got %s", priceCell.Text)
 	}

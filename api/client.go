@@ -576,8 +576,8 @@ func (c *Client) GetSnapshots(symbols []string) (map[string]models.Quote, error)
 			Last:      formatDecimal(q.Last),
 			LastSize:  formatDecimal(q.LastSize),
 			Volume:    formatDecimal(q.Volume),
+			Close:     formatDecimal(q.Close),
 			Timestamp: q.Timestamp.AsTime(),
-			// Add other fields if needed for the table
 		}
 	}
 

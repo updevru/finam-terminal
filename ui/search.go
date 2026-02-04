@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"context"
 	"finam-terminal/models"
 	"fmt"
 	"sync"
@@ -28,10 +29,11 @@ type SearchModal struct {
 	onSelect func(ticker string)
 	onCancel func()
 
-	results     []models.SecurityInfo
-	searchTimer *time.Timer
-	timerMutex  sync.Mutex
-	refreshStop chan struct{}
+	results      []models.SecurityInfo
+	searchTimer  *time.Timer
+	searchCancel context.CancelFunc
+	timerMutex   sync.Mutex
+	refreshStop  chan struct{}
 
 	searching bool
 	lastError string
@@ -57,7 +59,7 @@ func NewSearchModal(app *tview.Application, client APISearchClient, onSelect fun
 func (m *SearchModal) setupUI() {
 	m.Layout.SetDirection(tview.FlexRow).
 		SetBorder(true).
-		SetTitle(" Security Search (S-Key) ").
+		SetTitle(" Security Search ").
 		SetTitleAlign(tview.AlignCenter)
 
 	// Input Field
@@ -80,12 +82,15 @@ func (m *SearchModal) setupUI() {
 	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
 		SetTextAlign(tview.AlignCenter).
+		SetDynamicColors(true).
 		SetText("[TAB] Switch Focus  [UP/DOWN] Navigate  [A] Buy  [ESC] Close")
 
 	// Assemble
 	m.Layout.AddItem(m.Input, 1, 1, true).
 		AddItem(m.Table, 0, 1, false).
 		AddItem(m.Footer, 1, 1, false)
+
+	m.updateFooter()
 
 	// SetChangedFunc for debounced search
 	m.Input.SetChangedFunc(func(text string) {
@@ -107,15 +112,27 @@ func (m *SearchModal) setupUI() {
 func (m *SearchModal) PerformSearch(query string) {
 	m.stopRefresh()
 
-	if query == "" {
+	m.timerMutex.Lock()
+	if m.searchCancel != nil {
+		m.searchCancel()
+	}
+
+	if len(query) < 3 {
 		m.app.QueueUpdateDraw(func() {
 			m.results = nil
 			m.searching = false
 			m.lastError = ""
 			m.updateTable(nil)
+			m.updateFooter()
 		})
+		m.searchCancel = nil
+		m.timerMutex.Unlock()
 		return
 	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	m.searchCancel = cancel
+	m.timerMutex.Unlock()
 
 	if m.client == nil {
 		return
@@ -125,14 +142,24 @@ func (m *SearchModal) PerformSearch(query string) {
 		m.searching = true
 		m.lastError = ""
 		m.updateTable(nil)
+		m.updateFooter()
 	})
 
 	results, err := m.client.SearchSecurities(query)
+
+	// Check if this search was cancelled
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	if err != nil {
 		m.app.QueueUpdateDraw(func() {
 			m.searching = false
 			m.lastError = extractUserMessage(err)
 			m.updateTable(nil)
+			m.updateFooter()
 		})
 		return
 	}
@@ -142,6 +169,7 @@ func (m *SearchModal) PerformSearch(query string) {
 			m.searching = false
 			m.results = nil
 			m.updateTable(nil)
+			m.updateFooter()
 		})
 		return
 	}
@@ -154,10 +182,18 @@ func (m *SearchModal) PerformSearch(query string) {
 
 	quotes, _ := m.client.GetSnapshots(tickers)
 
+	// Check again if cancelled before updating UI
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
 	m.app.QueueUpdateDraw(func() {
 		m.searching = false
 		m.results = results
 		m.updateTable(quotes)
+		m.updateFooter()
 	})
 
 	if len(results) > 0 {
@@ -212,13 +248,13 @@ func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
 	for i, res := range m.results {
 		if q, ok := quotes[res.Ticker]; ok {
 			row := i + 1
-			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
+			m.Table.SetCell(row, 3, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 		}
 	}
 }
 
 func (m *SearchModal) updateTableHeader() {
-	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
+	headers := []string{"Ticker", "Name", "Currency", "Price", "Change %"}
 	for i, h := range headers {
 		cell := tview.NewTableCell(h).
 			SetTextColor(tcell.ColorYellow).
@@ -242,7 +278,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 	m.updateTableHeader()
 
 	if m.searching {
-		m.Table.SetCell(1, 0, tview.NewTableCell("Searching...").
+		m.Table.SetCell(1, 1, tview.NewTableCell("Searching...").
 			SetTextColor(tcell.ColorYellow).
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false))
@@ -250,7 +286,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 	}
 
 	if m.lastError != "" {
-		m.Table.SetCell(1, 0, tview.NewTableCell("Error: "+m.lastError).
+		m.Table.SetCell(1, 1, tview.NewTableCell("Error: "+m.lastError).
 			SetTextColor(tcell.ColorRed).
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false))
@@ -258,7 +294,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 	}
 
 	if len(m.results) == 0 {
-		m.Table.SetCell(1, 0, tview.NewTableCell("No results found").
+		m.Table.SetCell(1, 1, tview.NewTableCell("No results found").
 			SetTextColor(tcell.ColorGray).
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false))
@@ -270,21 +306,15 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 		// Ticker
 		m.Table.SetCell(row, 0, tview.NewTableCell(res.Ticker).
 			SetTextColor(tcell.ColorWhite).
-			SetMaxWidth(12))
+			SetMaxWidth(20))
 
 		// Name (Expandable)
 		m.Table.SetCell(row, 1, tview.NewTableCell(res.Name).
 			SetTextColor(tcell.ColorWhite).
 			SetExpansion(1))
 
-		// Lot
-		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignCenter).
-			SetMaxWidth(6))
-
 		// Currency
-		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).
+		m.Table.SetCell(row, 2, tview.NewTableCell(res.Currency).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignCenter).
 			SetMaxWidth(8))
@@ -322,10 +352,24 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			changeCell.SetText("...").SetTextColor(tcell.ColorGray)
 		}
 		
-		m.Table.SetCell(row, 4, priceCell)
-		m.Table.SetCell(row, 5, changeCell)
+		m.Table.SetCell(row, 3, priceCell)
+		m.Table.SetCell(row, 4, changeCell)
 	}
 	m.Table.ScrollToBeginning()
+}
+
+func (m *SearchModal) updateFooter() {
+	shortcuts := "[yellow][TAB][white] Focus [yellow][UP/DOWN][white] Navigate [yellow][A][white] Buy [yellow][ESC][white] Close"
+	status := ""
+	if m.searching {
+		status = " | [yellow]Searching...[white]"
+	} else if m.lastError != "" {
+		status = fmt.Sprintf(" | [red]Error: %s[white]", m.lastError)
+	} else if len(m.results) > 0 {
+		status = fmt.Sprintf(" | [green]%d results found[white]", len(m.results))
+	}
+
+	m.Footer.SetText(fmt.Sprintf("%s%s", shortcuts, status))
 }
 
 func (m *SearchModal) setupHandlers() {
