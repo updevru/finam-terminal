@@ -5,10 +5,10 @@ This plan outlines the steps to implement a tabbed interface for the Portfolio v
 ## Phase 1: API Client Extensions
 Enhance the API client to fetch trade history and active orders from the Finam gRPC services.
 
-- [ ] Task: Define `Trade` and `Order` models in `models/models.go`
-- [ ] Task: Implement `GetTradeHistory(accountID string)` in `api/client.go`
-- [ ] Task: Implement `GetActiveOrders(accountID string)` in `api/client.go`
-- [ ] Task: Write unit tests for new API methods in `api/client_test.go`
+- [x] Task: Define `Trade` and `Order` models in `models/models.go` (4546289)
+- [x] Task: Implement `GetTradeHistory(accountID string)` in `api/client.go` (4546289)
+- [x] Task: Implement `GetActiveOrders(accountID string)` in `api/client.go` (4546289)
+- [x] Task: Write unit tests for new API methods in `api/client_test.go` (4546289)
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API Client Extensions' (Protocol in workflow.md)
 
 ## Phase 2: UI Tab Infrastructure
