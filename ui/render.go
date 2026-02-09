@@ -129,14 +129,21 @@ func updatePositionsTable(app *App) {
 func updateHistoryTable(app *App) {
 	app.portfolioView.TabbedView.HistoryTable.Clear()
 
-	headers := []string{"ID", "Symbol", "Side", "Price", "Qty", "Total", "Time"}
-	headerStyle := tcell.StyleDefault.Background(tcell.ColorDarkBlue).Foreground(tcell.ColorWhite).Bold(true)
+	headers := []string{"Symbol", "Side", "Price", "Qty", "Total", "Time"}
+	headerStyle := tcell.StyleDefault.
+		Background(tcell.ColorDarkBlue).
+		Foreground(tcell.ColorWhite).
+		Bold(true)
 
 	for i, h := range headers {
-		cell := tview.NewTableCell(h).SetStyle(headerStyle).SetExpansion(1)
-		if i > 0 {
-			cell.SetAlign(tview.AlignRight)
+		align := tview.AlignRight
+		if i == 0 {
+			align = tview.AlignLeft
 		}
+		cell := tview.NewTableCell(h).
+			SetStyle(headerStyle).
+			SetAlign(align).
+			SetExpansion(1)
 		app.portfolioView.TabbedView.HistoryTable.SetCell(0, i, cell)
 	}
 
@@ -161,13 +168,18 @@ func updateHistoryTable(app *App) {
 
 		timeStr := t.Timestamp.Format("01-02 15:04")
 
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 0, tview.NewTableCell(t.ID).SetStyle(tcell.StyleDefault.Background(rowBg)))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 1, tview.NewTableCell(t.Symbol).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 2, tview.NewTableCell(t.Side).SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 3, tview.NewTableCell(t.Price).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 4, tview.NewTableCell(t.Quantity).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(t.Total).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 0, tview.NewTableCell(t.Symbol).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 1, tview.NewTableCell(t.Side).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 2, tview.NewTableCell(t.Price).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 3, tview.NewTableCell(t.Quantity).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 4, tview.NewTableCell(t.Total).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightGreen)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(timeStr).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 	}
 
 	if len(history) == 0 {
@@ -182,14 +194,21 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"ID", "Symbol", "Side", "Type", "Status", "Qty", "Price", "Time"}
-	headerStyle := tcell.StyleDefault.Background(tcell.ColorDarkBlue).Foreground(tcell.ColorWhite).Bold(true)
+	headers := []string{"Symbol", "Side", "Type", "Status", "Qty", "Price", "Time"}
+	headerStyle := tcell.StyleDefault.
+		Background(tcell.ColorDarkBlue).
+		Foreground(tcell.ColorWhite).
+		Bold(true)
 
 	for i, h := range headers {
-		cell := tview.NewTableCell(h).SetStyle(headerStyle).SetExpansion(1)
-		if i > 0 {
-			cell.SetAlign(tview.AlignRight)
+		align := tview.AlignRight
+		if i == 0 {
+			align = tview.AlignLeft
 		}
+		cell := tview.NewTableCell(h).
+			SetStyle(headerStyle).
+			SetAlign(align).
+			SetExpansion(1)
 		app.portfolioView.TabbedView.OrdersTable.SetCell(0, i, cell)
 	}
 
@@ -214,14 +233,20 @@ func updateOrdersTable(app *App) {
 
 		timeStr := o.CreationTime.Format("01-02 15:04")
 
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(o.ID).SetStyle(tcell.StyleDefault.Background(rowBg)))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Symbol).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Side).SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Type).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(o.Status).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(o.Quantity).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(o.Price).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 7, tview.NewTableCell(timeStr).SetStyle(tcell.StyleDefault.Background(rowBg)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(o.Symbol).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Status).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightCyan)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(o.Quantity).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(o.Price).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 	}
 
 	if len(orders) == 0 {

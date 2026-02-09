@@ -222,6 +222,7 @@ func createHistoryTable() *tview.Table {
 	table.SetTitle(" History ")
 	table.SetBackgroundColor(tcell.ColorBlack)
 	table.SetSelectable(true, false)
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
 	return table
 }
 
@@ -232,6 +233,7 @@ func createOrdersTable() *tview.Table {
 	table.SetTitle(" Orders ")
 	table.SetBackgroundColor(tcell.ColorBlack)
 	table.SetSelectable(true, false)
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
 	return table
 }
 
