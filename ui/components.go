@@ -73,6 +73,7 @@ func NewTabbedView() *TabbedView {
 	}
 
 	tv.Header.SetBackgroundColor(tcell.ColorBlack)
+	tv.Header.SetDynamicColors(true)
 
 	tv.Content.AddPage("positions", tv.PositionsTable, true, true)
 	tv.Content.AddPage("history", tv.HistoryTable, true, false)
