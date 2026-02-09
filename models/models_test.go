@@ -66,3 +66,28 @@ func TestSecurityInfoStructure(t *testing.T) {
 		t.Errorf("Expected Currency USD, got %s", sec.Currency)
 	}
 }
+
+func TestTradeModel(t *testing.T) {
+	tr := Trade{
+		ID:       "T1",
+		Symbol:   "SBER",
+		Side:     "Buy",
+		Price:    "250.00",
+		Quantity: "10",
+		Total:    "2500.00",
+	}
+	if tr.Total != "2500.00" {
+		t.Errorf("Expected Total 2500.00, got %s", tr.Total)
+	}
+}
+
+func TestOrderModel(t *testing.T) {
+	o := Order{
+		ID:     "O1",
+		Symbol: "GAZP",
+		Status: "Active",
+	}
+	if o.ID != "O1" {
+		t.Errorf("Expected ID O1, got %s", o.ID)
+	}
+}
