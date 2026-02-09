@@ -88,6 +88,54 @@ func (a *App) loadDataAsync(accountID string) {
 	}()
 }
 
+// loadHistoryAsync loads trade history from API asynchronously
+func (a *App) loadHistoryAsync(accountID string) {
+	a.SetStatus("Loading History...", StatusLoading)
+	go func() {
+		history, err := a.client.GetTradeHistory(accountID)
+		if err != nil {
+			log.Printf("[WARN] Failed to load history for %s: %v", accountID, err)
+			a.SetStatus("Error loading history", StatusError)
+			return
+		}
+
+		a.dataMutex.Lock()
+		a.history[accountID] = history
+		a.dataMutex.Unlock()
+
+		a.app.QueueUpdateDraw(func() {
+			if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
+				updateHistoryTable(a)
+				a.SetStatus("History updated", StatusSuccess)
+			}
+		})
+	}()
+}
+
+// loadOrdersAsync loads active orders from API asynchronously
+func (a *App) loadOrdersAsync(accountID string) {
+	a.SetStatus("Loading Orders...", StatusLoading)
+	go func() {
+		orders, err := a.client.GetActiveOrders(accountID)
+		if err != nil {
+			log.Printf("[WARN] Failed to load orders for %s: %v", accountID, err)
+			a.SetStatus("Error loading orders", StatusError)
+			return
+		}
+
+		a.dataMutex.Lock()
+		a.activeOrders[accountID] = orders
+		a.dataMutex.Unlock()
+
+		a.app.QueueUpdateDraw(func() {
+			if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
+				updateOrdersTable(a)
+				a.SetStatus("Orders updated", StatusSuccess)
+			}
+		})
+	}()
+}
+
 // backgroundRefresh runs periodic data refresh
 func (a *App) backgroundRefresh() {
 	// Initial refresh immediately

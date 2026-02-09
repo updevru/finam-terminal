@@ -27,6 +27,10 @@ type APIClient interface {
 	// Search operations
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
 	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+
+	// History and Orders
+	GetTradeHistory(accountID string) ([]models.Trade, error)
+	GetActiveOrders(accountID string) ([]models.Order, error)
 }
 
 // App represents the TUI application
@@ -35,6 +39,8 @@ type App struct {
 	client        APIClient
 	accounts      []models.AccountInfo
 	positions     map[string][]models.Position
+	history       map[string][]models.Trade
+	activeOrders  map[string][]models.Order
 	quotes        map[string]map[string]*models.Quote
 	selectedIdx   int
 	dataMutex     DataMutex
@@ -77,6 +83,8 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		client:      client,
 		accounts:    accounts,
 		positions:   make(map[string][]models.Position),
+		history:     make(map[string][]models.Trade),
+		activeOrders: make(map[string][]models.Order),
 		quotes:      make(map[string]map[string]*models.Quote),
 		selectedIdx: 0,
 		stopChan:    make(chan struct{}),
@@ -120,11 +128,11 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 // CloseCloseModal closes the close position modal
 func (a *App) CloseCloseModal() {
 	a.pages.HidePage("close_modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 func (a *App) CloseOrderModal() {
 	a.pages.HidePage("modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 
 // OpenSearchModal opens the security search modal
@@ -136,7 +144,7 @@ func (a *App) OpenSearchModal() {
 // CloseSearchModal closes the security search modal
 func (a *App) CloseSearchModal() {
 	a.pages.HidePage("search_modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 
 // IsSearchModalOpen returns true if the search modal is currently open
@@ -199,7 +207,7 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 // SubmitClosePosition submits an order to close an existing position
 func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	// Get selected row to identify the position again
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 	if row <= 0 {
 		return fmt.Errorf("no position selected")
 	}
@@ -324,7 +332,7 @@ func (a *App) Stop() {
 // OpenOrderModal opens the order entry modal
 func (a *App) OpenOrderModal() {
 	// Get selected row
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 
 	// Default to empty if header or invalid
 	symbol := ""
@@ -355,7 +363,7 @@ func (a *App) OpenOrderModal() {
 // OpenCloseModal opens the close position modal
 func (a *App) OpenCloseModal() {
 	// Get selected row
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 
 	if row > 0 {
 		idx := row - 1

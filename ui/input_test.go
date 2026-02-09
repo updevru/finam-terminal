@@ -21,7 +21,7 @@ func TestApp_OpenOrderModal_PrefillsInstrument(t *testing.T) {
 	updatePositionsTable(app)
 
 	// Select the second row (SBER) - Row 0 is header, Row 1 is GAZP, Row 2 is SBER
-	app.portfolioView.PositionsTable.Select(2, 0)
+	app.portfolioView.TabbedView.PositionsTable.Select(2, 0)
 
 	// Action
 	app.OpenOrderModal()

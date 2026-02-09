@@ -11,29 +11,29 @@ Enhance the API client to fetch trade history and active orders from the Finam g
 - [x] Task: Write unit tests for new API methods in `api/client_test.go` (4546289)
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API Client Extensions' (Protocol in workflow.md)
 
-## Phase 2: UI Tab Infrastructure
+## Phase 2: UI Tab Infrastructure [checkpoint: 8b6edb9]
 Refactor the existing Positions view to support multiple tabs and navigation logic.
 
-- [ ] Task: Create a `TabbedView` component in `ui/components.go` that manages active tab state
-- [ ] Task: Implement tab navigation logic (Left/Right arrows, Tab/Shift+Tab) in `ui/input.go`
-- [ ] Task: Update `ui/render.go` to display tab headers with the specified highlight style
-- [ ] Task: Write tests for tab switching logic in `ui/input_handler_test.go`
+- [x] Task: Create a `TabbedView` component in `ui/components.go` that manages active tab state (8b6edb9)
+- [x] Task: Implement tab navigation logic (Left/Right arrows, Tab/Shift+Tab) in `ui/input.go` (8b6edb9)
+- [x] Task: Update `ui/render.go` to display tab headers with the specified highlight style (8b6edb9)
+- [x] Task: Write tests for tab switching logic in `ui/input_handler_test.go` (8b6edb9)
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: UI Tab Infrastructure' (Protocol in workflow.md)
 
 ## Phase 3: History & Orders Views
 Implement the specific table renderings and data fetching for the new tabs.
 
-- [ ] Task: Implement `renderHistoryTable()` in `ui/render.go` with requested columns
-- [ ] Task: Implement `renderOrdersTable()` in `ui/render.go` with requested columns
-- [ ] Task: Implement "Refresh on Entry" logic in `ui/app.go` when switching tabs
-- [ ] Task: Implement manual refresh ('R' key) in `ui/input.go`
-- [ ] Task: Write integration tests for data loading in History/Orders tabs
+- [x] Task: Implement `renderHistoryTable()` in `ui/render.go` with requested columns (Current)
+- [x] Task: Implement `renderOrdersTable()` in `ui/render.go` with requested columns (Current)
+- [x] Task: Implement "Refresh on Entry" logic in `ui/app.go` when switching tabs (Current)
+- [x] Task: Implement manual refresh ('R' key) in `ui/input.go` (Current)
+- [x] Task: Write integration tests for data loading in History/Orders tabs (Current)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: History & Orders Views' (Protocol in workflow.md)
 
 ## Phase 4: Refinement & Polishing
 Ensure visual consistency and smooth user experience.
 
-- [ ] Task: Ensure consistent column alignment and styling across all three tables
-- [ ] Task: Handle empty states (e.g., "No active orders") gracefully in the UI
-- [ ] Task: Final verification of keyboard shortcuts and responsiveness
+- [x] Task: Ensure consistent column alignment and styling across all three tables (Current)
+- [x] Task: Handle empty states (e.g., "No active orders") gracefully in the UI (Current)
+- [x] Task: Final verification of keyboard shortcuts and responsiveness (Current)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Refinement & Polishing' (Protocol in workflow.md)

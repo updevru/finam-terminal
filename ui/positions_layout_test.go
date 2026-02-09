@@ -25,7 +25,7 @@ func TestPositionsTable_Expansion(t *testing.T) {
 	// Execute
 	updatePositionsTable(app)
 
-	table := pv.PositionsTable
+	table := pv.TabbedView.PositionsTable
 	colCount := table.GetColumnCount()
 	if colCount == 0 {
 		t.Fatal("Table has no columns")

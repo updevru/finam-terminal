@@ -73,7 +73,30 @@ func TestInputHandler_ModalClosed_TabSwitchesFocus(t *testing.T) {
 		t.Error("Expected Tab event to be consumed")
 	}
 
-	if app.app.GetFocus() != app.portfolioView.PositionsTable {
-		t.Error("Expected focus to switch to PositionsTable")
+	if app.app.GetFocus() != app.portfolioView.TabbedView.PositionsTable {
+		t.Error("Expected focus to switch to TabbedView.PositionsTable")
+	}
+}
+
+func TestInputHandler_TabSwitchesTabs(t *testing.T) {
+	app := NewApp(&mockClient{}, nil)
+	setupInputHandlers(app)
+
+	// Focus on PositionsTable
+	app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
+
+	// Get capture for Application
+	capture := app.app.GetInputCapture()
+
+	// Simulate Tab key
+	event := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	capture(event)
+
+	if app.portfolioView.TabbedView.ActiveTab != TabHistory {
+		t.Errorf("Expected ActiveTab to be TabHistory, got %v", app.portfolioView.TabbedView.ActiveTab)
+	}
+
+	if app.app.GetFocus() != app.portfolioView.TabbedView.HistoryTable {
+		t.Error("Expected focus to switch to HistoryTable")
 	}
 }

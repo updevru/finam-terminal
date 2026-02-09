@@ -76,7 +76,7 @@ func TestSubmitClosePosition_Success(t *testing.T) {
 	app.positions["acc1"] = []models.Position{{Ticker: "SBER", Symbol: "SBER@TQBR", Quantity: "10"}}
 
 	// Mock table selection
-	app.portfolioView.PositionsTable.Select(1, 0)
+	app.portfolioView.TabbedView.PositionsTable.Select(1, 0)
 
 	// Act
 	err := app.SubmitClosePosition(5)
@@ -99,7 +99,7 @@ func TestSubmitClosePosition_Error(t *testing.T) {
 	app.positions["acc1"] = []models.Position{{Ticker: "SBER", Quantity: "10"}}
 
 	// Mock table selection
-	app.portfolioView.PositionsTable.Select(1, 0)
+	app.portfolioView.TabbedView.PositionsTable.Select(1, 0)
 
 	// Act
 	err := app.SubmitClosePosition(5)

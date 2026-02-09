@@ -14,6 +14,9 @@ type mockClient struct {
 
 	SearchSecuritiesFunc func(query string) ([]models.SecurityInfo, error)
 	GetSnapshotsFunc     func(symbols []string) (map[string]models.Quote, error)
+
+	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
+	GetActiveOrdersFunc func(accountID string) ([]models.Order, error)
 }
 
 func (m *mockClient) GetAccounts() ([]models.AccountInfo, error) {
@@ -63,4 +66,18 @@ func (m *mockClient) GetSnapshots(symbols []string) (map[string]models.Quote, er
 		return m.GetSnapshotsFunc(symbols)
 	}
 	return make(map[string]models.Quote), nil
+}
+
+func (m *mockClient) GetTradeHistory(accountID string) ([]models.Trade, error) {
+	if m.GetTradeHistoryFunc != nil {
+		return m.GetTradeHistoryFunc(accountID)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) GetActiveOrders(accountID string) ([]models.Order, error) {
+	if m.GetActiveOrdersFunc != nil {
+		return m.GetActiveOrdersFunc(accountID)
+	}
+	return nil, nil
 }

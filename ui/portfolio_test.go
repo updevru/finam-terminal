@@ -26,7 +26,11 @@ func TestNewPortfolioView(t *testing.T) {
 		t.Error("Expected PortfolioView AccountTable to be not nil")
 	}
 
-	if pv.PositionsTable == nil {
+	if pv.TabbedView == nil {
+		t.Error("Expected PortfolioView TabbedView to be not nil")
+	}
+
+	if pv.TabbedView.PositionsTable == nil {
 		t.Error("Expected PortfolioView PositionsTable to be not nil")
 	}
 
@@ -96,11 +100,11 @@ func TestPortfolioView_UpdatePositions(t *testing.T) {
 
 	pv.UpdatePositions(positions)
 
-	if pv.PositionsTable.GetRowCount() != 3 { // 1 header + 2 data
-		t.Errorf("Expected 3 rows in positions table, got %d", pv.PositionsTable.GetRowCount())
+	if pv.TabbedView.PositionsTable.GetRowCount() != 3 { // 1 header + 2 data
+		t.Errorf("Expected 3 rows in positions table, got %d", pv.TabbedView.PositionsTable.GetRowCount())
 	}
 
-	cell := pv.PositionsTable.GetCell(1, 0)
+	cell := pv.TabbedView.PositionsTable.GetCell(1, 0)
 	if cell.Text != "S1" {
 		t.Errorf("Expected first position symbol to be S1, got %s", cell.Text)
 	}
