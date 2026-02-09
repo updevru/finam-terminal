@@ -520,6 +520,113 @@ func (c *Client) SearchSecurities(query string) ([]models.SecurityInfo, error) {
 	return results, nil
 }
 
+// GetTradeHistory returns trade history for an account
+func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	resp, err := c.accountsClient.Trades(ctx, &accounts.TradesRequest{
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trades: %w", err)
+	}
+
+	var trades []models.Trade
+	for _, t := range resp.Trades {
+		side := "Unknown"
+		if t.Side == tradeapiv1.Side_SIDE_BUY {
+			side = "Buy"
+		} else if t.Side == tradeapiv1.Side_SIDE_SELL {
+			side = "Sell"
+		}
+
+		priceStr := formatDecimal(t.Price)
+		qtyStr := formatDecimal(t.Size)
+
+		price, _ := strconv.ParseFloat(priceStr, 64)
+		qty, _ := strconv.ParseFloat(qtyStr, 64)
+		total := price * qty
+
+		trades = append(trades, models.Trade{
+			ID:        t.TradeId,
+			Symbol:    t.Symbol,
+			Side:      side,
+			Price:     priceStr,
+			Quantity:  qtyStr,
+			Total:     fmt.Sprintf("%.2f", total),
+			Timestamp: t.Timestamp.AsTime(),
+		})
+	}
+	return trades, nil
+}
+
+// GetActiveOrders returns active orders for an account
+func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	resp, err := c.ordersClient.GetOrders(ctx, &orders.OrdersRequest{
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get orders: %w", err)
+	}
+
+	var activeOrders []models.Order
+	for _, o := range resp.Orders {
+		side := "Unknown"
+		if o.Order != nil {
+			if o.Order.Side == tradeapiv1.Side_SIDE_BUY {
+				side = "Buy"
+			} else if o.Order.Side == tradeapiv1.Side_SIDE_SELL {
+				side = "Sell"
+			}
+		}
+
+		status := "Unknown"
+		switch o.Status {
+		case orders.OrderStatus_ORDER_STATUS_UNSPECIFIED:
+			status = "Unspecified"
+		case orders.OrderStatus_ORDER_STATUS_NEW:
+			status = "New"
+		case orders.OrderStatus_ORDER_STATUS_PARTIALLY_FILLED:
+			status = "Partial"
+		case orders.OrderStatus_ORDER_STATUS_FILLED:
+			status = "Filled"
+		case orders.OrderStatus_ORDER_STATUS_CANCELED:
+			status = "Cancelled"
+		case orders.OrderStatus_ORDER_STATUS_REJECTED:
+			status = "Rejected"
+		case orders.OrderStatus_ORDER_STATUS_EXECUTED:
+			status = "Executed"
+		}
+
+		order := models.Order{
+			ID:     o.OrderId,
+			Status: status,
+			Side:   side,
+		}
+
+		if o.Order != nil {
+			order.Symbol = o.Order.Symbol
+			order.Type = o.Order.Type.String()
+			order.Quantity = formatDecimal(o.Order.Quantity)
+			order.Price = formatDecimal(o.Order.LimitPrice)
+			if order.Price == "0" || order.Price == "" {
+				order.Price = "Market"
+			}
+		}
+
+		if o.TransactAt != nil {
+			order.CreationTime = o.TransactAt.AsTime()
+		}
+
+		activeOrders = append(activeOrders, order)
+	}
+	return activeOrders, nil
+}
+
 // GetSnapshots returns initial prices for a list of securities
 func (c *Client) GetSnapshots(symbols []string) (map[string]models.Quote, error) {
 	if len(symbols) == 0 {

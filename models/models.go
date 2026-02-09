@@ -75,3 +75,27 @@ type SecurityInfo struct {
 	Lot      int32
 	Currency string
 }
+
+// Trade represents a trade in history
+type Trade struct {
+	ID        string
+	Symbol    string
+	Side      string
+	Price     string
+	Quantity  string
+	Total     string
+	Timestamp time.Time
+}
+
+// Order represents an active order
+type Order struct {
+	ID           string
+	Symbol       string
+	Side         string
+	Type         string
+	Status       string
+	Quantity     string
+	Executed     string
+	Price        string
+	CreationTime time.Time
+}

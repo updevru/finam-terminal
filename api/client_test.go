@@ -44,10 +44,15 @@ func (m *mockAssetsServiceClient) GetAsset(ctx context.Context, in *assets.GetAs
 type mockAccountsServiceClient struct {
 	accounts.AccountsServiceClient
 	GetAccountFunc func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error)
+	TradesFunc     func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error)
 }
 
 func (m *mockAccountsServiceClient) GetAccount(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
 	return m.GetAccountFunc(ctx, in, opts...)
+}
+
+func (m *mockAccountsServiceClient) Trades(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+	return m.TradesFunc(ctx, in, opts...)
 }
 
 // mockAuthServiceClient is a manual mock for auth.AuthServiceClient
@@ -69,10 +74,15 @@ func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, 
 type mockOrdersServiceClient struct {
 	orders.OrdersServiceClient
 	PlaceOrderFunc func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
+	GetOrdersFunc  func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error)
 }
 
 func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
 	return m.PlaceOrderFunc(ctx, in, opts...)
+}
+
+func (m *mockOrdersServiceClient) GetOrders(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+	return m.GetOrdersFunc(ctx, in, opts...)
 }
 
 func TestPlaceOrder_Success(t *testing.T) {
@@ -354,4 +364,89 @@ func TestGetAccounts(t *testing.T) {
 				t.Errorf("Expected Last 250.50, got %s", q.Last)
 			}
 		}
+
+func TestGetTradeHistory(t *testing.T) {
+	mockAccounts := &mockAccountsServiceClient{
+		TradesFunc: func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+			return &accounts.TradesResponse{
+				Trades: []*tradeapiv1.AccountTrade{
+					{
+						TradeId: "T1",
+						Symbol:  "SBER",
+						Price:   &decimal.Decimal{Value: "250.00"},
+						Size:    &decimal.Decimal{Value: "10"},
+						Side:    tradeapiv1.Side_SIDE_BUY,
+						Timestamp: timestamppb.Now(),
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient: mockAccounts,
+	}
+
+	trades, err := client.GetTradeHistory("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(trades) != 1 {
+		t.Errorf("Expected 1 trade, got %d", len(trades))
+	}
+	if trades[0].ID != "T1" {
+		t.Errorf("Expected trade ID T1, got %s", trades[0].ID)
+	}
+	if trades[0].Side != "Buy" {
+		t.Errorf("Expected Side Buy, got %s", trades[0].Side)
+	}
+	if trades[0].Total != "2500.00" {
+		t.Errorf("Expected Total 2500.00, got %s", trades[0].Total)
+	}
+}
+
+func TestGetActiveOrders(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+			return &orders.OrdersResponse{
+				Orders: []*orders.OrderState{
+					{
+						OrderId: "O1",
+						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+						Order: &orders.Order{
+							Symbol:     "GAZP",
+							Side:       tradeapiv1.Side_SIDE_SELL,
+							Quantity:   &decimal.Decimal{Value: "100"},
+							LimitPrice: &decimal.Decimal{Value: "150.00"},
+						},
+						TransactAt: timestamppb.Now(),
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+	}
+
+	activeOrders, err := client.GetActiveOrders("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(activeOrders) != 1 {
+		t.Errorf("Expected 1 order, got %d", len(activeOrders))
+	}
+	if activeOrders[0].ID != "O1" {
+		t.Errorf("Expected order ID O1, got %s", activeOrders[0].ID)
+	}
+	if activeOrders[0].Status != "New" {
+		t.Errorf("Expected Status New, got %s", activeOrders[0].Status)
+	}
+	if activeOrders[0].Side != "Sell" {
+		t.Errorf("Expected Side Sell, got %s", activeOrders[0].Side)
+	}
+}
 		
