@@ -23,17 +23,17 @@ Refactor the existing Positions view to support multiple tabs and navigation log
 ## Phase 3: History & Orders Views
 Implement the specific table renderings and data fetching for the new tabs.
 
-- [x] Task: Implement `renderHistoryTable()` in `ui/render.go` with requested columns (Current)
-- [x] Task: Implement `renderOrdersTable()` in `ui/render.go` with requested columns (Current)
-- [x] Task: Implement "Refresh on Entry" logic in `ui/app.go` when switching tabs (Current)
-- [x] Task: Implement manual refresh ('R' key) in `ui/input.go` (Current)
-- [x] Task: Write integration tests for data loading in History/Orders tabs (Current)
+- [x] Task: Implement `renderHistoryTable()` in `ui/render.go` with requested columns (a7c1081)
+- [x] Task: Implement `renderOrdersTable()` in `ui/render.go` with requested columns (a7c1081)
+- [x] Task: Implement "Refresh on Entry" logic in `ui/app.go` when switching tabs (a7c1081)
+- [x] Task: Implement manual refresh ('R' key) in `ui/input.go` (a7c1081)
+- [x] Task: Write integration tests for data loading in History/Orders tabs (a7c1081)
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: History & Orders Views' (Protocol in workflow.md)
 
 ## Phase 4: Refinement & Polishing
 Ensure visual consistency and smooth user experience.
 
-- [x] Task: Ensure consistent column alignment and styling across all three tables (Current)
-- [x] Task: Handle empty states (e.g., "No active orders") gracefully in the UI (Current)
-- [x] Task: Final verification of keyboard shortcuts and responsiveness (Current)
+- [x] Task: Ensure consistent column alignment and styling across all three tables (a7c1081)
+- [x] Task: Handle empty states (e.g., "No active orders") gracefully in the UI (a7c1081)
+- [x] Task: Final verification of keyboard shortcuts and responsiveness (a7c1081)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Refinement & Polishing' (Protocol in workflow.md)
