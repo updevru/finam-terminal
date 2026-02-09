@@ -15,9 +15,11 @@ import (
 	"finam-terminal/models"
 
 	"google.golang.org/genproto/googleapis/type/decimal"
+	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
@@ -525,8 +527,15 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
+	now := time.Now()
+	startTime := now.AddDate(0, 0, -30) // Last 30 days
+
 	resp, err := c.accountsClient.Trades(ctx, &accounts.TradesRequest{
 		AccountId: accountID,
+		Interval: &interval.Interval{
+			StartTime: timestamppb.New(startTime),
+			EndTime:   timestamppb.New(now),
+		},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get trades: %w", err)

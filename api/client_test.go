@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
@@ -368,6 +369,9 @@ func TestGetAccounts(t *testing.T) {
 func TestGetTradeHistory(t *testing.T) {
 	mockAccounts := &mockAccountsServiceClient{
 		TradesFunc: func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+			if in.Interval == nil || in.Interval.StartTime == nil || in.Interval.EndTime == nil {
+				return nil, fmt.Errorf("interval fields are required")
+			}
 			return &accounts.TradesResponse{
 				Trades: []*tradeapiv1.AccountTrade{
 					{
