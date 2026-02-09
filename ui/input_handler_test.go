@@ -55,30 +55,32 @@ func TestInputHandler_ModalOpen_TabPassedThrough(t *testing.T) {
 	}
 }
 
-func TestInputHandler_ModalClosed_TabSwitchesFocus(t *testing.T) {
+func TestInputHandler_TabSwitchesFocus(t *testing.T) {
 	app := NewApp(&mockClient{}, nil)
-	// Ensure modal is closed
-	app.pages.HidePage("modal")
-
 	setupInputHandlers(app)
-	capture := app.app.GetInputCapture()
 
-	// Initial focus on AccountTable (implicit default in setup)
+	// Focus on AccountTable
 	app.app.SetFocus(app.portfolioView.AccountTable)
 
-	event := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
-	res := capture(event)
+	// Get capture for Application
+	capture := app.app.GetInputCapture()
 
-	if res != nil {
-		t.Error("Expected Tab event to be consumed")
+	// Simulate Tab key
+	event := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	capture(event)
+
+	if app.app.GetFocus() == app.portfolioView.AccountTable {
+		t.Error("Expected focus to switch away from AccountTable")
 	}
 
-	if app.app.GetFocus() != app.portfolioView.TabbedView.PositionsTable {
-		t.Error("Expected focus to switch to TabbedView.PositionsTable")
+	// Simulate Tab key again
+	capture(event)
+	if app.app.GetFocus() != app.portfolioView.AccountTable {
+		t.Error("Expected focus to switch back to AccountTable")
 	}
 }
 
-func TestInputHandler_TabSwitchesTabs(t *testing.T) {
+func TestInputHandler_ArrowsSwitchTabs(t *testing.T) {
 	app := NewApp(&mockClient{}, nil)
 	setupInputHandlers(app)
 
@@ -88,8 +90,8 @@ func TestInputHandler_TabSwitchesTabs(t *testing.T) {
 	// Get capture for Application
 	capture := app.app.GetInputCapture()
 
-	// Simulate Tab key
-	event := tcell.NewEventKey(tcell.KeyTab, 0, tcell.ModNone)
+	// Simulate Right arrow key
+	event := tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)
 	capture(event)
 
 	if app.portfolioView.TabbedView.ActiveTab != TabHistory {

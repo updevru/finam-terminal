@@ -210,7 +210,7 @@ func setupInputHandlers(app *App) {
 			}
 			updateStatusBar(app)
 			return nil
-		case tcell.KeyTab:
+		case tcell.KeyTab, tcell.KeyBacktab:
 			if app.app.GetFocus() == app.portfolioView.AccountTable {
 				// Switch to the active tab's table
 				switch app.portfolioView.TabbedView.ActiveTab {
@@ -222,21 +222,16 @@ func setupInputHandlers(app *App) {
 					app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
 				}
 			} else {
-				// Cycle to next tab
-				nextTab()
+				// Switch back to Account Table
+				app.app.SetFocus(app.portfolioView.AccountTable)
 			}
 			updateStatusBar(app)
 			return nil
-		case tcell.KeyBacktab:
-			if app.app.GetFocus() == app.portfolioView.AccountTable {
-				// Go to last tab
-				app.portfolioView.TabbedView.SetTab(TabOrders)
-				app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-			} else {
-				// Cycle to previous tab
-				prevTab()
-			}
-			updateStatusBar(app)
+		case tcell.KeyLeft:
+			prevTab()
+			return nil
+		case tcell.KeyRight:
+			nextTab()
 			return nil
 		case tcell.KeyCtrlR:
 			refresh()
