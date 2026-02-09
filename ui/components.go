@@ -73,7 +73,6 @@ func NewTabbedView() *TabbedView {
 	}
 
 	tv.Header.SetBackgroundColor(tcell.ColorBlack)
-	tv.Header.SetDynamicColors(true)
 
 	tv.Content.AddPage("positions", tv.PositionsTable, true, true)
 	tv.Content.AddPage("history", tv.HistoryTable, true, false)
@@ -92,9 +91,9 @@ func (tv *TabbedView) UpdateHeader() {
 	headerText := ""
 	for i, tab := range tabs {
 		if TabType(i) == tv.ActiveTab {
-			headerText += fmt.Sprintf("[:black:yellow]%s[:-:-]", tab)
+			headerText += fmt.Sprintf("[black:yellow]%s[-]", tab)
 		} else {
-			headerText += fmt.Sprintf("[:white:black]%s[:-:-]", tab)
+			headerText += fmt.Sprintf("[white:black]%s[-]", tab)
 		}
 		if i < len(tabs)-1 {
 			headerText += " "
