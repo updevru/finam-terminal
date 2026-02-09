@@ -2,7 +2,7 @@
 
 This plan outlines the steps to implement a tabbed interface for the Portfolio view, adding History and Orders tabs alongside the existing Positions view.
 
-## Phase 1: API Client Extensions
+## Phase 1: API Client Extensions [checkpoint: 69e1d92]
 Enhance the API client to fetch trade history and active orders from the Finam gRPC services.
 
 - [x] Task: Define `Trade` and `Order` models in `models/models.go` (4546289)
