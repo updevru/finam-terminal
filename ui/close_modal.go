@@ -104,6 +104,7 @@ func (m *ClosePositionModal) setupUI() {
 	// Footer
 	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
+		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft).
 		SetText(" [yellow]TAB[white] Move  [yellow]ENTER[white] Execute  [yellow]ESC[white] Cancel")
 

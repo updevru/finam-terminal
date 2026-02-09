@@ -329,11 +329,9 @@ func updateStatusBar(app *App) {
 	}
 
 	shortcuts := "[yellow]F2[white] Refresh [yellow]Tab[white] Switch Area [yellow]←/→[white] Tabs [yellow]q[white] Quit"
-	// Check if TabbedView table is focused
-	focused := app.app.GetFocus()
-	if focused == app.portfolioView.TabbedView.PositionsTable ||
-		focused == app.portfolioView.TabbedView.HistoryTable ||
-		focused == app.portfolioView.TabbedView.OrdersTable {
+	// Check if TabbedView.PositionsTable is active and focused
+	if app.portfolioView.TabbedView.ActiveTab == TabPositions &&
+		app.app.GetFocus() == app.portfolioView.TabbedView.PositionsTable {
 		shortcuts += " | [yellow]A[white] Buy [yellow]C[white] Close"
 	}
 
