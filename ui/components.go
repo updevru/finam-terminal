@@ -212,6 +212,7 @@ func createPositionsTable() *tview.Table {
 	table.SetTitle(" Positions ")
 	table.SetBackgroundColor(tcell.ColorBlack)
 	table.SetSelectable(true, false)
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
 	return table
 }
 

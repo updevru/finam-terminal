@@ -123,6 +123,13 @@ func updatePositionsTable(app *App) {
 		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 6, tview.NewTableCell(unrealizedPnL).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(unrealColor)).SetAlign(tview.AlignRight))
 	}
+
+	if len(pos) == 0 {
+		app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell("No open positions").
+			SetSelectable(false).
+			SetAlign(tview.AlignCenter).
+			SetTextColor(tcell.ColorGray))
+	}
 }
 
 // updateHistoryTable refreshes the trade history table
