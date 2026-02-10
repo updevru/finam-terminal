@@ -20,7 +20,7 @@ Goal: Update the main display components to show quantities in lots.
 - [x] Task: Update `SearchModal` to display Lot Size. f4aa60b
     - [ ] Write failing tests in `ui/search_test.go` to verify the "Lot" column exists and shows correct data.
     - [ ] Update `ui/search.go` to add a "Lot" column to the results table and populate it from `SecurityInfo`.
-- [ ] Task: Update Portfolio/Positions table for lot-based display.
+- [x] Task: Update Portfolio/Positions table for lot-based display. 1d07187
     - [ ] Write failing tests in `ui/portfolio_test.go` to verify the quantity column shows lots instead of shares.
     - [ ] Update `ui/render.go` (or wherever the positions table is rendered) to rename "Qty" to "Qty (Lots)".
     - [ ] Implement calculation: `DisplayQty = TotalShares / LotSize`.
