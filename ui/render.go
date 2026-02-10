@@ -37,7 +37,7 @@ func updateAccountList(app *App) {
 func updatePositionsTable(app *App) {
 	app.portfolioView.TabbedView.PositionsTable.Clear()
 
-	headers := []string{"Symbol", "Qty", "AvgPrice", "Current", "Daily P&L", "Value", "Unreal P&L"}
+	headers := []string{"Symbol", "Qty (Lots)", "AvgPrice", "Current", "Daily P&L", "Value", "Unreal P&L"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -65,9 +65,14 @@ func updatePositionsTable(app *App) {
 		quote := q[p.Symbol]
 		rowNum := row + 1
 
+		qty, _ := parseFloat(p.Quantity)
+		displayQty := p.Quantity
+		if p.LotSize > 0 {
+			displayQty = fmt.Sprintf("%v", qty/p.LotSize)
+		}
+
 		totalValue := "N/A"
 		if quote != nil && quote.Last != "N/A" {
-			qty, _ := parseFloat(p.Quantity)
 			lastPrice, _ := parseFloat(quote.Last)
 			totalValue = fmt.Sprintf("%.2f", qty*lastPrice)
 		}
@@ -110,7 +115,7 @@ func updatePositionsTable(app *App) {
 
 		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 0, tview.NewTableCell(symbol).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
-		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 1, tview.NewTableCell(p.Quantity).
+		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 1, tview.NewTableCell(displayQty).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 2, tview.NewTableCell(p.AveragePrice).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))

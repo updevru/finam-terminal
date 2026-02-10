@@ -109,3 +109,36 @@ func TestPortfolioView_UpdatePositions(t *testing.T) {
 		t.Errorf("Expected first position symbol to be S1, got %s", cell.Text)
 	}
 }
+
+func TestPortfolioView_LotBasedQuantity(t *testing.T) {
+	app := tview.NewApplication()
+	pv := NewPortfolioView(app)
+
+	positions := []models.Position{
+		{Symbol: "SBER", Ticker: "SBER", MIC: "TQBR", Quantity: "100", LotSize: 10},
+	}
+
+	pv.UpdatePositions(positions)
+
+	// Check header
+	found := false
+	qtyCol := -1
+	for i := 0; i < pv.TabbedView.PositionsTable.GetColumnCount(); i++ {
+		if pv.TabbedView.PositionsTable.GetCell(0, i).Text == "Qty (Lots)" {
+			found = true
+			qtyCol = i
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Qty (Lots) column header not found")
+		return
+	}
+
+	// Check value: 100 shares / 10 lot size = 10 lots
+	qtyCell := pv.TabbedView.PositionsTable.GetCell(1, qtyCol)
+	if qtyCell.Text != "10" {
+		t.Errorf("Expected lot quantity 10, got %s", qtyCell.Text)
+	}
+}

@@ -159,7 +159,7 @@ func (pv *PortfolioView) UpdateSummary(acc models.AccountInfo) {
 func (pv *PortfolioView) UpdatePositions(positions []models.Position) {
 	pv.TabbedView.PositionsTable.Clear()
 
-	headers := []string{"Symbol", "Qty", "Avg Price", "Cur Price", "Unreal PnL"}
+	headers := []string{"Symbol", "Qty (Lots)", "Avg Price", "Cur Price", "Unreal PnL"}
 	for i, h := range headers {
 		pv.TabbedView.PositionsTable.SetCell(0, i, tview.NewTableCell(h).
 			SetTextColor(tcell.ColorYellow).
@@ -167,8 +167,14 @@ func (pv *PortfolioView) UpdatePositions(positions []models.Position) {
 	}
 
 	for i, pos := range positions {
+		qty, _ := strconv.ParseFloat(pos.Quantity, 64)
+		displayQty := pos.Quantity
+		if pos.LotSize > 0 {
+			displayQty = fmt.Sprintf("%v", qty/pos.LotSize)
+		}
+
 		pv.TabbedView.PositionsTable.SetCell(i+1, 0, tview.NewTableCell(pos.Symbol).SetTextColor(tcell.ColorWhite))
-		pv.TabbedView.PositionsTable.SetCell(i+1, 1, tview.NewTableCell(pos.Quantity).SetTextColor(tcell.ColorWhite))
+		pv.TabbedView.PositionsTable.SetCell(i+1, 1, tview.NewTableCell(displayQty).SetTextColor(tcell.ColorWhite))
 		pv.TabbedView.PositionsTable.SetCell(i+1, 2, tview.NewTableCell(pos.AveragePrice).SetTextColor(tcell.ColorWhite))
 		pv.TabbedView.PositionsTable.SetCell(i+1, 3, tview.NewTableCell(pos.CurrentPrice).SetTextColor(tcell.ColorWhite))
 		pv.TabbedView.PositionsTable.SetCell(i+1, 4, tview.NewTableCell(pos.UnrealizedPnL).SetTextColor(tcell.ColorWhite))
