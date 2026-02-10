@@ -17,7 +17,7 @@ Goal: Ensure the application has access to lot size metadata for all instruments
 ## Phase 2: UI Search & Portfolio Display
 Goal: Update the main display components to show quantities in lots.
 
-- [ ] Task: Update `SearchModal` to display Lot Size.
+- [x] Task: Update `SearchModal` to display Lot Size. f4aa60b
     - [ ] Write failing tests in `ui/search_test.go` to verify the "Lot" column exists and shows correct data.
     - [ ] Update `ui/search.go` to add a "Lot" column to the results table and populate it from `SecurityInfo`.
 - [ ] Task: Update Portfolio/Positions table for lot-based display.
