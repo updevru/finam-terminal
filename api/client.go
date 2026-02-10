@@ -48,7 +48,8 @@ type Client struct {
 	refreshCancel context.CancelFunc
 
 	// Cache for instrument MIC codes
-	assetMicCache map[string]string // ticker -> symbol@mic
+	assetMicCache map[string]string  // ticker -> symbol@mic
+	assetLotCache map[string]float64 // ticker -> lot size
 	securityCache []models.SecurityInfo
 	assetMutex    sync.RWMutex
 }
@@ -74,6 +75,7 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		ordersClient:     orders.NewOrdersServiceClient(conn),
 		apiToken:         apiToken,
 		assetMicCache:    make(map[string]string),
+		assetLotCache:    make(map[string]float64),
 		securityCache:    make([]models.SecurityInfo, 0),
 	}
 
@@ -233,13 +235,17 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 		return ticker
 	}
 	if fullSymbol, ok := c.assetMicCache[ticker]; ok {
-		c.assetMutex.RUnlock()
-		return fullSymbol
+		// Even if we have the symbol, we might not have the lot size cached.
+		// However, for positions we want both.
+		if _, lotOk := c.assetLotCache[ticker]; lotOk {
+			c.assetMutex.RUnlock()
+			return fullSymbol
+		}
 	}
 	c.assetMutex.RUnlock()
 
 	// Fallback: Fetch specific asset from API
-	log.Printf("[DEBUG] Cache miss for ticker: %s. Fetching from API...", ticker)
+	log.Printf("[DEBUG] Cache miss (symbol or lot) for ticker: %s. Fetching from API...", ticker)
 
 	ctx, cancel := c.getContext()
 	defer cancel()
@@ -256,12 +262,14 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 
 	if resp.Ticker != "" && resp.Board != "" {
 		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
+		lotSize, _ := strconv.ParseFloat(formatDecimal(resp.LotSize), 64)
 
 		c.assetMutex.Lock()
 		c.assetMicCache[ticker] = fullSymbol
+		c.assetLotCache[ticker] = lotSize
 		c.assetMutex.Unlock()
 
-		log.Printf("[DEBUG] Resolved %s via API: %s", ticker, fullSymbol)
+		log.Printf("[DEBUG] Resolved %s via API: %s (Lot: %v)", ticker, fullSymbol, lotSize)
 		return fullSymbol
 	}
 
@@ -431,10 +439,15 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 			mic = parts[1]
 		}
 
+		c.assetMutex.RLock()
+		lotSize := c.assetLotCache[ticker]
+		c.assetMutex.RUnlock()
+
 		position := models.Position{
 			Symbol:        fullSymbol,
 			Ticker:        ticker,
 			MIC:           mic,
+			LotSize:       lotSize,
 			Quantity:      formatDecimal(pos.Quantity),
 			AveragePrice:  formatDecimal(pos.AveragePrice),
 			CurrentPrice:  formatDecimal(pos.CurrentPrice),

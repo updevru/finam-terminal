@@ -113,6 +113,9 @@ func TestPlaceOrder_Success(t *testing.T) {
 		assetMicCache: map[string]string{
 			"SBER": "SBER@TQBR",
 		},
+		assetLotCache: map[string]float64{
+			"SBER": 1,
+		},
 	}
 
 	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10)
@@ -136,6 +139,9 @@ func TestPlaceOrder_Error(t *testing.T) {
 		ordersClient: mockOrders,
 		assetMicCache: map[string]string{
 			"SBER": "SBER@TQBR",
+		},
+		assetLotCache: map[string]float64{
+			"SBER": 1,
 		},
 	}
 
@@ -163,6 +169,9 @@ func TestClosePosition_Success(t *testing.T) {
 		ordersClient: mockOrders,
 		assetMicCache: map[string]string{
 			"SBER": "SBER@TQBR",
+		},
+		assetLotCache: map[string]float64{
+			"SBER": 1,
 		},
 	}
 
@@ -207,6 +216,9 @@ func TestGetAccountDetails(t *testing.T) {
 		accountsClient: mockAccounts,
 		assetMicCache: map[string]string{
 			"GAZP": "GAZP@TQBR",
+		},
+		assetLotCache: map[string]float64{
+			"GAZP": 1,
 		},
 	}
 
@@ -344,6 +356,9 @@ func TestGetAccounts(t *testing.T) {
 				assetMicCache: map[string]string{
 					"SBER": "SBER@TQBR",
 				},
+				assetLotCache: map[string]float64{
+					"SBER": 1,
+				},
 			}
 		
 			// Test GetSnapshots
@@ -451,6 +466,95 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 	if activeOrders[0].Side != "Sell" {
 		t.Errorf("Expected Side Sell, got %s", activeOrders[0].Side)
+	}
+}
+
+func TestLotSizeRetrieval(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		AssetsFunc: func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
+			return &assets.AssetsResponse{
+				Assets: []*assets.Asset{
+					{Ticker: "SBER", Name: "Sberbank", Symbol: "SBER@TQBR"},
+				},
+			}, nil
+		},
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			if in.Symbol == "SBER" {
+				return &assets.GetAssetResponse{
+					Ticker: "SBER",
+					Board:  "TQBR",
+					LotSize: &decimal.Decimal{Value: "10"},
+				}, nil
+			}
+			return &assets.GetAssetResponse{}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:  mockAssets,
+		assetMicCache: make(map[string]string),
+		assetLotCache: make(map[string]float64),
+	}
+
+	if err := client.loadAssetCache(); err != nil {
+		t.Fatalf("Failed to load cache: %v", err)
+	}
+
+	// Trigger getFullSymbol to fetch and cache lot size
+	client.getFullSymbol("SBER", "acc1")
+
+	client.assetMutex.RLock()
+	lot := client.assetLotCache["SBER"]
+	client.assetMutex.RUnlock()
+
+	if lot != 10 {
+		t.Errorf("Expected cached LotSize 10, got %f", lot)
+	}
+}
+
+func TestGetAccountDetails_LotSize(t *testing.T) {
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return &accounts.GetAccountResponse{
+				AccountId: in.AccountId,
+				Positions: []*accounts.Position{
+					{
+						Symbol:   "SBER",
+						Quantity: &decimal.Decimal{Value: "100"},
+					},
+				},
+			}, nil
+		},
+	}
+
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return &assets.GetAssetResponse{
+				Ticker:  "SBER",
+				Board:   "TQBR",
+				LotSize: &decimal.Decimal{Value: "10"},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient: mockAccounts,
+		assetsClient:   mockAssets,
+		assetMicCache:  make(map[string]string),
+		assetLotCache:  make(map[string]float64),
+	}
+
+	_, positions, err := client.GetAccountDetails("test-acc")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(positions) != 1 {
+		t.Fatalf("Expected 1 position, got %d", len(positions))
+	}
+
+	if positions[0].LotSize != 10 {
+		t.Errorf("Expected LotSize 10, got %f", positions[0].LotSize)
 	}
 }
 		
