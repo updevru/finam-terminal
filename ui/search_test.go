@@ -70,7 +70,7 @@ func TestSearchModal_Search(t *testing.T) {
 		t.Errorf("Expected cell text SBER, got %s", cell.Text)
 	}
 	
-	priceCell := modal.Table.GetCell(1, 3)
+	priceCell := modal.Table.GetCell(1, 4)
 	if priceCell.Text != "250.00" {
 		t.Errorf("Expected price 250.00, got %s", priceCell.Text)
 	}
@@ -98,5 +98,33 @@ func TestSearchModal_Navigation(t *testing.T) {
 
 	if app.GetFocus() != modal.Input {
 		t.Errorf("Expected Input to have focus after second Tab, got %T", app.GetFocus())
+	}
+}
+
+func TestSearchModal_LotColumn(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewSearchModal(app, nil, nil, nil)
+
+	modal.results = []models.SecurityInfo{
+		{Ticker: "SBER", Name: "Sberbank", Lot: 10, Currency: "RUB"},
+	}
+	modal.updateTable(nil)
+
+	// Check headers
+	found := false
+	for i := 0; i < modal.Table.GetColumnCount(); i++ {
+		if modal.Table.GetCell(0, i).Text == "Lot" {
+			found = true
+			// Check value in the first row
+			valCell := modal.Table.GetCell(1, i)
+			if valCell.Text != "10" {
+				t.Errorf("Expected lot value 10, got %s", valCell.Text)
+			}
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Lot column not found in SearchModal table")
 	}
 }

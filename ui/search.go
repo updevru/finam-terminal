@@ -247,13 +247,13 @@ func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
 	for i, res := range m.results {
 		if q, ok := quotes[res.Ticker]; ok {
 			row := i + 1
-			m.Table.SetCell(row, 3, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
+			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 		}
 	}
 }
 
 func (m *SearchModal) updateTableHeader() {
-	headers := []string{"Ticker", "Name", "Currency", "Price", "Change %"}
+	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
 	for i, h := range headers {
 		cell := tview.NewTableCell(h).
 			SetTextColor(tcell.ColorYellow).
@@ -312,8 +312,14 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetTextColor(tcell.ColorWhite).
 			SetExpansion(1))
 
+		// Lot
+		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter).
+			SetMaxWidth(8))
+
 		// Currency
-		m.Table.SetCell(row, 2, tview.NewTableCell(res.Currency).
+		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignCenter).
 			SetMaxWidth(8))
@@ -351,8 +357,8 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			changeCell.SetText("...").SetTextColor(tcell.ColorGray)
 		}
 		
-		m.Table.SetCell(row, 3, priceCell)
-		m.Table.SetCell(row, 4, changeCell)
+		m.Table.SetCell(row, 4, priceCell)
+		m.Table.SetCell(row, 5, changeCell)
 	}
 	m.Table.ScrollToBeginning()
 }
