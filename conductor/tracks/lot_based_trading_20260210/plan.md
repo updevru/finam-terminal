@@ -5,7 +5,7 @@ This plan implements lot-based display and trading logic across the application 
 ## Phase 1: API & Models Enhancement
 Goal: Ensure the application has access to lot size metadata for all instruments and positions.
 
-- [ ] Task: Update `models.Position` to include lot size information.
+- [x] Task: Update `models.Position` to include lot size information. 2688281
     - [ ] Write failing tests in `models/models_test.go` to verify `Position` can store and handle `LotSize`.
     - [ ] Add `LotSize float64` field to `Position` struct in `models/models.go`.
 - [ ] Task: Enhance `api.Client` to retrieve and cache lot sizes.
