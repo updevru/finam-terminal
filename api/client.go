@@ -619,7 +619,16 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 
 		if o.Order != nil {
 			order.Symbol = o.Order.Symbol
-			order.Type = o.Order.Type.String()
+			switch o.Order.Type {
+			case orders.OrderType_ORDER_TYPE_LIMIT:
+				order.Type = "Limit"
+			case orders.OrderType_ORDER_TYPE_MARKET:
+				order.Type = "Market"
+			default:
+				order.Type = o.Order.Type.String()
+				// Remove prefix if it's still there after String()
+				order.Type = strings.TrimPrefix(order.Type, "ORDER_TYPE_")
+			}
 			order.Quantity = formatDecimal(o.Order.Quantity)
 			order.Price = formatDecimal(o.Order.LimitPrice)
 			if order.Price == "0" || order.Price == "" {

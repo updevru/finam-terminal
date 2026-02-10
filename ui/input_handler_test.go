@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"finam-terminal/models"
 	"testing"
+	"time"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -102,3 +104,64 @@ func TestInputHandler_ArrowsSwitchTabs(t *testing.T) {
 		t.Error("Expected focus to switch to HistoryTable")
 	}
 }
+
+func TestInputHandler_F2RefreshesHistory(t *testing.T) {
+	historyCalled := make(chan bool, 1)
+	client := &mockClient{
+		GetTradeHistoryFunc: func(accountID string) ([]models.Trade, error) {
+			historyCalled <- true
+			return nil, nil
+		},
+	}
+	app := NewApp(client, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	setupInputHandlers(app)
+
+	// Set active tab to History
+	app.portfolioView.TabbedView.SetTab(TabHistory)
+
+	// Get capture for Application
+	capture := app.app.GetInputCapture()
+
+	// Simulate F2 key
+	event := tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone)
+	capture(event)
+
+	select {
+	case <-historyCalled:
+		// Success
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Timed out waiting for GetTradeHistory to be called on F2")
+	}
+}
+
+func TestInputHandler_F2RefreshesOrders(t *testing.T) {
+	ordersCalled := make(chan bool, 1)
+	client := &mockClient{
+		GetActiveOrdersFunc: func(accountID string) ([]models.Order, error) {
+			ordersCalled <- true
+			return nil, nil
+		},
+	}
+	app := NewApp(client, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	setupInputHandlers(app)
+
+	// Set active tab to Orders
+	app.portfolioView.TabbedView.SetTab(TabOrders)
+
+	// Get capture for Application
+	capture := app.app.GetInputCapture()
+
+	// Simulate F2 key
+	event := tcell.NewEventKey(tcell.KeyF2, 0, tcell.ModNone)
+	capture(event)
+
+	select {
+	case <-ordersCalled:
+		// Success
+	case <-time.After(500 * time.Millisecond):
+		t.Error("Timed out waiting for GetActiveOrders to be called on F2")
+	}
+}
+

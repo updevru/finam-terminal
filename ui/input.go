@@ -199,16 +199,7 @@ func setupInputHandlers(app *App) {
 			updateStatusBar(app)
 			return nil
 		case tcell.KeyF2:
-			// Switch to the active tab's table
-			switch app.portfolioView.TabbedView.ActiveTab {
-			case TabPositions:
-				app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
-			case TabHistory:
-				app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
-			case TabOrders:
-				app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-			}
-			updateStatusBar(app)
+			refresh()
 			return nil
 		case tcell.KeyTab, tcell.KeyBacktab:
 			if app.app.GetFocus() == app.portfolioView.AccountTable {
