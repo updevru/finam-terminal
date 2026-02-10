@@ -248,9 +248,14 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
+	fetchSymbol := ticker
+	if hasSymbol {
+		fetchSymbol = fullSymbol
+	}
+
 	// Pass AccountId to GetAssetRequest
 	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
-		Symbol:    ticker,
+		Symbol:    fetchSymbol,
 		AccountId: accountID,
 	})
 	if err != nil {
@@ -263,14 +268,19 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 
 	if resp.Ticker != "" && resp.Board != "" {
 		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
-		lotSize, _ := strconv.ParseFloat(formatDecimal(resp.LotSize), 64)
+		lotSizeStr := formatDecimal(resp.LotSize)
+		lotSize, parseErr := strconv.ParseFloat(strings.ReplaceAll(lotSizeStr, ",", "."), 64)
+		if parseErr != nil {
+			log.Printf("[WARN] Failed to parse lot size '%s' for %s: %v", lotSizeStr, ticker, parseErr)
+		}
 
 		c.assetMutex.Lock()
 		c.assetMicCache[ticker] = fullSymbol
 		c.assetLotCache[ticker] = lotSize
+		c.assetLotCache[fullSymbol] = lotSize // Also cache by full symbol
 		c.assetMutex.Unlock()
 
-		log.Printf("[DEBUG] Resolved %s via API: %s (Lot: %v)", ticker, fullSymbol, lotSize)
+		log.Printf("[DEBUG] Resolved %s via API: %s (Lot: %v, Raw: %s)", ticker, fullSymbol, lotSize, lotSizeStr)
 		return fullSymbol
 	}
 
@@ -284,7 +294,18 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 func (c *Client) GetLotSize(ticker string) float64 {
 	c.assetMutex.RLock()
 	defer c.assetMutex.RUnlock()
-	return c.assetLotCache[ticker]
+
+	// Try ticker
+	if lot, ok := c.assetLotCache[ticker]; ok {
+		return lot
+	}
+
+	// Try resolve ticker to full symbol and check
+	if full, ok := c.assetMicCache[ticker]; ok {
+		return c.assetLotCache[full]
+	}
+
+	return 0
 }
 
 // authenticate performs authentication and stores the JWT token
@@ -670,39 +691,17 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 }
 
 // GetSnapshots returns initial prices for a list of securities
-func (c *Client) GetSnapshots(symbols []string) (map[string]models.Quote, error) {
+func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error) {
 	if len(symbols) == 0 {
 		return nil, nil
 	}
 
-	// We can reuse GetQuotes logic but return values directly
-	// Or just use GetQuotes as it already fetches LastQuote
-	// However, GetQuotes takes accountID and resolves symbols.
-	// For search results, we usually have Tickers, need to resolve to full symbol.
-	// Search results already come from cache which has full symbol?
-	// No, SecurityInfo has Ticker.
-
-	// Helper to get quotes without account ID context if possible?
-	// MarketDataServiceClient.LastQuote needs Symbol.
-
-	// Let's rely on the cache to resolve tickers to full symbols.
-	// But GetQuotes uses getFullSymbol which uses accountID to fetch if missing.
-	// Here we might not have accountID context easily in the UI search component?
-	// The search component will likely pass tickers.
-	// If we don't have accountID, we can pass empty string to getFullSymbol?
-	// getFullSymbol needs accountID only for "Fallback: Fetch specific asset from API".
-	// If it's in cache (which it should be for search results), it returns immediately.
-
-	// So we can use GetQuotes with empty accountID?
-	// GetQuotes returns *models.Quote.
-
-	// Let's implement a simplified version or wrapper.
 	ctx, cancel := c.getContext()
 	defer cancel()
 
 	quotes := make(map[string]models.Quote)
 	for _, ticker := range symbols {
-		fullSymbol := c.getFullSymbol(ticker, "") // Empty accountID
+		fullSymbol := c.getFullSymbol(ticker, accountID)
 		if !strings.Contains(fullSymbol, "@") {
 			continue
 		}
@@ -738,10 +737,5 @@ func formatDecimal(d *decimal.Decimal) string {
 	if d == nil {
 		return "N/A"
 	}
-	s := fmt.Sprintf("%v", d)
-	s = strings.TrimPrefix(s, "value:")
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		s = s[1 : len(s)-1]
-	}
-	return s
+	return d.Value
 }

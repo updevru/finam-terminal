@@ -73,7 +73,7 @@ type AccountSummary struct {
 type SecurityInfo struct {
 	Ticker   string
 	Name     string
-	Lot      int32
+	Lot      float64
 	Currency string
 }
 

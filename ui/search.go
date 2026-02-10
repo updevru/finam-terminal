@@ -14,7 +14,7 @@ import (
 // APISearchClient defines the interface for search operations
 type APISearchClient interface {
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
-	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
 	GetLotSize(ticker string) float64
 }
 
@@ -25,10 +25,11 @@ type SearchModal struct {
 	Table  *tview.Table
 	Footer *tview.TextView
 
-	app      *tview.Application
-	client   APISearchClient
-	onSelect func(ticker string)
-	onCancel func()
+	app       *tview.Application
+	client    APISearchClient
+	accountID string
+	onSelect  func(ticker string)
+	onCancel  func()
 
 	results      []models.SecurityInfo
 	searchTimer  *time.Timer
@@ -55,6 +56,13 @@ func NewSearchModal(app *tview.Application, client APISearchClient, onSelect fun
 	}
 	m.setupUI()
 	return m
+}
+
+// SetAccountID sets the current account ID for API calls
+func (m *SearchModal) SetAccountID(accountID string) {
+	m.timerMutex.Lock()
+	defer m.timerMutex.Unlock()
+	m.accountID = accountID
 }
 
 func (m *SearchModal) setupUI() {
@@ -180,12 +188,16 @@ func (m *SearchModal) PerformSearch(query string) {
 		tickers = append(tickers, res.Ticker)
 	}
 
-	quotes, _ := m.client.GetSnapshots(tickers)
+	m.timerMutex.Lock()
+	accID := m.accountID
+	m.timerMutex.Unlock()
+
+	quotes, _ := m.client.GetSnapshots(accID, tickers)
 
 	// Enrich results with lot sizes from cache (populated during GetSnapshots)
 	for i := range results {
 		if lot := m.client.GetLotSize(results[i].Ticker); lot > 0 {
-			results[i].Lot = int32(lot)
+			results[i].Lot = lot
 		}
 	}
 
@@ -238,9 +250,10 @@ func (m *SearchModal) startRefresh() {
 				for _, res := range m.results {
 					tickers = append(tickers, res.Ticker)
 				}
+				accID := m.accountID
 				m.timerMutex.Unlock()
 
-				quotes, err := m.client.GetSnapshots(tickers)
+				quotes, err := m.client.GetSnapshots(accID, tickers)
 				if err == nil {
 					m.app.QueueUpdateDraw(func() {
 						m.updatePrices(quotes)
@@ -321,7 +334,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetExpansion(1))
 
 		// Lot
-		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%d", res.Lot)).
+		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%v", res.Lot)).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignCenter).
 			SetMaxWidth(8))

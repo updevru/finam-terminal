@@ -362,7 +362,7 @@ func TestGetAccounts(t *testing.T) {
 			}
 		
 			// Test GetSnapshots
-			quotes, err := client.GetSnapshots([]string{"SBER"})
+			quotes, err := client.GetSnapshots("acc1", []string{"SBER"})
 			if err != nil {
 				t.Fatalf("Unexpected error: %v", err)
 			}
@@ -479,7 +479,7 @@ func TestLotSizeRetrieval(t *testing.T) {
 			}, nil
 		},
 		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
-			if in.Symbol == "SBER" {
+			if in.Symbol == "SBER" || in.Symbol == "SBER@TQBR" {
 				return &assets.GetAssetResponse{
 					Ticker: "SBER",
 					Board:  "TQBR",
