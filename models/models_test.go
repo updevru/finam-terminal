@@ -91,3 +91,15 @@ func TestOrderModel(t *testing.T) {
 		t.Errorf("Expected ID O1, got %s", o.ID)
 	}
 }
+
+func TestPositionLotSize(t *testing.T) {
+	p := Position{
+		Symbol:   "SBER",
+		LotSize:  10,
+		Quantity: "100",
+	}
+
+	if p.LotSize != 10 {
+		t.Errorf("Expected LotSize 10, got %f", p.LotSize)
+	}
+}

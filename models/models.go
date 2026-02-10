@@ -21,6 +21,7 @@ type Position struct {
 	Symbol        string
 	Ticker        string
 	MIC           string
+	LotSize       float64
 	Quantity      string
 	AveragePrice  string
 	CurrentPrice  string
