@@ -8,7 +8,7 @@ Goal: Ensure the application has access to lot size metadata for all instruments
 - [x] Task: Update `models.Position` to include lot size information. 2688281
     - [ ] Write failing tests in `models/models_test.go` to verify `Position` can store and handle `LotSize`.
     - [ ] Add `LotSize float64` field to `Position` struct in `models/models.go`.
-- [ ] Task: Enhance `api.Client` to retrieve and cache lot sizes.
+- [x] Task: Enhance `api.Client` to retrieve and cache lot sizes. 56b30bc
     - [ ] Write failing tests in `api/client_test.go` to verify `GetAsset` (and `getFullSymbol`) captures `LotSize`.
     - [ ] Update `api/client.go` to extract `LotSize` from `GetAssetResponse` and store it in the `assetMicCache` or a new dedicated cache.
     - [ ] Update `GetAccountDetails` in `api/client.go` to populate the `LotSize` for each returned `Position`.
