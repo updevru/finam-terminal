@@ -6,7 +6,7 @@ Thank you for your interest in contributing! We value clear, concise, and high-q
 
 1. **Go Version**: Ensure you have Go 1.24+.
 2. **Dependencies**: Run `go mod tidy` to download modules.
-3. **Linting**: We use [golangci-lint](https://golangci-lint.run/). Please install it locally.
+3. **Linting**: We use [golangci-lint](https://golangci-lint.run/). To install the correct version, run `go install tool`. You can then run it with `go tool golangci-lint run`.
 
 ## 🚀 Workflow
 
@@ -18,7 +18,7 @@ Thank you for your interest in contributing! We value clear, concise, and high-q
    - Update code comments if logic changes.
 4. **Verify**:
    - Run tests: `go test ./...`
-   - Run linter: `golangci-lint run`
+   - Run linter: `go tool golangci-lint run`
 5. **Push & PR**: Open a Pull Request against the `main` branch.
 
 ## 📝 Code Standards
@@ -44,7 +44,7 @@ Please follow the [Conventional Commits](https://www.conventionalcommits.org/) f
 Before submitting your PR, please ensure:
 - [ ] Code compiles without errors.
 - [ ] All tests pass (`go test ./...`).
-- [ ] Linter checks pass (`golangci-lint run`).
+- [ ] Linter checks pass (`go tool golangci-lint run`).
 - [ ] You have added tests for new functionality (if applicable).
 
 ## ⚖️ License

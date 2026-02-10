@@ -95,6 +95,11 @@ go build -o finam-terminal.exe main.go
 go test ./...
 ```
 
+Запуск линтера:
+```bash
+go tool golangci-lint run
+```
+
 Проверка покрытия кода:
 ```bash
 go test -coverprofile=coverage.out ./...
