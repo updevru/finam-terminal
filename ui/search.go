@@ -15,6 +15,7 @@ import (
 type APISearchClient interface {
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
 	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetLotSize(ticker string) float64
 }
 
 // SearchModal represents the security search window
@@ -180,6 +181,13 @@ func (m *SearchModal) PerformSearch(query string) {
 	}
 
 	quotes, _ := m.client.GetSnapshots(tickers)
+
+	// Enrich results with lot sizes from cache (populated during GetSnapshots)
+	for i := range results {
+		if lot := m.client.GetLotSize(results[i].Ticker); lot > 0 {
+			results[i].Lot = int32(lot)
+		}
+	}
 
 	// Check again if cancelled before updating UI
 	select {

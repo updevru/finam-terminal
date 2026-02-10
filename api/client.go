@@ -234,13 +234,11 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 		c.assetMutex.RUnlock()
 		return ticker
 	}
-	if fullSymbol, ok := c.assetMicCache[ticker]; ok {
-		// Even if we have the symbol, we might not have the lot size cached.
-		// However, for positions we want both.
-		if _, lotOk := c.assetLotCache[ticker]; lotOk {
-			c.assetMutex.RUnlock()
-			return fullSymbol
-		}
+	fullSymbol, hasSymbol := c.assetMicCache[ticker]
+	_, hasLot := c.assetLotCache[ticker]
+	if hasSymbol && hasLot {
+		c.assetMutex.RUnlock()
+		return fullSymbol
 	}
 	c.assetMutex.RUnlock()
 
@@ -257,7 +255,10 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	})
 	if err != nil {
 		log.Printf("[WARN] Failed to fetch asset %s: %v", ticker, err)
-		return ticker // Return original if failed
+		if hasSymbol {
+			return fullSymbol
+		}
+		return ticker // Return original if failed and not in cache
 	}
 
 	if resp.Ticker != "" && resp.Board != "" {
@@ -273,7 +274,17 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 		return fullSymbol
 	}
 
+	if hasSymbol {
+		return fullSymbol
+	}
 	return ticker
+}
+
+// GetLotSize returns the cached lot size for a ticker
+func (c *Client) GetLotSize(ticker string) float64 {
+	c.assetMutex.RLock()
+	defer c.assetMutex.RUnlock()
+	return c.assetLotCache[ticker]
 }
 
 // authenticate performs authentication and stores the JWT token

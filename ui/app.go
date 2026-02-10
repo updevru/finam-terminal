@@ -27,6 +27,7 @@ type APIClient interface {
 	// Search operations
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
 	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetLotSize(ticker string) float64
 
 	// History and Orders
 	GetTradeHistory(accountID string) ([]models.Trade, error)
