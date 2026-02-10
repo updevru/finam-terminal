@@ -2,7 +2,7 @@
 
 This plan implements lot-based display and trading logic across the application to align with professional trading standards.
 
-## Phase 1: API & Models Enhancement
+## Phase 1: API & Models Enhancement [checkpoint: 37ea4b8]
 Goal: Ensure the application has access to lot size metadata for all instruments and positions.
 
 - [x] Task: Update `models.Position` to include lot size information. 2688281
