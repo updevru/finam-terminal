@@ -97,7 +97,7 @@ go test ./...
 
 Запуск линтера:
 ```bash
-go tool golangci-lint run
+golangci-lint run
 ```
 
 Проверка покрытия кода:
