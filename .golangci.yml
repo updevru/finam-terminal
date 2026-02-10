@@ -1,9 +1,11 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
     - govet
@@ -13,8 +15,9 @@ linters:
     - misspell
     - unconvert
     - unparam
+  exclusions:
+    presets: []
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
