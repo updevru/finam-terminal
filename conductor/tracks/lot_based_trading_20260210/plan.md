@@ -47,4 +47,4 @@ Goal: Ensure all other quantity displays are consistent.
 - [x] Task: Update Trade History and Active Orders views. 56785b6
     - [ ] Write failing tests to verify history quantities are shown in lots.
     - [ ] Update rendering logic for history and orders to use lot-based quantities.
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: History & Consistency' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: History & Consistency' (Protocol in workflow.md)
