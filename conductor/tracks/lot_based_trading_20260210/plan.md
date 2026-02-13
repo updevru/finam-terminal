@@ -33,7 +33,7 @@ Goal: Implement lot-based input and validation in Buy and Close modals.
     - [ ] Write failing tests in `ui/modal_test.go` for the new lot-based calculation logic.
     - [ ] Update UI to display the multiplier (e.g., "1 lot = 10").
     - [ ] Implement real-time calculation of "Total Shares" and "Estimated Cost" based on lot input.
-- [ ] Task: Update `CloseModal` for lot-based closing.
+- [x] Task: Update `CloseModal` for lot-based closing. d398fd5
     - [ ] Write failing tests in `ui/close_modal_test.go` to verify closing quantities are handled as lots.
     - [ ] Update UI to show current position in lots and allow entering close quantity in lots.
 - [ ] Task: Update `api.Client.PlaceOrder` to handle lot multiplication.
