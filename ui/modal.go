@@ -125,7 +125,7 @@ func (m *OrderModal) setupUI() {
 
 	// Assemble Layout
 	m.Layout.AddItem(m.Form, 0, 1, true).
-		AddItem(m.infoArea, 3, 0, false).
+		AddItem(m.infoArea, 1, 0, false).
 		AddItem(m.Footer, 1, 0, false)
 }
 func (m *OrderModal) SetInstrument(symbol string) {
@@ -201,23 +201,27 @@ func (m *OrderModal) GetEstimatedCost() float64 {
 	return m.GetTotalShares() * m.price
 }
 
-// updateInfo refreshes the info area with lot size, total shares, and estimated cost
+// updateInfo refreshes the quantity label and info area based on lot size
 func (m *OrderModal) updateInfo() {
+	// Update quantity label to show lot size
+	if m.lotSize > 0 {
+		m.quantity.SetLabel(fmt.Sprintf("Lots (size - %.0f): ", m.lotSize))
+	} else {
+		m.quantity.SetLabel("Quantity:   ")
+	}
+
+	// Update info area with estimated cost
 	if m.lotSize <= 0 {
 		m.infoArea.SetText("")
 		return
 	}
 
 	qty := m.GetQuantity()
-	totalShares := m.GetTotalShares()
-	text := fmt.Sprintf(" [yellow]1 lot = %.0f shares[-]\n", m.lotSize)
-	if qty > 0 {
-		text += fmt.Sprintf(" Total Shares: %.0f", totalShares)
-		if m.price > 0 {
-			text += fmt.Sprintf("  |  Est. Cost: %.2f", m.GetEstimatedCost())
-		}
+	if qty > 0 && m.price > 0 {
+		m.infoArea.SetText(fmt.Sprintf(" Est. Cost: %.2f", m.GetEstimatedCost()))
+	} else {
+		m.infoArea.SetText("")
 	}
-	m.infoArea.SetText(text)
 }
 
 func (m *OrderModal) updateCreateButton() {

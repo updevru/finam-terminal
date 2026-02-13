@@ -80,10 +80,10 @@ func TestOrderModal_SetLotSize(t *testing.T) {
 		t.Errorf("Expected lot size 10, got %v", modal.GetLotSize())
 	}
 
-	// Lot info text should mention the multiplier
-	infoText := modal.infoArea.GetText(true)
-	if infoText == "" {
-		t.Error("Expected info area to display lot info after SetLotSize")
+	// Quantity label should include lot size info
+	label := modal.quantity.GetLabel()
+	if label != "Lots (size - 10): " {
+		t.Errorf("Expected quantity label 'Lots (size - 10): ', got '%s'", label)
 	}
 }
 
@@ -116,10 +116,16 @@ func TestOrderModal_LotInfoDisplay(t *testing.T) {
 	modal.SetPrice(250.50)
 	modal.SetQuantity(3)
 
+	// Quantity label should show lot size
+	label := modal.quantity.GetLabel()
+	if label != "Lots (size - 10): " {
+		t.Errorf("Expected quantity label with lot size, got '%s'", label)
+	}
+
+	// Info area should show estimated cost
 	infoText := modal.infoArea.GetText(true)
-	// Should contain lot size multiplier info
 	if infoText == "" {
-		t.Error("Expected info area to contain lot calculation details")
+		t.Error("Expected info area to contain estimated cost")
 	}
 }
 

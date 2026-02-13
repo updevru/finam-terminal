@@ -185,13 +185,13 @@ func (m *ClosePositionModal) SetPositionDataWithLots(symbol string, quantity flo
 	m.updateInfo()
 }
 
-// updateInfo refreshes the info area with lot information
+// updateInfo refreshes the quantity label and info area with lot information
 func (m *ClosePositionModal) updateInfo() {
-	if m.lotSize <= 0 {
+	if m.lotSize > 0 {
+		m.quantityField.SetLabel(fmt.Sprintf("Lots (size - %.0f): ", m.lotSize))
+		m.infoArea.SetText(fmt.Sprintf(" Position: %.0f lots", m.maxQuantity))
+	} else {
+		m.quantityField.SetLabel("Quantity:     ")
 		m.infoArea.SetText("")
-		return
 	}
-
-	text := fmt.Sprintf(" [yellow]1 lot = %.0f shares[-]  |  Position: %.0f lots", m.lotSize, m.maxQuantity)
-	m.infoArea.SetText(text)
 }

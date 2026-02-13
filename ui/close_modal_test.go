@@ -164,8 +164,15 @@ func TestClosePositionModal_LotInfoText(t *testing.T) {
 
 	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
 
+	// Quantity label should show lot size
+	label := modal.quantityField.GetLabel()
+	if label != "Lots (size - 10): " {
+		t.Errorf("Expected quantity label 'Lots (size - 10): ', got '%s'", label)
+	}
+
+	// Info area should show position in lots
 	infoText := modal.infoArea.GetText(true)
 	if infoText == "" {
-		t.Error("Expected info area to display lot information")
+		t.Error("Expected info area to display position lots info")
 	}
 }
