@@ -557,4 +557,71 @@ func TestGetAccountDetails_LotSize(t *testing.T) {
 		t.Errorf("Expected LotSize 10, got %f", positions[0].LotSize)
 	}
 }
+
+func TestPlaceOrder_LotMultiplication(t *testing.T) {
+	// When placing an order with quantity 1 (lot) and lot size 10,
+	// the API should receive quantity = 10 (shares)
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			// Verify the API receives 10 shares (1 lot * 10 lot size)
+			if in.Quantity == nil || in.Quantity.Value != "10" {
+				t.Errorf("Expected API to receive quantity 10 (shares), got %s", in.Quantity.GetValue())
+				return nil, fmt.Errorf("unexpected quantity: %s", in.Quantity.GetValue())
+			}
+			return &orders.OrderState{OrderId: "LOT-001"}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"SBER": "SBER@TQBR",
+		},
+		assetLotCache: map[string]float64{
+			"SBER":      10,
+			"SBER@TQBR": 10,
+		},
+	}
+
+	// Place order for 1 lot
+	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 1)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if txID != "LOT-001" {
+		t.Errorf("Expected OrderId LOT-001, got %s", txID)
+	}
+}
+
+func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			// 5 lots * 10 lot size = 50 shares
+			if in.Quantity == nil || in.Quantity.Value != "50" {
+				t.Errorf("Expected API to receive quantity 50 (shares), got %s", in.Quantity.GetValue())
+				return nil, fmt.Errorf("unexpected quantity: %s", in.Quantity.GetValue())
+			}
+			return &orders.OrderState{OrderId: "LOT-002"}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		assetMicCache: map[string]string{
+			"GAZP": "GAZP@TQBR",
+		},
+		assetLotCache: map[string]float64{
+			"GAZP":      10,
+			"GAZP@TQBR": 10,
+		},
+	}
+
+	txID, err := client.PlaceOrder("test-acc", "GAZP", "Sell", 5)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if txID != "LOT-002" {
+		t.Errorf("Expected OrderId LOT-002, got %s", txID)
+	}
+}
 		

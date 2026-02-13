@@ -402,7 +402,7 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// PlaceOrder places a new order
+// PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
 func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
@@ -420,7 +420,18 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		return "", fmt.Errorf("invalid direction: %s", buySell)
 	}
 
-	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", quantity)}
+	// Multiply quantity (lots) by lot size to get shares
+	lotSize := c.GetLotSize(symbol)
+	if lotSize <= 0 {
+		lotSize = c.GetLotSize(fullSymbol)
+	}
+	actualQuantity := quantity
+	if lotSize > 0 {
+		actualQuantity = quantity * lotSize
+		log.Printf("[DEBUG] PlaceOrder: %v lots * %.0f lot size = %.0f shares", quantity, lotSize, actualQuantity)
+	}
+
+	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", actualQuantity)}
 
 	req := &orders.Order{
 		AccountId: accountID,
