@@ -222,6 +222,10 @@ func TestGetAccountDetails(t *testing.T) {
 		assetLotCache: map[string]float64{
 			"GAZP": 1,
 		},
+		instrumentNameCache: map[string]string{
+			"GAZP":      "Газпром",
+			"GAZP@TQBR": "Газпром",
+		},
 	}
 
 	account, positions, err := client.GetAccountDetails("test-acc")
@@ -246,6 +250,9 @@ func TestGetAccountDetails(t *testing.T) {
 	}
 	if positions[0].Ticker != "GAZP" || positions[0].MIC != "TQBR" {
 		t.Errorf("Ticker/MIC mismatch")
+	}
+	if positions[0].Name != "Газпром" {
+		t.Errorf("Expected Name Газпром, got '%s'", positions[0].Name)
 	}
 }
 

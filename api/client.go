@@ -575,11 +575,16 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 
 		c.assetMutex.RLock()
 		lotSize := c.assetLotCache[ticker]
+		name := c.instrumentNameCache[ticker]
+		if name == "" {
+			name = c.instrumentNameCache[fullSymbol]
+		}
 		c.assetMutex.RUnlock()
 
 		position := models.Position{
 			Symbol:        fullSymbol,
 			Ticker:        ticker,
+			Name:          name,
 			MIC:           mic,
 			LotSize:       lotSize,
 			Quantity:      formatDecimal(pos.Quantity),
