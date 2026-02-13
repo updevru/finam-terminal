@@ -38,10 +38,10 @@ func TestSearchModal_Search(t *testing.T) {
 	client := &mockClient{
 		SearchSecuritiesFunc: func(query string) ([]models.SecurityInfo, error) {
 			return []models.SecurityInfo{
-				{Ticker: "SBER", Name: "Sberbank", Lot: 10, Currency: "RUB"},
+				{Ticker: "SBER", Symbol: "SBER@TQBR", Name: "Sberbank", Lot: 10, Currency: "RUB"},
 			}, nil
 		},
-		GetSnapshotsFunc: func(symbols []string) (map[string]models.Quote, error) {
+		GetSnapshotsFunc: func(accountID string, symbols []string) (map[string]models.Quote, error) {
 			return map[string]models.Quote{
 				"SBER": {Last: "250.00"},
 			}, nil
@@ -53,7 +53,7 @@ func TestSearchModal_Search(t *testing.T) {
 	// We test PerformSearch directly to avoid QueueUpdateDraw/Application loop issues in tests
 	// But we want to make sure updateTable works.
 	modal.results = []models.SecurityInfo{
-		{Ticker: "SBER", Name: "Sberbank", Lot: 10, Currency: "RUB"},
+		{Ticker: "SBER", Symbol: "SBER@TQBR", Name: "Sberbank", Lot: 10, Currency: "RUB"},
 	}
 	quotes := map[string]models.Quote{
 		"SBER": {Last: "250.00"},
@@ -106,7 +106,7 @@ func TestSearchModal_LotColumn(t *testing.T) {
 	modal := NewSearchModal(app, nil, nil, nil)
 
 	modal.results = []models.SecurityInfo{
-		{Ticker: "SBER", Name: "Sberbank", Lot: 10, Currency: "RUB"},
+		{Ticker: "SBER", Symbol: "SBER@TQBR", Name: "Sberbank", Lot: 10, Currency: "RUB"},
 	}
 	modal.updateTable(nil)
 

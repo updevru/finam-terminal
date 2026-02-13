@@ -60,7 +60,7 @@ func TestSecurityInfoStructure(t *testing.T) {
 		t.Errorf("Expected Name Apple Inc., got %s", sec.Name)
 	}
 	if sec.Lot != 100 {
-		t.Errorf("Expected Lot 100, got %d", sec.Lot)
+		t.Errorf("Expected Lot 100, got %f", sec.Lot)
 	}
 	if sec.Currency != "USD" {
 		t.Errorf("Expected Currency USD, got %s", sec.Currency)

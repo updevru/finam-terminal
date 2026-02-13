@@ -11,9 +11,9 @@ import (
 func TestSearchToOrderTransition(t *testing.T) {
 	client := &mockClient{
 		SearchSecuritiesFunc: func(query string) ([]models.SecurityInfo, error) {
-			return []models.SecurityInfo{{Ticker: "AAPL", Name: "Apple"}}, nil
+			return []models.SecurityInfo{{Ticker: "AAPL", Symbol: "AAPL@NASD", Name: "Apple"}}, nil
 		},
-		GetSnapshotsFunc: func(symbols []string) (map[string]models.Quote, error) {
+		GetSnapshotsFunc: func(accountID string, symbols []string) (map[string]models.Quote, error) {
 			return map[string]models.Quote{"AAPL": {Last: "150.00"}}, nil
 		},
 		GetAccountsFunc: func() ([]models.AccountInfo, error) {
@@ -40,7 +40,7 @@ func TestSearchToOrderTransition(t *testing.T) {
 	}
 
 	// Simulate selecting AAPL and pressing 'A'
-	app.searchModal.results = []models.SecurityInfo{{Ticker: "AAPL", Name: "Apple"}}
+	app.searchModal.results = []models.SecurityInfo{{Ticker: "AAPL", Symbol: "AAPL@NASD", Name: "Apple"}}
 	app.searchModal.updateTable(nil)
 	app.searchModal.Table.Select(1, 0) // Select first row after header
 

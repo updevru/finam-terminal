@@ -182,21 +182,30 @@ func (m *SearchModal) PerformSearch(query string) {
 		return
 	}
 
-	// Fetch snapshots for results
-	var tickers []string
+	// Fetch snapshots using full symbol to distinguish duplicate tickers on different exchanges
+	var symbols []string
 	for _, res := range results {
-		tickers = append(tickers, res.Ticker)
+		if res.Symbol != "" {
+			symbols = append(symbols, res.Symbol)
+		} else {
+			symbols = append(symbols, res.Ticker)
+		}
 	}
 
 	m.timerMutex.Lock()
 	accID := m.accountID
 	m.timerMutex.Unlock()
 
-	quotes, _ := m.client.GetSnapshots(accID, tickers)
+	quotes, _ := m.client.GetSnapshots(accID, symbols)
 
 	// Enrich results with lot sizes from cache (populated during GetSnapshots)
+	// Use full symbol to correctly distinguish duplicate tickers on different exchanges
 	for i := range results {
-		if lot := m.client.GetLotSize(results[i].Ticker); lot > 0 {
+		sym := results[i].Symbol
+		if sym == "" {
+			sym = results[i].Ticker
+		}
+		if lot := m.client.GetLotSize(sym); lot > 0 {
 			results[i].Lot = lot
 		}
 	}
@@ -246,14 +255,18 @@ func (m *SearchModal) startRefresh() {
 					m.timerMutex.Unlock()
 					continue
 				}
-				var tickers []string
+				var symbols []string
 				for _, res := range m.results {
-					tickers = append(tickers, res.Ticker)
+					if res.Symbol != "" {
+						symbols = append(symbols, res.Symbol)
+					} else {
+						symbols = append(symbols, res.Ticker)
+					}
 				}
 				accID := m.accountID
 				m.timerMutex.Unlock()
 
-				quotes, err := m.client.GetSnapshots(accID, tickers)
+				quotes, err := m.client.GetSnapshots(accID, symbols)
 				if err == nil {
 					m.app.QueueUpdateDraw(func() {
 						m.updatePrices(quotes)
@@ -266,7 +279,12 @@ func (m *SearchModal) startRefresh() {
 
 func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
 	for i, res := range m.results {
-		if q, ok := quotes[res.Ticker]; ok {
+		q, ok := quotes[res.Ticker]
+		if !ok {
+			q, ok = quotes[res.Symbol]
+		}
+
+		if ok {
 			row := i + 1
 			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 		}
@@ -355,7 +373,12 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetAlign(tview.AlignRight).
 			SetMaxWidth(10)
 
-		if q, ok := quotes[res.Ticker]; ok {
+		q, ok := quotes[res.Ticker]
+		if !ok {
+			q, ok = quotes[res.Symbol]
+		}
+
+		if ok {
 			priceCell.SetText(q.Last).SetTextColor(tcell.ColorGreen)
 
 			// Calculate change

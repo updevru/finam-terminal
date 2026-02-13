@@ -26,7 +26,7 @@ type APIClient interface {
 
 	// Search operations
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
-	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
 	GetLotSize(ticker string) float64
 
 	// History and Orders
@@ -138,6 +138,12 @@ func (a *App) CloseOrderModal() {
 
 // OpenSearchModal opens the security search modal
 func (a *App) OpenSearchModal() {
+	a.dataMutex.RLock()
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		a.searchModal.SetAccountID(a.accounts[a.selectedIdx].ID)
+	}
+	a.dataMutex.RUnlock()
+
 	a.pages.ShowPage("search_modal")
 	a.app.SetFocus(a.searchModal.Input)
 }

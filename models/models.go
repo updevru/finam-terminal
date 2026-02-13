@@ -72,6 +72,7 @@ type AccountSummary struct {
 // SecurityInfo represents basic information about a security from search results
 type SecurityInfo struct {
 	Ticker   string
+	Symbol   string
 	Name     string
 	Lot      float64
 	Currency string
