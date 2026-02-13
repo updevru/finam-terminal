@@ -38,18 +38,18 @@ Ensure that all data retrieval methods populate the new `Name` fields using the 
 ## Phase 3: UI Implementation
 Update the terminal interface to display the instrument names and rename relevant columns.
 
-- [ ] Task: Update Positions Table.
-    - [ ] In `ui/render.go`, rename "Symbol" header to "Instrument".
-    - [ ] Update cell rendering to use `p.Name` with fallback to `p.Ticker`.
-- [ ] Task: Update Trade History Table.
-    - [ ] In `ui/render.go`, rename "Symbol" header to "Instrument".
-    - [ ] Update cell rendering to use `t.Name` with fallback to `t.Symbol`.
-- [ ] Task: Update Active Orders Table.
-    - [ ] In `ui/render.go`, rename "Symbol" header to "Instrument".
-    - [ ] Update cell rendering to use `o.Name` with fallback to `o.Symbol`.
-- [ ] Task: Update Confirmation Modals.
-    - [ ] Update `showClosePositionModal` in `ui/close_modal.go` to display the instrument name prominently.
-    - [ ] Update `OrderEntry` modal in `ui/modal.go` to display the instrument name next to or instead of the ticker.
-- [ ] Task: Verify UI changes.
+- [x] Task: Update Positions Table. `e698b95`
+    - [x] In `ui/render.go`, rename "Symbol" header to "Instrument".
+    - [x] Update cell rendering to use `p.Name` with fallback to `p.Ticker`.
+- [x] Task: Update Trade History Table. `e698b95`
+    - [x] In `ui/render.go`, rename "Symbol" header to "Instrument".
+    - [x] Update cell rendering to use `t.Name` with fallback to `t.Symbol`.
+- [x] Task: Update Active Orders Table. `e698b95`
+    - [x] In `ui/render.go`, rename "Symbol" header to "Instrument".
+    - [x] Update cell rendering to use `o.Name` with fallback to `o.Symbol`.
+- [x] Task: Update Confirmation Modals. `2ed873a`
+    - [x] Update `showClosePositionModal` in `ui/close_modal.go` to display the instrument name prominently.
+    - [x] Update `OrderEntry` modal in `ui/modal.go` to display the instrument name next to or instead of the ticker.
+- [~] Task: Verify UI changes.
     - [ ] Run the application and manually verify that names are displayed correctly across all tabs and modals.
-- [ ] Task: Conductor - User Manual Verification 'UI Implementation' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'UI Implementation' (Protocol in workflow.md)
