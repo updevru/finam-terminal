@@ -16,9 +16,9 @@ Implement the necessary data structures and the centralized name cache to suppor
     - [x] Implement thread-safe `UpdateInstrumentCache(ticker, fullSymbol, name string)` method.
 - [x] Task: Populate cache during initial load. `7020093`
     - [x] Update `loadAssetCache` in `api/client.go` to populate `instrumentNameCache` with both ticker and full symbol as keys.
-- [ ] Task: Write unit tests for the cache infrastructure.
-    - [ ] Create/Update tests in `api/client_test.go` to verify cache population and lookup logic.
-- [ ] Task: Conductor - User Manual Verification 'Data Models & Infrastructure' (Protocol in workflow.md)
+- [x] Task: Write unit tests for the cache infrastructure. `7020093`
+    - [x] Create/Update tests in `api/client_test.go` to verify cache population and lookup logic.
+- [~] Task: Conductor - User Manual Verification 'Data Models & Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: API Integration & Data Enrichment
 Ensure that all data retrieval methods populate the new `Name` fields using the centralized cache.
