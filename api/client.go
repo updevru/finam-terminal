@@ -704,9 +704,10 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 	var trades []models.Trade
 	for _, t := range resp.Trades {
 		side := "Unknown"
-		if t.Side == tradeapiv1.Side_SIDE_BUY {
+		switch t.Side {
+		case tradeapiv1.Side_SIDE_BUY:
 			side = "Buy"
-		} else if t.Side == tradeapiv1.Side_SIDE_SELL {
+		case tradeapiv1.Side_SIDE_SELL:
 			side = "Sell"
 		}
 
@@ -751,9 +752,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 	for _, o := range resp.Orders {
 		side := "Unknown"
 		if o.Order != nil {
-			if o.Order.Side == tradeapiv1.Side_SIDE_BUY {
+			switch o.Order.Side {
+			case tradeapiv1.Side_SIDE_BUY:
 				side = "Buy"
-			} else if o.Order.Side == tradeapiv1.Side_SIDE_SELL {
+			case tradeapiv1.Side_SIDE_SELL:
 				side = "Sell"
 			}
 		}

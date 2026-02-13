@@ -176,9 +176,10 @@ func updateHistoryTable(app *App) {
 		}
 
 		sideColor := tcell.ColorWhite
-		if t.Side == "Buy" {
+		switch t.Side {
+		case "Buy":
 			sideColor = tcell.ColorGreen
-		} else if t.Side == "Sell" {
+		case "Sell":
 			sideColor = tcell.ColorRed
 		}
 
@@ -257,9 +258,10 @@ func updateOrdersTable(app *App) {
 		}
 
 		sideColor := tcell.ColorWhite
-		if o.Side == "Buy" {
+		switch o.Side {
+		case "Buy":
 			sideColor = tcell.ColorGreen
-		} else if o.Side == "Sell" {
+		case "Sell":
 			sideColor = tcell.ColorRed
 		}
 
