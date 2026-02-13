@@ -307,8 +307,8 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.closeModal.Layout, 16, 1, true). // Height 16 (approx)
-			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
+			AddItem(a.closeModal.Layout, 18, 1, true). // Height 18 (form + info + footer)
+			AddItem(nil, 0, 1, false), 55, 1, true).   // Width 55
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("close_modal", closeModalFlex, true, false)
@@ -420,7 +420,11 @@ func (a *App) OpenCloseModal() {
 				price, _ := parseFloat(pos.CurrentPrice)
 				pnl, _ := parseFloat(pos.UnrealizedPnL)
 
-				a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
+				if pos.LotSize > 0 {
+					a.closeModal.SetPositionDataWithLots(pos.Ticker, qty, price, pnl, pos.LotSize)
+				} else {
+					a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
+				}
 				a.pages.ShowPage("close_modal")
 				a.app.SetFocus(a.closeModal.Form)
 			}
