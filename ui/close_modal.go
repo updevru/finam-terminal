@@ -121,6 +121,15 @@ func (m *ClosePositionModal) setupUI() {
 		AddItem(m.Footer, 1, 0, false)
 }
 
+// SetDisplayName updates the modal title with the instrument's human-readable name.
+func (m *ClosePositionModal) SetDisplayName(name string) {
+	if name != "" {
+		m.Layout.SetTitle(fmt.Sprintf(" Close Position — %s ", name))
+	} else {
+		m.Layout.SetTitle(" Close Position ")
+	}
+}
+
 // SetPositionData populates the modal with position details
 func (m *ClosePositionModal) SetPositionData(symbol string, quantity float64, price float64, pnl float64) {
 	m.symbolField.SetText(symbol)

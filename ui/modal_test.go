@@ -129,6 +129,29 @@ func TestOrderModal_LotInfoDisplay(t *testing.T) {
 	}
 }
 
+func TestOrderModal_DisplayName(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetDisplayName("Сбербанк")
+
+	title := modal.Layout.GetTitle()
+	if title != " New Order — Сбербанк " {
+		t.Errorf("Expected title ' New Order — Сбербанк ', got '%s'", title)
+	}
+
+	// Empty name should keep default title
+	modal2 := NewOrderModal(app, nil, nil)
+	modal2.SetInstrument("UNKNOWN")
+	modal2.SetDisplayName("")
+
+	title2 := modal2.Layout.GetTitle()
+	if title2 != " New Order " {
+		t.Errorf("Expected default title ' New Order ', got '%s'", title2)
+	}
+}
+
 func TestOrderModal_QuantityIsInLots(t *testing.T) {
 	// Verify the callback receives lot quantity (not shares)
 	var receivedQty float64

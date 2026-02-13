@@ -14,7 +14,8 @@ type mockClient struct {
 
 	SearchSecuritiesFunc func(query string) ([]models.SecurityInfo, error)
 	GetSnapshotsFunc     func(accountID string, symbols []string) (map[string]models.Quote, error)
-	GetLotSizeFunc       func(ticker string) float64
+	GetLotSizeFunc          func(ticker string) float64
+	GetInstrumentNameFunc   func(key string) string
 
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
 	GetActiveOrdersFunc func(accountID string) ([]models.Order, error)
@@ -74,6 +75,13 @@ func (m *mockClient) GetLotSize(ticker string) float64 {
 		return m.GetLotSizeFunc(ticker)
 	}
 	return 1
+}
+
+func (m *mockClient) GetInstrumentName(key string) string {
+	if m.GetInstrumentNameFunc != nil {
+		return m.GetInstrumentNameFunc(key)
+	}
+	return ""
 }
 
 func (m *mockClient) GetTradeHistory(accountID string) ([]models.Trade, error) {

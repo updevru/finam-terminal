@@ -159,6 +159,29 @@ func TestClosePositionModal_LotValidation(t *testing.T) {
 	}
 }
 
+func TestClosePositionModal_DisplayName(t *testing.T) {
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+
+	// With name: title should include the name
+	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
+	modal.SetDisplayName("Сбербанк")
+
+	title := modal.Layout.GetTitle()
+	if title != " Close Position — Сбербанк " {
+		t.Errorf("Expected title ' Close Position — Сбербанк ', got '%s'", title)
+	}
+
+	// Without name: title should be default
+	modal2 := NewClosePositionModal(nil, nil, nil, nil)
+	modal2.SetPositionDataWithLots("UNKNOWN", 50.0, 100.0, 0.0, 1.0)
+	modal2.SetDisplayName("")
+
+	title2 := modal2.Layout.GetTitle()
+	if title2 != " Close Position " {
+		t.Errorf("Expected default title ' Close Position ', got '%s'", title2)
+	}
+}
+
 func TestClosePositionModal_LotInfoText(t *testing.T) {
 	modal := NewClosePositionModal(nil, nil, nil, nil)
 

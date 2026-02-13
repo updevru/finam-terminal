@@ -28,6 +28,7 @@ type APIClient interface {
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
 	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
 	GetLotSize(ticker string) float64
+	GetInstrumentName(key string) string
 
 	// History and Orders
 	GetTradeHistory(accountID string) ([]models.Trade, error)
@@ -167,6 +168,7 @@ func (a *App) OpenOrderModalWithTicker(ticker string) {
 	lotSize := a.client.GetLotSize(ticker)
 	a.orderModal.SetLotSize(lotSize)
 	a.orderModal.SetPrice(0) // Price unknown from search context
+	a.orderModal.SetDisplayName(a.client.GetInstrumentName(ticker))
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -346,6 +348,7 @@ func (a *App) OpenOrderModal() {
 
 	// Default to empty if header or invalid
 	symbol := ""
+	displayName := ""
 
 	if row > 0 {
 		// Map row to position index (row 1 -> index 0)
@@ -357,6 +360,7 @@ func (a *App) OpenOrderModal() {
 			positions := a.positions[accID]
 			if idx >= 0 && idx < len(positions) {
 				symbol = positions[idx].Ticker
+				displayName = positions[idx].Name
 			}
 		}
 		a.dataMutex.RUnlock()
@@ -364,6 +368,7 @@ func (a *App) OpenOrderModal() {
 
 	a.orderModal.SetInstrument(symbol)
 	a.orderModal.SetQuantity(0)
+	a.orderModal.SetDisplayName(displayName)
 
 	// Set lot size and price for the selected instrument
 	if symbol != "" && a.client != nil {
@@ -425,6 +430,7 @@ func (a *App) OpenCloseModal() {
 				} else {
 					a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
 				}
+				a.closeModal.SetDisplayName(pos.Name)
 				a.pages.ShowPage("close_modal")
 				a.app.SetFocus(a.closeModal.Form)
 			}
