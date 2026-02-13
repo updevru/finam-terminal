@@ -141,7 +141,7 @@ func updatePositionsTable(app *App) {
 func updateHistoryTable(app *App) {
 	app.portfolioView.TabbedView.HistoryTable.Clear()
 
-	headers := []string{"Symbol", "Side", "Price", "Qty", "Total", "Time"}
+	headers := []string{"Symbol", "Side", "Price", "Qty (Lots)", "Total", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -180,13 +180,24 @@ func updateHistoryTable(app *App) {
 
 		timeStr := t.Timestamp.Format("01-02 15:04")
 
+		// Convert quantity to lots
+		displayQty := t.Quantity
+		if app.client != nil {
+			lotSize := app.client.GetLotSize(t.Symbol)
+			if lotSize > 0 {
+				if qty, err := parseFloat(t.Quantity); err == nil {
+					displayQty = fmt.Sprintf("%v", qty/lotSize)
+				}
+			}
+		}
+
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 0, tview.NewTableCell(t.Symbol).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 1, tview.NewTableCell(t.Side).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 2, tview.NewTableCell(t.Price).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 3, tview.NewTableCell(t.Quantity).
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 3, tview.NewTableCell(displayQty).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 4, tview.NewTableCell(t.Total).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightGreen)).SetAlign(tview.AlignRight))
@@ -206,7 +217,7 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"Symbol", "Side", "Type", "Status", "Qty", "Price", "Time"}
+	headers := []string{"Symbol", "Side", "Type", "Status", "Qty (Lots)", "Price", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -251,9 +262,20 @@ func updateOrdersTable(app *App) {
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		// Convert quantity to lots
+		displayQty := o.Quantity
+		if app.client != nil {
+			lotSize := app.client.GetLotSize(o.Symbol)
+			if lotSize > 0 {
+				if qty, err := parseFloat(o.Quantity); err == nil {
+					displayQty = fmt.Sprintf("%v", qty/lotSize)
+				}
+			}
+		}
+
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Status).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightCyan)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(o.Quantity).
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(displayQty).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(o.Price).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
