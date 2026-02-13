@@ -23,8 +23,8 @@ Implement the necessary data structures and the centralized name cache to suppor
 ## Phase 2: API Integration & Data Enrichment
 Ensure that all data retrieval methods populate the new `Name` fields using the centralized cache.
 
-- [ ] Task: Update `GetAccountDetails` to enrich positions with names.
-    - [ ] In `api/client.go`, populate `Position.Name` using the cache during the response processing.
+- [x] Task: Update `GetAccountDetails` to enrich positions with names. `756bad9`
+    - [x] In `api/client.go`, populate `Position.Name` using the cache during the response processing.
 - [ ] Task: Update `GetTradeHistory` to enrich trades with names.
     - [ ] In `api/client.go`, populate `Trade.Name` using the cache.
 - [ ] Task: Update `GetActiveOrders` to enrich orders with names.
