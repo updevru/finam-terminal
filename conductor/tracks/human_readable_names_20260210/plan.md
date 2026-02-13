@@ -5,10 +5,10 @@ This plan details the steps to transition the TUI from displaying ticker symbols
 ## Phase 1: Data Models & Infrastructure
 Implement the necessary data structures and the centralized name cache to support O(1) lookups.
 
-- [ ] Task: Add `Name` field to core data models.
-    - [ ] Add `Name string` to `Position` struct in `models/models.go`.
-    - [ ] Add `Name string` to `Trade` struct in `models/models.go`.
-    - [ ] Add `Name string` to `Order` struct in `models/models.go`.
+- [x] Task: Add `Name` field to core data models. `822edb2`
+    - [x] Add `Name string` to `Position` struct in `models/models.go`.
+    - [x] Add `Name string` to `Trade` struct in `models/models.go`.
+    - [x] Add `Name string` to `Order` struct in `models/models.go`.
 - [ ] Task: Implement `InstrumentCache` in `api.Client`.
     - [ ] Add `instrumentNameCache map[string]string` to `Client` struct in `api/client.go`.
     - [ ] Initialize the map in `NewClient`.
