@@ -2,7 +2,7 @@
 
 This plan details the steps to transition the TUI from displaying ticker symbols to human-readable instrument names across all main views.
 
-## Phase 1: Data Models & Infrastructure
+## Phase 1: Data Models & Infrastructure [checkpoint: 8e146c6]
 Implement the necessary data structures and the centralized name cache to support O(1) lookups.
 
 - [x] Task: Add `Name` field to core data models. `822edb2`
@@ -18,7 +18,7 @@ Implement the necessary data structures and the centralized name cache to suppor
     - [x] Update `loadAssetCache` in `api/client.go` to populate `instrumentNameCache` with both ticker and full symbol as keys.
 - [x] Task: Write unit tests for the cache infrastructure. `7020093`
     - [x] Create/Update tests in `api/client_test.go` to verify cache population and lookup logic.
-- [~] Task: Conductor - User Manual Verification 'Data Models & Infrastructure' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Data Models & Infrastructure' (Protocol in workflow.md) `8e146c6`
 
 ## Phase 2: API Integration & Data Enrichment
 Ensure that all data retrieval methods populate the new `Name` fields using the centralized cache.
