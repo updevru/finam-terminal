@@ -9,11 +9,11 @@ Implement the necessary data structures and the centralized name cache to suppor
     - [x] Add `Name string` to `Position` struct in `models/models.go`.
     - [x] Add `Name string` to `Trade` struct in `models/models.go`.
     - [x] Add `Name string` to `Order` struct in `models/models.go`.
-- [ ] Task: Implement `InstrumentCache` in `api.Client`.
-    - [ ] Add `instrumentNameCache map[string]string` to `Client` struct in `api/client.go`.
-    - [ ] Initialize the map in `NewClient`.
-    - [ ] Implement thread-safe `GetInstrumentName(key string) string` method.
-    - [ ] Implement thread-safe `UpdateInstrumentCache(ticker, fullSymbol, name string)` method.
+- [x] Task: Implement `InstrumentCache` in `api.Client`. `ef7da9f`
+    - [x] Add `instrumentNameCache map[string]string` to `Client` struct in `api/client.go`.
+    - [x] Initialize the map in `NewClient`.
+    - [x] Implement thread-safe `GetInstrumentName(key string) string` method.
+    - [x] Implement thread-safe `UpdateInstrumentCache(ticker, fullSymbol, name string)` method.
 - [ ] Task: Populate cache during initial load.
     - [ ] Update `loadAssetCache` in `api/client.go` to populate `instrumentNameCache` with both ticker and full symbol as keys.
 - [ ] Task: Write unit tests for the cache infrastructure.
