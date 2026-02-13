@@ -36,7 +36,7 @@ Goal: Implement lot-based input and validation in Buy and Close modals.
 - [x] Task: Update `CloseModal` for lot-based closing. d398fd5
     - [ ] Write failing tests in `ui/close_modal_test.go` to verify closing quantities are handled as lots.
     - [ ] Update UI to show current position in lots and allow entering close quantity in lots.
-- [ ] Task: Update `api.Client.PlaceOrder` to handle lot multiplication.
+- [x] Task: Update `api.Client.PlaceOrder` to handle lot multiplication. 6b333b6
     - [ ] Write failing tests in `api/client_test.go` to verify that placing an order with quantity 1 (lot) results in an API call with `1 * LotSize` shares.
     - [ ] Modify `PlaceOrder` in `api/client.go` to perform the multiplication.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Trading Modals & Logic' (Protocol in workflow.md)
