@@ -709,9 +709,14 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 		qty, _ := strconv.ParseFloat(qtyStr, 64)
 		total := price * qty
 
+		c.assetMutex.RLock()
+		name := c.instrumentNameCache[t.Symbol]
+		c.assetMutex.RUnlock()
+
 		trades = append(trades, models.Trade{
 			ID:        t.TradeId,
 			Symbol:    t.Symbol,
+			Name:      name,
 			Side:      side,
 			Price:     priceStr,
 			Quantity:  qtyStr,
@@ -771,6 +776,9 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 
 		if o.Order != nil {
 			order.Symbol = o.Order.Symbol
+			c.assetMutex.RLock()
+			order.Name = c.instrumentNameCache[o.Order.Symbol]
+			c.assetMutex.RUnlock()
 			switch o.Order.Type {
 			case orders.OrderType_ORDER_TYPE_LIMIT:
 				order.Type = "Limit"

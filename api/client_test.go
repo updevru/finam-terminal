@@ -414,6 +414,9 @@ func TestGetTradeHistory(t *testing.T) {
 
 	client := &Client{
 		accountsClient: mockAccounts,
+		instrumentNameCache: map[string]string{
+			"SBER": "Сбербанк",
+		},
 	}
 
 	trades, err := client.GetTradeHistory("acc1")
@@ -432,6 +435,9 @@ func TestGetTradeHistory(t *testing.T) {
 	}
 	if trades[0].Total != "2500.00" {
 		t.Errorf("Expected Total 2500.00, got %s", trades[0].Total)
+	}
+	if trades[0].Name != "Сбербанк" {
+		t.Errorf("Expected Name Сбербанк, got '%s'", trades[0].Name)
 	}
 }
 
@@ -458,6 +464,9 @@ func TestGetActiveOrders(t *testing.T) {
 
 	client := &Client{
 		ordersClient: mockOrders,
+		instrumentNameCache: map[string]string{
+			"GAZP": "Газпром",
+		},
 	}
 
 	activeOrders, err := client.GetActiveOrders("acc1")
@@ -476,6 +485,9 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 	if activeOrders[0].Side != "Sell" {
 		t.Errorf("Expected Side Sell, got %s", activeOrders[0].Side)
+	}
+	if activeOrders[0].Name != "Газпром" {
+		t.Errorf("Expected Name Газпром, got '%s'", activeOrders[0].Name)
 	}
 }
 
