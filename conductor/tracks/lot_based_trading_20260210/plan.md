@@ -14,7 +14,7 @@ Goal: Ensure the application has access to lot size metadata for all instruments
     - [ ] Update `GetAccountDetails` in `api/client.go` to populate the `LotSize` for each returned `Position`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: API & Models Enhancement' (Protocol in workflow.md)
 
-## Phase 2: UI Search & Portfolio Display
+## Phase 2: UI Search & Portfolio Display [checkpoint: b31b4c6]
 Goal: Update the main display components to show quantities in lots.
 
 - [x] Task: Update `SearchModal` to display Lot Size. f4aa60b
@@ -24,7 +24,7 @@ Goal: Update the main display components to show quantities in lots.
     - [ ] Write failing tests in `ui/portfolio_test.go` to verify the quantity column shows lots instead of shares.
     - [ ] Update `ui/render.go` (or wherever the positions table is rendered) to rename "Qty" to "Qty (Lots)".
     - [ ] Implement calculation: `DisplayQty = TotalShares / LotSize`.
-- [~] Task: Conductor - User Manual Verification 'Phase 2: UI Search & Portfolio Display' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: UI Search & Portfolio Display' (Protocol in workflow.md) b31b4c6
 
 ## Phase 3: Trading Modals & Logic
 Goal: Implement lot-based input and validation in Buy and Close modals.
