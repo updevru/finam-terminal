@@ -35,7 +35,7 @@ Ensure that all data retrieval methods populate the new `Name` fields using the 
     - [x] Verify that `Position`, `Trade`, and `Order` objects returned by the client have their `Name` field populated correctly.
 - [x] Task: Conductor - User Manual Verification 'API Integration & Data Enrichment' (Protocol in workflow.md) `3b3b5e8`
 
-## Phase 3: UI Implementation
+## Phase 3: UI Implementation [checkpoint: 52674cd]
 Update the terminal interface to display the instrument names and rename relevant columns.
 
 - [x] Task: Update Positions Table. `e698b95`
@@ -50,6 +50,6 @@ Update the terminal interface to display the instrument names and rename relevan
 - [x] Task: Update Confirmation Modals. `2ed873a`
     - [x] Update `showClosePositionModal` in `ui/close_modal.go` to display the instrument name prominently.
     - [x] Update `OrderEntry` modal in `ui/modal.go` to display the instrument name next to or instead of the ticker.
-- [~] Task: Verify UI changes.
-    - [ ] Run the application and manually verify that names are displayed correctly across all tabs and modals.
-- [~] Task: Conductor - User Manual Verification 'UI Implementation' (Protocol in workflow.md)
+- [x] Task: Verify UI changes. `52674cd`
+    - [x] Run the application and manually verify that names are displayed correctly across all tabs and modals.
+- [x] Task: Conductor - User Manual Verification 'UI Implementation' (Protocol in workflow.md) `52674cd`
