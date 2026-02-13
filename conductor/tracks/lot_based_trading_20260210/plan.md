@@ -26,7 +26,7 @@ Goal: Update the main display components to show quantities in lots.
     - [ ] Implement calculation: `DisplayQty = TotalShares / LotSize`.
 - [x] Task: Conductor - User Manual Verification 'Phase 2: UI Search & Portfolio Display' (Protocol in workflow.md) b31b4c6
 
-## Phase 3: Trading Modals & Logic
+## Phase 3: Trading Modals & Logic [checkpoint: 7f6002e]
 Goal: Implement lot-based input and validation in Buy and Close modals.
 
 - [x] Task: Update `BuyModal` (or Order placement UI) for lot-based input. b9021d9
