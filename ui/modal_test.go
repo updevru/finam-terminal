@@ -65,3 +65,87 @@ func TestOrderModal_Direction(t *testing.T) {
 		t.Errorf("Expected direction Sell after change, got %s", modal.GetDirection())
 	}
 }
+
+func TestOrderModal_SetLotSize(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	// Default lot size should be 0
+	if modal.GetLotSize() != 0 {
+		t.Errorf("Expected default lot size 0, got %v", modal.GetLotSize())
+	}
+
+	modal.SetLotSize(10)
+	if modal.GetLotSize() != 10 {
+		t.Errorf("Expected lot size 10, got %v", modal.GetLotSize())
+	}
+
+	// Lot info text should mention the multiplier
+	infoText := modal.infoArea.GetText(true)
+	if infoText == "" {
+		t.Error("Expected info area to display lot info after SetLotSize")
+	}
+}
+
+func TestOrderModal_LotBasedCalculation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetLotSize(10)
+	modal.SetPrice(250.50)
+	modal.SetQuantity(2) // 2 lots
+
+	// Total shares = 2 * 10 = 20
+	totalShares := modal.GetTotalShares()
+	if totalShares != 20 {
+		t.Errorf("Expected total shares 20, got %v", totalShares)
+	}
+
+	// Estimated cost = 20 * 250.50 = 5010
+	estimatedCost := modal.GetEstimatedCost()
+	if estimatedCost != 5010 {
+		t.Errorf("Expected estimated cost 5010, got %v", estimatedCost)
+	}
+}
+
+func TestOrderModal_LotInfoDisplay(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetLotSize(10)
+	modal.SetPrice(250.50)
+	modal.SetQuantity(3)
+
+	infoText := modal.infoArea.GetText(true)
+	// Should contain lot size multiplier info
+	if infoText == "" {
+		t.Error("Expected info area to contain lot calculation details")
+	}
+}
+
+func TestOrderModal_QuantityIsInLots(t *testing.T) {
+	// Verify the callback receives lot quantity (not shares)
+	var receivedQty float64
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, func(instrument string, quantity float64, buySell string) {
+		receivedQty = quantity
+	}, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetLotSize(10)
+	modal.SetQuantity(5) // 5 lots
+
+	// GetQuantity should return the lot-based quantity (5), not shares (50)
+	if modal.GetQuantity() != 5 {
+		t.Errorf("Expected GetQuantity to return 5 (lots), got %v", modal.GetQuantity())
+	}
+
+	// Simulate clicking Create
+	if modal.Validate() {
+		modal.callback(modal.GetInstrument(), modal.GetQuantity(), modal.currentDir)
+	}
+
+	if receivedQty != 5 {
+		t.Errorf("Expected callback to receive 5 (lots), got %v", receivedQty)
+	}
+}

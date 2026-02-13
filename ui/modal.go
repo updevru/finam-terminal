@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/gdamore/tcell/v2"
@@ -12,6 +13,7 @@ type OrderModal struct {
 	Layout   *tview.Flex // Main container with border
 	Form     *tview.Form
 	Footer   *tview.TextView
+	infoArea *tview.TextView
 	app      *tview.Application
 	callback func(string, float64, string)
 	onCancel func()
@@ -22,6 +24,8 @@ type OrderModal struct {
 
 	// State
 	currentDir string
+	lotSize    float64
+	price      float64
 }
 
 // NewOrderModal creates a new order modal
@@ -30,6 +34,7 @@ func NewOrderModal(app *tview.Application, callback func(string, float64, string
 		Layout:     tview.NewFlex(),
 		Form:       tview.NewForm(),
 		Footer:     tview.NewTextView(),
+		infoArea:   tview.NewTextView(),
 		app:        app,
 		callback:   callback,
 		onCancel:   onCancel,
@@ -71,6 +76,7 @@ func (m *OrderModal) setupUI() {
 		SetAcceptanceFunc(tview.InputFieldInteger).
 		SetChangedFunc(func(text string) {
 			m.updateCreateButton()
+			m.updateInfo()
 		})
 
 	m.direction = tview.NewDropDown().
@@ -105,6 +111,11 @@ func (m *OrderModal) setupUI() {
 
 	m.updateCreateButton()
 
+	// Configure Info Area (lot info, total shares, estimated cost)
+	m.infoArea.SetDynamicColors(true)
+	m.infoArea.SetBackgroundColor(tcell.ColorBlack)
+	m.infoArea.SetTextColor(tcell.ColorLightGray)
+
 	// Configure Footer
 	m.Footer.SetBackgroundColor(tcell.ColorDarkSlateGray)
 	m.Footer.SetTextColor(tcell.ColorWhite).
@@ -113,9 +124,9 @@ func (m *OrderModal) setupUI() {
 		SetText(" [yellow]TAB[white] Move  [yellow]ENTER[white] Select  [yellow]ESC[white] Close")
 
 	// Assemble Layout
-	// Form takes available space, Footer takes 1 line at bottom
 	m.Layout.AddItem(m.Form, 0, 1, true).
-		AddItem(m.Footer, 1, 1, false)
+		AddItem(m.infoArea, 3, 0, false).
+		AddItem(m.Footer, 1, 0, false)
 }
 func (m *OrderModal) SetInstrument(symbol string) {
 	m.instrument.SetText(symbol)
@@ -133,6 +144,7 @@ func (m *OrderModal) SetQuantity(q float64) {
 		m.quantity.SetText(strconv.FormatFloat(q, 'f', -1, 64))
 	}
 	m.updateCreateButton()
+	m.updateInfo()
 }
 
 func (m *OrderModal) GetQuantity() float64 {
@@ -156,6 +168,56 @@ func (m *OrderModal) Validate() bool {
 		return false
 	}
 	return true
+}
+
+// SetLotSize sets the lot size for the current instrument and updates the info display
+func (m *OrderModal) SetLotSize(lotSize float64) {
+	m.lotSize = lotSize
+	m.updateInfo()
+}
+
+// GetLotSize returns the current lot size
+func (m *OrderModal) GetLotSize() float64 {
+	return m.lotSize
+}
+
+// SetPrice sets the current price for estimated cost calculation
+func (m *OrderModal) SetPrice(price float64) {
+	m.price = price
+	m.updateInfo()
+}
+
+// GetTotalShares returns the total shares (quantity in lots * lot size)
+func (m *OrderModal) GetTotalShares() float64 {
+	qty := m.GetQuantity()
+	if m.lotSize > 0 {
+		return qty * m.lotSize
+	}
+	return qty
+}
+
+// GetEstimatedCost returns the estimated cost (total shares * price)
+func (m *OrderModal) GetEstimatedCost() float64 {
+	return m.GetTotalShares() * m.price
+}
+
+// updateInfo refreshes the info area with lot size, total shares, and estimated cost
+func (m *OrderModal) updateInfo() {
+	if m.lotSize <= 0 {
+		m.infoArea.SetText("")
+		return
+	}
+
+	qty := m.GetQuantity()
+	totalShares := m.GetTotalShares()
+	text := fmt.Sprintf(" [yellow]1 lot = %.0f shares[-]\n", m.lotSize)
+	if qty > 0 {
+		text += fmt.Sprintf(" Total Shares: %.0f", totalShares)
+		if m.price > 0 {
+			text += fmt.Sprintf("  |  Est. Cost: %.2f", m.GetEstimatedCost())
+		}
+	}
+	m.infoArea.SetText(text)
 }
 
 func (m *OrderModal) updateCreateButton() {

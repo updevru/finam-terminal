@@ -164,6 +164,9 @@ func (a *App) IsSearchModalOpen() bool {
 func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.SetInstrument(ticker)
 	a.orderModal.SetQuantity(0)
+	lotSize := a.client.GetLotSize(ticker)
+	a.orderModal.SetLotSize(lotSize)
+	a.orderModal.SetPrice(0) // Price unknown from search context
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -293,8 +296,8 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.orderModal.Layout, 15, 1, true). // Height 15 (14 form + 1 footer)
-			AddItem(nil, 0, 1, false), 40, 1, true).   // Width 40
+			AddItem(a.orderModal.Layout, 18, 1, true). // Height 18 (14 form + 3 info + 1 footer)
+			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("modal", modalFlex, true, false)
@@ -360,8 +363,31 @@ func (a *App) OpenOrderModal() {
 	}
 
 	a.orderModal.SetInstrument(symbol)
-	// Reset quantity to 0
 	a.orderModal.SetQuantity(0)
+
+	// Set lot size and price for the selected instrument
+	if symbol != "" && a.client != nil {
+		lotSize := a.client.GetLotSize(symbol)
+		a.orderModal.SetLotSize(lotSize)
+
+		// Try to get current price from positions
+		a.dataMutex.RLock()
+		if a.selectedIdx < len(a.accounts) {
+			accID := a.accounts[a.selectedIdx].ID
+			for _, pos := range a.positions[accID] {
+				if pos.Ticker == symbol {
+					if p, err := parseFloat(pos.CurrentPrice); err == nil {
+						a.orderModal.SetPrice(p)
+					}
+					break
+				}
+			}
+		}
+		a.dataMutex.RUnlock()
+	} else {
+		a.orderModal.SetLotSize(0)
+		a.orderModal.SetPrice(0)
+	}
 
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
