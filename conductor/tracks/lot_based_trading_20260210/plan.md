@@ -39,7 +39,7 @@ Goal: Implement lot-based input and validation in Buy and Close modals.
 - [x] Task: Update `api.Client.PlaceOrder` to handle lot multiplication. 6b333b6
     - [ ] Write failing tests in `api/client_test.go` to verify that placing an order with quantity 1 (lot) results in an API call with `1 * LotSize` shares.
     - [ ] Modify `PlaceOrder` in `api/client.go` to perform the multiplication.
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Trading Modals & Logic' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Trading Modals & Logic' (Protocol in workflow.md)
 
 ## Phase 4: History & Consistency
 Goal: Ensure all other quantity displays are consistent.

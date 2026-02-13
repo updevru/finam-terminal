@@ -5,7 +5,11 @@
       "Bash(go build:*)",
       "Bash(go test:*)",
       "Bash(go tool cover:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git restore:*)",
+      "Bash(git commit:*)",
+      "Bash(git notes add -m \"$\\(cat <<''EOF''\nTask: Update BuyModal for lot-based input\nTrack: lot_based_trading_20260210, Phase 3, Task 1\n\nSummary: Added lot-based display and calculation to OrderModal \\(BuyModal\\).\nThe modal now shows the lot size multiplier, total shares, and estimated cost\nin real-time as the user enters a lot quantity.\n\nFiles modified:\n- ui/modal.go: Added lotSize, price, infoArea fields; SetLotSize, SetPrice,\n  GetLotSize, GetTotalShares, GetEstimatedCost, updateInfo methods\n- ui/modal_test.go: Added tests for lot size, calculation, info display\n- ui/app.go: Updated OpenOrderModal/OpenOrderModalWithTicker to pass lot size\nEOF\n\\)\" b9021d9571480ba9d50dd31fb6d8628f0ba89a32)",
+      "Bash(Position: Y lots\" info\n- Update OpenCloseModal to use lot-based data when available\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")"
     ]
   }
 }
