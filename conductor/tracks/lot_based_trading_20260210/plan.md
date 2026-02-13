@@ -29,7 +29,7 @@ Goal: Update the main display components to show quantities in lots.
 ## Phase 3: Trading Modals & Logic
 Goal: Implement lot-based input and validation in Buy and Close modals.
 
-- [ ] Task: Update `BuyModal` (or Order placement UI) for lot-based input.
+- [x] Task: Update `BuyModal` (or Order placement UI) for lot-based input. b9021d9
     - [ ] Write failing tests in `ui/modal_test.go` for the new lot-based calculation logic.
     - [ ] Update UI to display the multiplier (e.g., "1 lot = 10").
     - [ ] Implement real-time calculation of "Total Shares" and "Estimated Cost" based on lot input.
