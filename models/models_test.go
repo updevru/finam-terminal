@@ -75,9 +75,13 @@ func TestTradeModel(t *testing.T) {
 		Price:    "250.00",
 		Quantity: "10",
 		Total:    "2500.00",
+		Name:     "Сбербанк",
 	}
 	if tr.Total != "2500.00" {
 		t.Errorf("Expected Total 2500.00, got %s", tr.Total)
+	}
+	if tr.Name != "Сбербанк" {
+		t.Errorf("Expected Name Сбербанк, got %s", tr.Name)
 	}
 }
 
@@ -86,9 +90,13 @@ func TestOrderModel(t *testing.T) {
 		ID:     "O1",
 		Symbol: "GAZP",
 		Status: "Active",
+		Name:   "Газпром",
 	}
 	if o.ID != "O1" {
 		t.Errorf("Expected ID O1, got %s", o.ID)
+	}
+	if o.Name != "Газпром" {
+		t.Errorf("Expected Name Газпром, got %s", o.Name)
 	}
 }
 
@@ -101,5 +109,16 @@ func TestPositionLotSize(t *testing.T) {
 
 	if p.LotSize != 10 {
 		t.Errorf("Expected LotSize 10, got %f", p.LotSize)
+	}
+}
+
+func TestPositionNameField(t *testing.T) {
+	p := Position{
+		Symbol: "SBER@MISX",
+		Ticker: "SBER",
+		Name:   "Сбербанк",
+	}
+	if p.Name != "Сбербанк" {
+		t.Errorf("Expected Name Сбербанк, got %s", p.Name)
 	}
 }

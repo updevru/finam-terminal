@@ -20,6 +20,7 @@ type AccountInfo struct {
 type Position struct {
 	Symbol        string
 	Ticker        string
+	Name          string
 	MIC           string
 	LotSize       float64
 	Quantity      string
@@ -82,6 +83,7 @@ type SecurityInfo struct {
 type Trade struct {
 	ID        string
 	Symbol    string
+	Name      string
 	Side      string
 	Price     string
 	Quantity  string
@@ -93,6 +95,7 @@ type Trade struct {
 type Order struct {
 	ID           string
 	Symbol       string
+	Name         string
 	Side         string
 	Type         string
 	Status       string
