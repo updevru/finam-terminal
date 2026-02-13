@@ -14,6 +14,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 
 
-- [ ] **Track: Отображение инструментов на человеческом языке.**
+- [x] **Track: Отображение инструментов на человеческом языке.** ✅ Completed
 
 *Link: [./tracks/human_readable_names_20260210/](./tracks/human_readable_names_20260210/)*
