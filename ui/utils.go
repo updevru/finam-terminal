@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -47,6 +48,19 @@ func extractUserMessage(err error) string {
 	}
 
 	return msg
+}
+
+// displayLots converts a raw quantity string to lot-based display.
+// If lotSize > 0, divides qty by lotSize; otherwise returns rawQty as-is.
+func displayLots(rawQty string, lotSize float64) string {
+	if lotSize <= 0 {
+		return rawQty
+	}
+	qty, err := parseFloat(rawQty)
+	if err != nil {
+		return rawQty
+	}
+	return fmt.Sprintf("%v", qty/lotSize)
 }
 
 // parseFloat parses a string to float64, handling commas as decimal separators

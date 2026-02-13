@@ -15,7 +15,7 @@ func TestOpenCloseModal(t *testing.T) {
 	}
 
 	// Mock table selection (row 1 is first position)
-	app.portfolioView.PositionsTable.Select(1, 0)
+	app.portfolioView.TabbedView.PositionsTable.Select(1, 0)
 
 	// Setup pages for testing
 	app.pages.AddPage("close_modal", app.closeModal.Layout, true, false)

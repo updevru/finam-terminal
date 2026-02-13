@@ -111,3 +111,91 @@ func TestClosePositionModal_ValidateBehavior(t *testing.T) {
 		t.Error("Float quantity 1.5 should be valid (Max 1.5)")
 	}
 }
+
+func TestClosePositionModal_LotBasedDisplay(t *testing.T) {
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+
+	// SetPositionData with lot size: 100 shares, lot size 10 = 10 lots
+	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
+
+	// Symbol should be set
+	if modal.GetSymbol() != "SBER" {
+		t.Errorf("Expected symbol SBER, got %s", modal.GetSymbol())
+	}
+
+	// Max quantity should be in lots (100 shares / 10 lot size = 10 lots)
+	if modal.maxQuantity != 10 {
+		t.Errorf("Expected maxQuantity 10 (lots), got %v", modal.maxQuantity)
+	}
+
+	// Lot info should be displayed
+	if modal.GetLotSize() != 10 {
+		t.Errorf("Expected lot size 10, got %v", modal.GetLotSize())
+	}
+}
+
+func TestClosePositionModal_LotValidation(t *testing.T) {
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+
+	// 100 shares, lot size 10 = max 10 lots
+	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
+
+	// Valid: 5 lots (within 10 max)
+	modal.quantityField.SetText("5")
+	if !modal.Validate() {
+		t.Error("Expected validation to pass for 5 lots (max 10)")
+	}
+
+	// Valid: exact max (10 lots)
+	modal.quantityField.SetText("10")
+	if !modal.Validate() {
+		t.Error("Expected validation to pass for 10 lots (exact max)")
+	}
+
+	// Invalid: 11 lots (exceeds max)
+	modal.quantityField.SetText("11")
+	if modal.Validate() {
+		t.Error("Expected validation to fail for 11 lots (max 10)")
+	}
+}
+
+func TestClosePositionModal_DisplayName(t *testing.T) {
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+
+	// With name: title should include the name
+	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
+	modal.SetDisplayName("Сбербанк")
+
+	title := modal.Layout.GetTitle()
+	if title != " Close Position — Сбербанк " {
+		t.Errorf("Expected title ' Close Position — Сбербанк ', got '%s'", title)
+	}
+
+	// Without name: title should be default
+	modal2 := NewClosePositionModal(nil, nil, nil, nil)
+	modal2.SetPositionDataWithLots("UNKNOWN", 50.0, 100.0, 0.0, 1.0)
+	modal2.SetDisplayName("")
+
+	title2 := modal2.Layout.GetTitle()
+	if title2 != " Close Position " {
+		t.Errorf("Expected default title ' Close Position ', got '%s'", title2)
+	}
+}
+
+func TestClosePositionModal_LotInfoText(t *testing.T) {
+	modal := NewClosePositionModal(nil, nil, nil, nil)
+
+	modal.SetPositionDataWithLots("SBER", 100.0, 250.50, 500.0, 10.0)
+
+	// Quantity label should show lot size
+	label := modal.quantityField.GetLabel()
+	if label != "Lots (size - 10): " {
+		t.Errorf("Expected quantity label 'Lots (size - 10): ', got '%s'", label)
+	}
+
+	// Info area should show position in lots
+	infoText := modal.infoArea.GetText(true)
+	if infoText == "" {
+		t.Error("Expected info area to display position lots info")
+	}
+}

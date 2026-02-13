@@ -26,7 +26,11 @@ func TestNewPortfolioView(t *testing.T) {
 		t.Error("Expected PortfolioView AccountTable to be not nil")
 	}
 
-	if pv.PositionsTable == nil {
+	if pv.TabbedView == nil {
+		t.Error("Expected PortfolioView TabbedView to be not nil")
+	}
+
+	if pv.TabbedView.PositionsTable == nil {
 		t.Error("Expected PortfolioView PositionsTable to be not nil")
 	}
 
@@ -96,12 +100,45 @@ func TestPortfolioView_UpdatePositions(t *testing.T) {
 
 	pv.UpdatePositions(positions)
 
-	if pv.PositionsTable.GetRowCount() != 3 { // 1 header + 2 data
-		t.Errorf("Expected 3 rows in positions table, got %d", pv.PositionsTable.GetRowCount())
+	if pv.TabbedView.PositionsTable.GetRowCount() != 3 { // 1 header + 2 data
+		t.Errorf("Expected 3 rows in positions table, got %d", pv.TabbedView.PositionsTable.GetRowCount())
 	}
 
-	cell := pv.PositionsTable.GetCell(1, 0)
+	cell := pv.TabbedView.PositionsTable.GetCell(1, 0)
 	if cell.Text != "S1" {
 		t.Errorf("Expected first position symbol to be S1, got %s", cell.Text)
+	}
+}
+
+func TestPortfolioView_LotBasedQuantity(t *testing.T) {
+	app := tview.NewApplication()
+	pv := NewPortfolioView(app)
+
+	positions := []models.Position{
+		{Symbol: "SBER", Ticker: "SBER", MIC: "TQBR", Quantity: "100", LotSize: 10},
+	}
+
+	pv.UpdatePositions(positions)
+
+	// Check header
+	found := false
+	qtyCol := -1
+	for i := 0; i < pv.TabbedView.PositionsTable.GetColumnCount(); i++ {
+		if pv.TabbedView.PositionsTable.GetCell(0, i).Text == "Qty (Lots)" {
+			found = true
+			qtyCol = i
+			break
+		}
+	}
+
+	if !found {
+		t.Error("Qty (Lots) column header not found")
+		return
+	}
+
+	// Check value: 100 shares / 10 lot size = 10 lots
+	qtyCell := pv.TabbedView.PositionsTable.GetCell(1, qtyCol)
+	if qtyCell.Text != "10" {
+		t.Errorf("Expected lot quantity 10, got %s", qtyCell.Text)
 	}
 }

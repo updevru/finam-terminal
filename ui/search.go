@@ -14,7 +14,8 @@ import (
 // APISearchClient defines the interface for search operations
 type APISearchClient interface {
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
-	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
+	GetLotSize(ticker string) float64
 }
 
 // SearchModal represents the security search window
@@ -24,10 +25,11 @@ type SearchModal struct {
 	Table  *tview.Table
 	Footer *tview.TextView
 
-	app      *tview.Application
-	client   APISearchClient
-	onSelect func(ticker string)
-	onCancel func()
+	app       *tview.Application
+	client    APISearchClient
+	accountID string
+	onSelect  func(ticker string)
+	onCancel  func()
 
 	results      []models.SecurityInfo
 	searchTimer  *time.Timer
@@ -54,6 +56,13 @@ func NewSearchModal(app *tview.Application, client APISearchClient, onSelect fun
 	}
 	m.setupUI()
 	return m
+}
+
+// SetAccountID sets the current account ID for API calls
+func (m *SearchModal) SetAccountID(accountID string) {
+	m.timerMutex.Lock()
+	defer m.timerMutex.Unlock()
+	m.accountID = accountID
 }
 
 func (m *SearchModal) setupUI() {
@@ -173,13 +182,33 @@ func (m *SearchModal) PerformSearch(query string) {
 		return
 	}
 
-	// Fetch snapshots for results
-	var tickers []string
+	// Fetch snapshots using full symbol to distinguish duplicate tickers on different exchanges
+	var symbols []string
 	for _, res := range results {
-		tickers = append(tickers, res.Ticker)
+		if res.Symbol != "" {
+			symbols = append(symbols, res.Symbol)
+		} else {
+			symbols = append(symbols, res.Ticker)
+		}
 	}
 
-	quotes, _ := m.client.GetSnapshots(tickers)
+	m.timerMutex.Lock()
+	accID := m.accountID
+	m.timerMutex.Unlock()
+
+	quotes, _ := m.client.GetSnapshots(accID, symbols)
+
+	// Enrich results with lot sizes from cache (populated during GetSnapshots)
+	// Use full symbol to correctly distinguish duplicate tickers on different exchanges
+	for i := range results {
+		sym := results[i].Symbol
+		if sym == "" {
+			sym = results[i].Ticker
+		}
+		if lot := m.client.GetLotSize(sym); lot > 0 {
+			results[i].Lot = lot
+		}
+	}
 
 	// Check again if cancelled before updating UI
 	select {
@@ -226,13 +255,18 @@ func (m *SearchModal) startRefresh() {
 					m.timerMutex.Unlock()
 					continue
 				}
-				var tickers []string
+				var symbols []string
 				for _, res := range m.results {
-					tickers = append(tickers, res.Ticker)
+					if res.Symbol != "" {
+						symbols = append(symbols, res.Symbol)
+					} else {
+						symbols = append(symbols, res.Ticker)
+					}
 				}
+				accID := m.accountID
 				m.timerMutex.Unlock()
 
-				quotes, err := m.client.GetSnapshots(tickers)
+				quotes, err := m.client.GetSnapshots(accID, symbols)
 				if err == nil {
 					m.app.QueueUpdateDraw(func() {
 						m.updatePrices(quotes)
@@ -245,15 +279,20 @@ func (m *SearchModal) startRefresh() {
 
 func (m *SearchModal) updatePrices(quotes map[string]models.Quote) {
 	for i, res := range m.results {
-		if q, ok := quotes[res.Ticker]; ok {
+		q, ok := quotes[res.Ticker]
+		if !ok {
+			q, ok = quotes[res.Symbol]
+		}
+
+		if ok {
 			row := i + 1
-			m.Table.SetCell(row, 3, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
+			m.Table.SetCell(row, 4, tview.NewTableCell(q.Last).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignRight))
 		}
 	}
 }
 
 func (m *SearchModal) updateTableHeader() {
-	headers := []string{"Ticker", "Name", "Currency", "Price", "Change %"}
+	headers := []string{"Ticker", "Name", "Lot", "Currency", "Price", "Change %"}
 	for i, h := range headers {
 		cell := tview.NewTableCell(h).
 			SetTextColor(tcell.ColorYellow).
@@ -312,8 +351,14 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetTextColor(tcell.ColorWhite).
 			SetExpansion(1))
 
+		// Lot
+		m.Table.SetCell(row, 2, tview.NewTableCell(fmt.Sprintf("%v", res.Lot)).
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter).
+			SetMaxWidth(8))
+
 		// Currency
-		m.Table.SetCell(row, 2, tview.NewTableCell(res.Currency).
+		m.Table.SetCell(row, 3, tview.NewTableCell(res.Currency).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignCenter).
 			SetMaxWidth(8))
@@ -328,7 +373,12 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetAlign(tview.AlignRight).
 			SetMaxWidth(10)
 
-		if q, ok := quotes[res.Ticker]; ok {
+		q, ok := quotes[res.Ticker]
+		if !ok {
+			q, ok = quotes[res.Symbol]
+		}
+
+		if ok {
 			priceCell.SetText(q.Last).SetTextColor(tcell.ColorGreen)
 
 			// Calculate change
@@ -351,8 +401,8 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			changeCell.SetText("...").SetTextColor(tcell.ColorGray)
 		}
 		
-		m.Table.SetCell(row, 3, priceCell)
-		m.Table.SetCell(row, 4, changeCell)
+		m.Table.SetCell(row, 4, priceCell)
+		m.Table.SetCell(row, 5, changeCell)
 	}
 	m.Table.ScrollToBeginning()
 }

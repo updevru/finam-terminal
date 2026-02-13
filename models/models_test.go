@@ -60,9 +60,65 @@ func TestSecurityInfoStructure(t *testing.T) {
 		t.Errorf("Expected Name Apple Inc., got %s", sec.Name)
 	}
 	if sec.Lot != 100 {
-		t.Errorf("Expected Lot 100, got %d", sec.Lot)
+		t.Errorf("Expected Lot 100, got %f", sec.Lot)
 	}
 	if sec.Currency != "USD" {
 		t.Errorf("Expected Currency USD, got %s", sec.Currency)
+	}
+}
+
+func TestTradeModel(t *testing.T) {
+	tr := Trade{
+		ID:       "T1",
+		Symbol:   "SBER",
+		Side:     "Buy",
+		Price:    "250.00",
+		Quantity: "10",
+		Total:    "2500.00",
+		Name:     "Сбербанк",
+	}
+	if tr.Total != "2500.00" {
+		t.Errorf("Expected Total 2500.00, got %s", tr.Total)
+	}
+	if tr.Name != "Сбербанк" {
+		t.Errorf("Expected Name Сбербанк, got %s", tr.Name)
+	}
+}
+
+func TestOrderModel(t *testing.T) {
+	o := Order{
+		ID:     "O1",
+		Symbol: "GAZP",
+		Status: "Active",
+		Name:   "Газпром",
+	}
+	if o.ID != "O1" {
+		t.Errorf("Expected ID O1, got %s", o.ID)
+	}
+	if o.Name != "Газпром" {
+		t.Errorf("Expected Name Газпром, got %s", o.Name)
+	}
+}
+
+func TestPositionLotSize(t *testing.T) {
+	p := Position{
+		Symbol:   "SBER",
+		LotSize:  10,
+		Quantity: "100",
+	}
+
+	if p.LotSize != 10 {
+		t.Errorf("Expected LotSize 10, got %f", p.LotSize)
+	}
+}
+
+func TestPositionNameField(t *testing.T) {
+	p := Position{
+		Symbol: "SBER@MISX",
+		Ticker: "SBER",
+		Name:   "Сбербанк",
+	}
+	if p.Name != "Сбербанк" {
+		t.Errorf("Expected Name Сбербанк, got %s", p.Name)
 	}
 }

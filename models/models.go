@@ -20,7 +20,9 @@ type AccountInfo struct {
 type Position struct {
 	Symbol        string
 	Ticker        string
+	Name          string
 	MIC           string
+	LotSize       float64
 	Quantity      string
 	AveragePrice  string
 	CurrentPrice  string
@@ -71,7 +73,34 @@ type AccountSummary struct {
 // SecurityInfo represents basic information about a security from search results
 type SecurityInfo struct {
 	Ticker   string
+	Symbol   string
 	Name     string
-	Lot      int32
+	Lot      float64
 	Currency string
+}
+
+// Trade represents a trade in history
+type Trade struct {
+	ID        string
+	Symbol    string
+	Name      string
+	Side      string
+	Price     string
+	Quantity  string
+	Total     string
+	Timestamp time.Time
+}
+
+// Order represents an active order
+type Order struct {
+	ID           string
+	Symbol       string
+	Name         string
+	Side         string
+	Type         string
+	Status       string
+	Quantity     string
+	Executed     string
+	Price        string
+	CreationTime time.Time
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 // setupInputHandlers configures keyboard input handling
@@ -12,8 +13,18 @@ func setupInputHandlers(app *App) {
 
 	refresh := func() {
 		if app.selectedIdx < len(app.accounts) {
-			app.portfolioView.PositionsTable.Clear()
-			app.loadDataAsync(app.accounts[app.selectedIdx].ID)
+			accountID := app.accounts[app.selectedIdx].ID
+			switch app.portfolioView.TabbedView.ActiveTab {
+			case TabPositions:
+				app.portfolioView.TabbedView.PositionsTable.Clear()
+				app.loadDataAsync(accountID)
+			case TabHistory:
+				app.portfolioView.TabbedView.HistoryTable.Clear()
+				app.loadHistoryAsync(accountID)
+			case TabOrders:
+				app.portfolioView.TabbedView.OrdersTable.Clear()
+				app.loadOrdersAsync(accountID)
+			}
 		}
 	}
 
@@ -27,10 +38,112 @@ func setupInputHandlers(app *App) {
 			updateInfoPanel(app)
 			updateStatusBar(app)
 
-			// Trigger fresh data load
-			app.loadDataAsync(app.accounts[idx].ID)
+			// Trigger fresh data load for active tab
+			accountID := app.accounts[idx].ID
+			switch app.portfolioView.TabbedView.ActiveTab {
+			case TabPositions:
+				app.loadDataAsync(accountID)
+			case TabHistory:
+				app.loadHistoryAsync(accountID)
+			case TabOrders:
+				app.loadOrdersAsync(accountID)
+			}
 		}
 	}
+
+	switchToTab := func(tab TabType) {
+		app.portfolioView.TabbedView.SetTab(tab)
+		// Always update focus to the newly visible table
+		switch tab {
+		case TabPositions:
+			app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
+		case TabHistory:
+			app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
+		case TabOrders:
+			app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+		}
+		if app.selectedIdx >= len(app.accounts) {
+			return
+		}
+		accountID := app.accounts[app.selectedIdx].ID
+		switch tab {
+		case TabPositions:
+			// Positions use cached data; background refresh keeps them fresh
+			app.dataMutex.RLock()
+			_, loaded := app.positions[accountID]
+			app.dataMutex.RUnlock()
+			if !loaded {
+				app.loadDataAsync(accountID)
+			}
+		case TabHistory:
+			// Always reload — trades may come from other terminals
+			app.loadHistoryAsync(accountID)
+		case TabOrders:
+			// Always reload — orders may change from other terminals
+			app.loadOrdersAsync(accountID)
+		}
+	}
+
+	nextTab := func() {
+		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % 3
+		switchToTab(TabType(next))
+	}
+
+	prevTab := func() {
+		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + 3) % 3
+		switchToTab(TabType(prev))
+	}
+
+	setupTableNavigation := func(table *tview.Table) {
+		table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+			switch event.Key() {
+			case tcell.KeyRight:
+				nextTab()
+				return nil
+			case tcell.KeyLeft:
+				prevTab()
+				return nil
+			case tcell.KeyDown, tcell.KeyCtrlN:
+				row, _ := table.GetSelection()
+				if row < table.GetRowCount()-1 {
+					table.Select(row+1, 0)
+				}
+				return nil
+			case tcell.KeyUp, tcell.KeyCtrlP:
+				row, _ := table.GetSelection()
+				if row > 1 {
+					table.Select(row-1, 0)
+				}
+				return nil
+			}
+			switch event.Rune() {
+			case 'q', 'Q':
+				quit()
+				return nil
+			case 'r', 'R':
+				refresh()
+				return nil
+			case 'a', 'A':
+				if table == app.portfolioView.TabbedView.PositionsTable {
+					app.OpenOrderModal()
+				}
+				return nil
+			case 'c', 'C':
+				if table == app.portfolioView.TabbedView.PositionsTable {
+					app.OpenCloseModal()
+				}
+				return nil
+			case 's', 'S':
+				app.OpenSearchModal()
+				return nil
+			}
+			return event
+		})
+	}
+
+	setupTableNavigation(app.portfolioView.TabbedView.PositionsTable)
+	setupTableNavigation(app.portfolioView.TabbedView.HistoryTable)
+	setupTableNavigation(app.portfolioView.TabbedView.OrdersTable)
 
 	app.portfolioView.AccountTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -50,45 +163,6 @@ func setupInputHandlers(app *App) {
 			return nil
 		case 'r', 'R':
 			refresh()
-			return nil
-		}
-		return event
-	})
-
-	app.portfolioView.PositionsTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyTab:
-			app.app.SetFocus(app.portfolioView.AccountTable)
-			updateStatusBar(app)
-			return nil
-		case tcell.KeyDown, tcell.KeyCtrlN:
-			row, _ := app.portfolioView.PositionsTable.GetSelection()
-			if row < app.portfolioView.PositionsTable.GetRowCount()-1 {
-				app.portfolioView.PositionsTable.Select(row+1, 0)
-			}
-			return nil
-		case tcell.KeyUp, tcell.KeyCtrlP:
-			row, _ := app.portfolioView.PositionsTable.GetSelection()
-			if row > 1 {
-				app.portfolioView.PositionsTable.Select(row-1, 0)
-			}
-			return nil
-		}
-		switch event.Rune() {
-		case 'q', 'Q':
-			quit()
-			return nil
-		case 'r', 'R':
-			refresh()
-			return nil
-		case 'a', 'A':
-			app.OpenOrderModal()
-			return nil
-		case 'c', 'C':
-			app.OpenCloseModal()
-			return nil
-		case 's', 'S':
-			app.OpenSearchModal()
 			return nil
 		}
 		return event
@@ -121,25 +195,37 @@ func setupInputHandlers(app *App) {
 			app.app.SetFocus(app.portfolioView.AccountTable)
 			updateStatusBar(app)
 			return nil
-		case tcell.KeyF2, tcell.KeyCtrlR:
+		case tcell.KeyF2:
 			refresh()
 			return nil
-		case tcell.KeyCtrlC, tcell.KeyEscape:
-			quit()
-			return nil
-		case tcell.KeyTab:
+		case tcell.KeyTab, tcell.KeyBacktab:
 			if app.app.GetFocus() == app.portfolioView.AccountTable {
-				app.app.SetFocus(app.portfolioView.PositionsTable)
+				// Switch to the active tab's table
+				switch app.portfolioView.TabbedView.ActiveTab {
+				case TabPositions:
+					app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
+				case TabHistory:
+					app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
+				case TabOrders:
+					app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+				}
 			} else {
+				// Switch back to Account Table
 				app.app.SetFocus(app.portfolioView.AccountTable)
 			}
 			updateStatusBar(app)
 			return nil
 		case tcell.KeyLeft:
-			switchAccount(app.selectedIdx - 1)
+			prevTab()
 			return nil
 		case tcell.KeyRight:
-			switchAccount(app.selectedIdx + 1)
+			nextTab()
+			return nil
+		case tcell.KeyCtrlR:
+			refresh()
+			return nil
+		case tcell.KeyCtrlC, tcell.KeyEscape:
+			quit()
 			return nil
 		}
 		switch event.Rune() {

@@ -26,7 +26,13 @@ type APIClient interface {
 
 	// Search operations
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
-	GetSnapshots(symbols []string) (map[string]models.Quote, error)
+	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
+	GetLotSize(ticker string) float64
+	GetInstrumentName(key string) string
+
+	// History and Orders
+	GetTradeHistory(accountID string) ([]models.Trade, error)
+	GetActiveOrders(accountID string) ([]models.Order, error)
 }
 
 // App represents the TUI application
@@ -35,6 +41,8 @@ type App struct {
 	client        APIClient
 	accounts      []models.AccountInfo
 	positions     map[string][]models.Position
+	history       map[string][]models.Trade
+	activeOrders  map[string][]models.Order
 	quotes        map[string]map[string]*models.Quote
 	selectedIdx   int
 	dataMutex     DataMutex
@@ -77,6 +85,8 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		client:      client,
 		accounts:    accounts,
 		positions:   make(map[string][]models.Position),
+		history:     make(map[string][]models.Trade),
+		activeOrders: make(map[string][]models.Order),
 		quotes:      make(map[string]map[string]*models.Quote),
 		selectedIdx: 0,
 		stopChan:    make(chan struct{}),
@@ -120,15 +130,21 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 // CloseCloseModal closes the close position modal
 func (a *App) CloseCloseModal() {
 	a.pages.HidePage("close_modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 func (a *App) CloseOrderModal() {
 	a.pages.HidePage("modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 
 // OpenSearchModal opens the security search modal
 func (a *App) OpenSearchModal() {
+	a.dataMutex.RLock()
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		a.searchModal.SetAccountID(a.accounts[a.selectedIdx].ID)
+	}
+	a.dataMutex.RUnlock()
+
 	a.pages.ShowPage("search_modal")
 	a.app.SetFocus(a.searchModal.Input)
 }
@@ -136,7 +152,7 @@ func (a *App) OpenSearchModal() {
 // CloseSearchModal closes the security search modal
 func (a *App) CloseSearchModal() {
 	a.pages.HidePage("search_modal")
-	a.app.SetFocus(a.portfolioView.PositionsTable)
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 
 // IsSearchModalOpen returns true if the search modal is currently open
@@ -149,6 +165,10 @@ func (a *App) IsSearchModalOpen() bool {
 func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.SetInstrument(ticker)
 	a.orderModal.SetQuantity(0)
+	lotSize := a.client.GetLotSize(ticker)
+	a.orderModal.SetLotSize(lotSize)
+	a.orderModal.SetPrice(0) // Price unknown from search context
+	a.orderModal.SetDisplayName(a.client.GetInstrumentName(ticker))
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -199,7 +219,7 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 // SubmitClosePosition submits an order to close an existing position
 func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	// Get selected row to identify the position again
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 	if row <= 0 {
 		return fmt.Errorf("no position selected")
 	}
@@ -278,8 +298,8 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.orderModal.Layout, 15, 1, true). // Height 15 (14 form + 1 footer)
-			AddItem(nil, 0, 1, false), 40, 1, true).   // Width 40
+			AddItem(a.orderModal.Layout, 16, 1, true). // Height 16 (form + info + footer)
+			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("modal", modalFlex, true, false)
@@ -289,8 +309,8 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.closeModal.Layout, 16, 1, true). // Height 16 (approx)
-			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
+			AddItem(a.closeModal.Layout, 18, 1, true). // Height 18 (form + info + footer)
+			AddItem(nil, 0, 1, false), 55, 1, true).   // Width 55
 		AddItem(nil, 0, 1, false)
 
 	a.pages.AddPage("close_modal", closeModalFlex, true, false)
@@ -324,10 +344,11 @@ func (a *App) Stop() {
 // OpenOrderModal opens the order entry modal
 func (a *App) OpenOrderModal() {
 	// Get selected row
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 
 	// Default to empty if header or invalid
 	symbol := ""
+	displayName := ""
 
 	if row > 0 {
 		// Map row to position index (row 1 -> index 0)
@@ -339,14 +360,39 @@ func (a *App) OpenOrderModal() {
 			positions := a.positions[accID]
 			if idx >= 0 && idx < len(positions) {
 				symbol = positions[idx].Ticker
+				displayName = positions[idx].Name
 			}
 		}
 		a.dataMutex.RUnlock()
 	}
 
 	a.orderModal.SetInstrument(symbol)
-	// Reset quantity to 0
 	a.orderModal.SetQuantity(0)
+	a.orderModal.SetDisplayName(displayName)
+
+	// Set lot size and price for the selected instrument
+	if symbol != "" && a.client != nil {
+		lotSize := a.client.GetLotSize(symbol)
+		a.orderModal.SetLotSize(lotSize)
+
+		// Try to get current price from positions
+		a.dataMutex.RLock()
+		if a.selectedIdx < len(a.accounts) {
+			accID := a.accounts[a.selectedIdx].ID
+			for _, pos := range a.positions[accID] {
+				if pos.Ticker == symbol {
+					if p, err := parseFloat(pos.CurrentPrice); err == nil {
+						a.orderModal.SetPrice(p)
+					}
+					break
+				}
+			}
+		}
+		a.dataMutex.RUnlock()
+	} else {
+		a.orderModal.SetLotSize(0)
+		a.orderModal.SetPrice(0)
+	}
 
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
@@ -355,7 +401,7 @@ func (a *App) OpenOrderModal() {
 // OpenCloseModal opens the close position modal
 func (a *App) OpenCloseModal() {
 	// Get selected row
-	row, _ := a.portfolioView.PositionsTable.GetSelection()
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
 
 	if row > 0 {
 		idx := row - 1
@@ -379,7 +425,12 @@ func (a *App) OpenCloseModal() {
 				price, _ := parseFloat(pos.CurrentPrice)
 				pnl, _ := parseFloat(pos.UnrealizedPnL)
 
-				a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
+				if pos.LotSize > 0 {
+					a.closeModal.SetPositionDataWithLots(pos.Ticker, qty, price, pnl, pos.LotSize)
+				} else {
+					a.closeModal.SetPositionData(pos.Ticker, qty, price, pnl)
+				}
+				a.closeModal.SetDisplayName(pos.Name)
 				a.pages.ShowPage("close_modal")
 				a.app.SetFocus(a.closeModal.Form)
 			}
