@@ -7,7 +7,8 @@
       "Bash(go tool cover:*)",
       "Bash(git add:*)",
       "Bash(git restore:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(go vet:*)"
     ]
   }
 }
