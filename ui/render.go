@@ -37,7 +37,7 @@ func updateAccountList(app *App) {
 func updatePositionsTable(app *App) {
 	app.portfolioView.TabbedView.PositionsTable.Clear()
 
-	headers := []string{"Symbol", "Qty (Lots)", "AvgPrice", "Current", "Daily P&L", "Value", "Unreal P&L"}
+	headers := []string{"Instrument", "Qty (Lots)", "AvgPrice", "Current", "Daily P&L", "Value", "Unreal P&L"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -103,9 +103,12 @@ func updatePositionsTable(app *App) {
 			}
 		}
 
-		symbol := p.Ticker
-		if p.MIC != "" && p.MIC != "MISX" {
-			symbol = fmt.Sprintf("%s@%s", p.Ticker, p.MIC)
+		displayName := p.Name
+		if displayName == "" {
+			displayName = p.Ticker
+			if p.MIC != "" && p.MIC != "MISX" {
+				displayName = fmt.Sprintf("%s@%s", p.Ticker, p.MIC)
+			}
 		}
 
 		rowBg := tcell.ColorBlack
@@ -113,7 +116,7 @@ func updatePositionsTable(app *App) {
 			rowBg = tcell.ColorDarkGray
 		}
 
-		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 0, tview.NewTableCell(symbol).
+		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 0, tview.NewTableCell(displayName).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
 		app.portfolioView.TabbedView.PositionsTable.SetCell(rowNum, 1, tview.NewTableCell(displayQty).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
@@ -141,7 +144,7 @@ func updatePositionsTable(app *App) {
 func updateHistoryTable(app *App) {
 	app.portfolioView.TabbedView.HistoryTable.Clear()
 
-	headers := []string{"Symbol", "Side", "Price", "Qty (Lots)", "Total", "Time"}
+	headers := []string{"Instrument", "Side", "Price", "Qty (Lots)", "Total", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -191,7 +194,12 @@ func updateHistoryTable(app *App) {
 			}
 		}
 
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 0, tview.NewTableCell(t.Symbol).
+		tradeDisplayName := t.Name
+		if tradeDisplayName == "" {
+			tradeDisplayName = t.Symbol
+		}
+
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 0, tview.NewTableCell(tradeDisplayName).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 1, tview.NewTableCell(t.Side).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
@@ -217,7 +225,7 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"Symbol", "Side", "Type", "Status", "Qty (Lots)", "Price", "Time"}
+	headers := []string{"Instrument", "Side", "Type", "Status", "Qty (Lots)", "Price", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -256,7 +264,12 @@ func updateOrdersTable(app *App) {
 
 		timeStr := o.CreationTime.Format("01-02 15:04")
 
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(o.Symbol).
+		orderDisplayName := o.Name
+		if orderDisplayName == "" {
+			orderDisplayName = o.Symbol
+		}
+
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(orderDisplayName).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))

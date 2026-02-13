@@ -106,3 +106,81 @@ func TestTabbedView_DataLoading(t *testing.T) {
 		t.Errorf("Expected 2 rows in orders table, got %d", rowCount)
 	}
 }
+
+func TestPositionsTable_InstrumentHeader(t *testing.T) {
+	mock := &mockClient{}
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.positions["acc1"] = []models.Position{
+		{Symbol: "SBER@TQBR", Ticker: "SBER", Name: "Сбербанк", Quantity: "10", LotSize: 1},
+	}
+
+	updatePositionsTable(app)
+
+	headerCell := app.portfolioView.TabbedView.PositionsTable.GetCell(0, 0)
+	if headerCell.Text != "Instrument" {
+		t.Errorf("Expected header 'Instrument', got '%s'", headerCell.Text)
+	}
+
+	// Should display Name when available
+	nameCell := app.portfolioView.TabbedView.PositionsTable.GetCell(1, 0)
+	if nameCell.Text != "Сбербанк" {
+		t.Errorf("Expected instrument name 'Сбербанк', got '%s'", nameCell.Text)
+	}
+}
+
+func TestPositionsTable_FallbackToTicker(t *testing.T) {
+	mock := &mockClient{}
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.positions["acc1"] = []models.Position{
+		{Symbol: "UNKNOWN@TQBR", Ticker: "UNKNOWN", Name: "", Quantity: "10", LotSize: 1},
+	}
+
+	updatePositionsTable(app)
+
+	nameCell := app.portfolioView.TabbedView.PositionsTable.GetCell(1, 0)
+	if nameCell.Text != "UNKNOWN" {
+		t.Errorf("Expected fallback ticker 'UNKNOWN', got '%s'", nameCell.Text)
+	}
+}
+
+func TestHistoryTable_InstrumentHeader(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(ticker string) float64 { return 1 }
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.history["acc1"] = []models.Trade{
+		{ID: "T1", Symbol: "SBER", Name: "Сбербанк", Side: "Buy", Quantity: "10", Price: "250", Total: "2500"},
+	}
+
+	updateHistoryTable(app)
+
+	headerCell := app.portfolioView.TabbedView.HistoryTable.GetCell(0, 0)
+	if headerCell.Text != "Instrument" {
+		t.Errorf("Expected header 'Instrument', got '%s'", headerCell.Text)
+	}
+
+	nameCell := app.portfolioView.TabbedView.HistoryTable.GetCell(1, 0)
+	if nameCell.Text != "Сбербанк" {
+		t.Errorf("Expected instrument name 'Сбербанк', got '%s'", nameCell.Text)
+	}
+}
+
+func TestOrdersTable_InstrumentHeader(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(ticker string) float64 { return 1 }
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.activeOrders["acc1"] = []models.Order{
+		{ID: "O1", Symbol: "GAZP", Name: "Газпром", Side: "Buy", Type: "Market", Status: "New", Quantity: "10"},
+	}
+
+	updateOrdersTable(app)
+
+	headerCell := app.portfolioView.TabbedView.OrdersTable.GetCell(0, 0)
+	if headerCell.Text != "Instrument" {
+		t.Errorf("Expected header 'Instrument', got '%s'", headerCell.Text)
+	}
+
+	nameCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 0)
+	if nameCell.Text != "Газпром" {
+		t.Errorf("Expected instrument name 'Газпром', got '%s'", nameCell.Text)
+	}
+}
