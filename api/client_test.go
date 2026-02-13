@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"testing"
 
+	"finam-terminal/models"
+
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
@@ -296,8 +298,9 @@ func TestGetAccounts(t *testing.T) {
 										}, nil			},
 		}	
 			client := &Client{
-				assetsClient:  mockAssets,
-				assetMicCache: make(map[string]string),
+				assetsClient:        mockAssets,
+				assetMicCache:       make(map[string]string),
+				instrumentNameCache: make(map[string]string),
 			}
 		
 			// Load cache manually for test
@@ -491,9 +494,10 @@ func TestLotSizeRetrieval(t *testing.T) {
 	}
 
 	client := &Client{
-		assetsClient:  mockAssets,
-		assetMicCache: make(map[string]string),
-		assetLotCache: make(map[string]float64),
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
 	}
 
 	if err := client.loadAssetCache(); err != nil {
@@ -621,6 +625,44 @@ func TestInstrumentNameCache(t *testing.T) {
 	// Unknown key still returns empty
 	if name := client.GetInstrumentName("GAZP"); name != "" {
 		t.Errorf("Expected empty name for unknown key, got %s", name)
+	}
+}
+
+func TestLoadAssetCache_PopulatesInstrumentNames(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		AssetsFunc: func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
+			return &assets.AssetsResponse{
+				Assets: []*assets.Asset{
+					{Ticker: "SBER", Name: "Сбербанк", Symbol: "SBER@TQBR", Mic: "TQBR"},
+					{Ticker: "GAZP", Name: "Газпром", Symbol: "GAZP@TQBR", Mic: "TQBR"},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+		securityCache:       make([]models.SecurityInfo, 0),
+	}
+
+	if err := client.loadAssetCache(); err != nil {
+		t.Fatalf("Failed to load cache: %v", err)
+	}
+
+	// Verify names are cached by ticker
+	if name := client.GetInstrumentName("SBER"); name != "Сбербанк" {
+		t.Errorf("Expected Сбербанк for SBER, got '%s'", name)
+	}
+	if name := client.GetInstrumentName("GAZP"); name != "Газпром" {
+		t.Errorf("Expected Газпром for GAZP, got '%s'", name)
+	}
+
+	// Verify names are cached by full symbol
+	if name := client.GetInstrumentName("SBER@TQBR"); name != "Сбербанк" {
+		t.Errorf("Expected Сбербанк for SBER@TQBR, got '%s'", name)
 	}
 }
 

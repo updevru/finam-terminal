@@ -233,6 +233,15 @@ func (c *Client) loadAssetCache() error {
 			}
 		}
 
+		if asset.Name != "" {
+			if asset.Ticker != "" {
+				c.instrumentNameCache[asset.Ticker] = asset.Name
+			}
+			if fullSymbol != "" {
+				c.instrumentNameCache[fullSymbol] = asset.Name
+			}
+		}
+
 		c.securityCache = append(c.securityCache, models.SecurityInfo{
 			Ticker: asset.Ticker,
 			Symbol: fullSymbol,
