@@ -20,7 +20,7 @@ Implement the necessary data structures and the centralized name cache to suppor
     - [x] Create/Update tests in `api/client_test.go` to verify cache population and lookup logic.
 - [x] Task: Conductor - User Manual Verification 'Data Models & Infrastructure' (Protocol in workflow.md) `8e146c6`
 
-## Phase 2: API Integration & Data Enrichment
+## Phase 2: API Integration & Data Enrichment [checkpoint: 3b3b5e8]
 Ensure that all data retrieval methods populate the new `Name` fields using the centralized cache.
 
 - [x] Task: Update `GetAccountDetails` to enrich positions with names. `756bad9`
@@ -33,7 +33,7 @@ Ensure that all data retrieval methods populate the new `Name` fields using the 
     - [x] Ensure that search results (which already contain names) keep the cache up-to-date if new instruments are found.
 - [x] Task: Write unit tests for data enrichment. `cca1387`
     - [x] Verify that `Position`, `Trade`, and `Order` objects returned by the client have their `Name` field populated correctly.
-- [~] Task: Conductor - User Manual Verification 'API Integration & Data Enrichment' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'API Integration & Data Enrichment' (Protocol in workflow.md) `3b3b5e8`
 
 ## Phase 3: UI Implementation
 Update the terminal interface to display the instrument names and rename relevant columns.
