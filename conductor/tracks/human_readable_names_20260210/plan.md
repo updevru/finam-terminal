@@ -25,15 +25,15 @@ Ensure that all data retrieval methods populate the new `Name` fields using the 
 
 - [x] Task: Update `GetAccountDetails` to enrich positions with names. `756bad9`
     - [x] In `api/client.go`, populate `Position.Name` using the cache during the response processing.
-- [ ] Task: Update `GetTradeHistory` to enrich trades with names.
-    - [ ] In `api/client.go`, populate `Trade.Name` using the cache.
-- [ ] Task: Update `GetActiveOrders` to enrich orders with names.
-    - [ ] In `api/client.go`, populate `Order.Name` using the cache.
-- [ ] Task: Update Search logic to ensure cache consistency.
-    - [ ] Ensure that search results (which already contain names) keep the cache up-to-date if new instruments are found.
-- [ ] Task: Write unit tests for data enrichment.
-    - [ ] Verify that `Position`, `Trade`, and `Order` objects returned by the client have their `Name` field populated correctly.
-- [ ] Task: Conductor - User Manual Verification 'API Integration & Data Enrichment' (Protocol in workflow.md)
+- [x] Task: Update `GetTradeHistory` to enrich trades with names. `cca1387`
+    - [x] In `api/client.go`, populate `Trade.Name` using the cache.
+- [x] Task: Update `GetActiveOrders` to enrich orders with names. `cca1387`
+    - [x] In `api/client.go`, populate `Order.Name` using the cache.
+- [x] Task: Update Search logic to ensure cache consistency. `7020093`
+    - [x] Ensure that search results (which already contain names) keep the cache up-to-date if new instruments are found.
+- [x] Task: Write unit tests for data enrichment. `cca1387`
+    - [x] Verify that `Position`, `Trade`, and `Order` objects returned by the client have their `Name` field populated correctly.
+- [~] Task: Conductor - User Manual Verification 'API Integration & Data Enrichment' (Protocol in workflow.md)
 
 ## Phase 3: UI Implementation
 Update the terminal interface to display the instrument names and rename relevant columns.
