@@ -18,11 +18,12 @@ The project follows a clean modular structure:
 *   **`main.go`**: The entry point. Handles configuration loading, API client initialization, and starting the UI loop.
 *   **`api/`**: Contains the `Client` struct and methods for interacting with the Finam gRPC services. Encapsulates the complexity of the raw API calls.
 *   **`ui/`**: Manages the Terminal User Interface.
-    *   `app.go`: Main `App` struct, state management, and lifecycle (Run/Stop).
+    *   `app.go`: Main `App` struct, state management, tabbed view (Positions/History/Orders), and lifecycle (Run/Stop).
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
+    *   `data.go`: Data fetching logic for trades history and active orders.
     *   `search.go`: Dedicated search window for finding securities.
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
-*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, and positions.
+*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata.
 
 ## Getting Started
 
@@ -106,7 +107,23 @@ go build -o finam-trade.exe main.go
     *   **Method:** `GetAccount`
     *   **File:** `api/client.go` (`GetAccountDetails`)
     *   **Key Field:** `CurrentPrice` (Broker's valuation price)
-    *   **Usage:** Calculating equity, PnL, and position value.
+    *   **Usage:** Calculating equity, PnL, and position value. Positions are enriched with `LotSize` and human-readable `Name` from the instrument cache.
+
+4.  **Trade History**
+    *   **Service:** `AccountsServiceClient`
+    *   **Method:** `GetTradeHistory`
+    *   **File:** `api/client.go` (`GetTradeHistory`)
+    *   **Usage:** Fetching completed trades for display in the History tab.
+
+5.  **Active Orders**
+    *   **Service:** `AccountsServiceClient`
+    *   **Method:** `GetOrders`
+    *   **File:** `api/client.go` (`GetActiveOrders`)
+    *   **Usage:** Fetching pending/active orders for display in the Orders tab.
+
+6.  **Instrument Name Cache**
+    *   **File:** `api/client.go` (`InstrumentCache`, `GetInstrumentName`, `UpdateInstrumentCache`)
+    *   **Usage:** Centralized O(1) cache mapping ticker symbols to human-readable names. Populated during asset loading and search operations.
 
 # Conductor Context
 

@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.9.0] - 2026-02-13
+
+### Added
+- **Portfolio Tabs**: Tabbed interface within the Positions window with History (trade history) and Orders (pending orders) views, switchable via arrow keys and Tab (`portfolio_tabs`).
+- **Lot-Based Trading**: Quantities displayed in lots across Positions, History, and Orders tables; lot-based input in Buy/Close modals with real-time cost calculation and lot size display (`lot_based_trading`).
+- **Human-Readable Names**: Descriptive instrument names (e.g., "Sberbank" instead of "SBER") displayed across all tables and modal titles, with automatic caching and fallback to ticker symbols (`human_readable_names`).
+
 ## [v0.8.1] - 2026-02-04
 
 ### Added
