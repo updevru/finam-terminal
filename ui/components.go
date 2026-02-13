@@ -167,11 +167,7 @@ func (pv *PortfolioView) UpdatePositions(positions []models.Position) {
 	}
 
 	for i, pos := range positions {
-		qty, _ := strconv.ParseFloat(pos.Quantity, 64)
-		displayQty := pos.Quantity
-		if pos.LotSize > 0 {
-			displayQty = fmt.Sprintf("%v", qty/pos.LotSize)
-		}
+		displayQty := displayLots(pos.Quantity, pos.LotSize)
 
 		pv.TabbedView.PositionsTable.SetCell(i+1, 0, tview.NewTableCell(pos.Symbol).SetTextColor(tcell.ColorWhite))
 		pv.TabbedView.PositionsTable.SetCell(i+1, 1, tview.NewTableCell(displayQty).SetTextColor(tcell.ColorWhite))

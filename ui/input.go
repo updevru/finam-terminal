@@ -51,50 +51,47 @@ func setupInputHandlers(app *App) {
 		}
 	}
 
-	nextTab := func() {
-		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % 3
-		app.portfolioView.TabbedView.SetTab(TabType(next))
-		// Update focus to the newly visible table
-		switch TabType(next) {
+	switchToTab := func(tab TabType) {
+		app.portfolioView.TabbedView.SetTab(tab)
+		// Always update focus to the newly visible table
+		switch tab {
 		case TabPositions:
 			app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadDataAsync(app.accounts[app.selectedIdx].ID)
-			}
 		case TabHistory:
 			app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadHistoryAsync(app.accounts[app.selectedIdx].ID)
-			}
 		case TabOrders:
 			app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadOrdersAsync(app.accounts[app.selectedIdx].ID)
-			}
 		}
+		if app.selectedIdx >= len(app.accounts) {
+			return
+		}
+		accountID := app.accounts[app.selectedIdx].ID
+		switch tab {
+		case TabPositions:
+			// Positions use cached data; background refresh keeps them fresh
+			app.dataMutex.RLock()
+			_, loaded := app.positions[accountID]
+			app.dataMutex.RUnlock()
+			if !loaded {
+				app.loadDataAsync(accountID)
+			}
+		case TabHistory:
+			// Always reload — trades may come from other terminals
+			app.loadHistoryAsync(accountID)
+		case TabOrders:
+			// Always reload — orders may change from other terminals
+			app.loadOrdersAsync(accountID)
+		}
+	}
+
+	nextTab := func() {
+		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % 3
+		switchToTab(TabType(next))
 	}
 
 	prevTab := func() {
 		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + 3) % 3
-		app.portfolioView.TabbedView.SetTab(TabType(prev))
-		// Update focus
-		switch TabType(prev) {
-		case TabPositions:
-			app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadDataAsync(app.accounts[app.selectedIdx].ID)
-			}
-		case TabHistory:
-			app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadHistoryAsync(app.accounts[app.selectedIdx].ID)
-			}
-		case TabOrders:
-			app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-			if app.selectedIdx < len(app.accounts) {
-				app.loadOrdersAsync(app.accounts[app.selectedIdx].ID)
-			}
-		}
+		switchToTab(TabType(prev))
 	}
 
 	setupTableNavigation := func(table *tview.Table) {

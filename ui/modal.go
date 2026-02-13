@@ -128,6 +128,7 @@ func (m *OrderModal) setupUI() {
 		AddItem(m.infoArea, 1, 0, false).
 		AddItem(m.Footer, 1, 0, false)
 }
+
 // SetDisplayName updates the modal title with the instrument's human-readable name.
 func (m *OrderModal) SetDisplayName(name string) {
 	if name != "" {

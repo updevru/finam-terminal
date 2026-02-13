@@ -328,6 +328,14 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 
 // fetchLotSize fetches lot size for a full symbol (ticker@mic) via GetAsset and caches it
 func (c *Client) fetchLotSize(symbol string, accountID string) {
+	// Double-check under lock to avoid duplicate API calls from concurrent goroutines
+	c.assetMutex.RLock()
+	if _, ok := c.assetLotCache[symbol]; ok {
+		c.assetMutex.RUnlock()
+		return
+	}
+	c.assetMutex.RUnlock()
+
 	ctx, cancel := c.getContext()
 	defer cancel()
 
@@ -849,7 +857,7 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 
 // formatDecimal formats a google decimal value
 func formatDecimal(d *decimal.Decimal) string {
-	if d == nil {
+	if d == nil || d.Value == "" {
 		return "N/A"
 	}
 	return d.Value

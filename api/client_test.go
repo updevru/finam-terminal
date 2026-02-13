@@ -561,10 +561,11 @@ func TestGetAccountDetails_LotSize(t *testing.T) {
 	}
 
 	client := &Client{
-		accountsClient: mockAccounts,
-		assetsClient:   mockAssets,
-		assetMicCache:  make(map[string]string),
-		assetLotCache:  make(map[string]float64),
+		accountsClient:      mockAccounts,
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
 	}
 
 	_, positions, err := client.GetAccountDetails("test-acc")

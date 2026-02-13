@@ -66,10 +66,7 @@ func updatePositionsTable(app *App) {
 		rowNum := row + 1
 
 		qty, _ := parseFloat(p.Quantity)
-		displayQty := p.Quantity
-		if p.LotSize > 0 {
-			displayQty = fmt.Sprintf("%v", qty/p.LotSize)
-		}
+		displayQty := displayLots(p.Quantity, p.LotSize)
 
 		totalValue := "N/A"
 		if quote != nil && quote.Last != "N/A" {
@@ -163,6 +160,10 @@ func updateHistoryTable(app *App) {
 	}
 
 	app.dataMutex.RLock()
+	if app.selectedIdx < 0 || app.selectedIdx >= len(app.accounts) {
+		app.dataMutex.RUnlock()
+		return
+	}
 	accountID := app.accounts[app.selectedIdx].ID
 	history := app.history[accountID]
 	app.dataMutex.RUnlock()
@@ -184,15 +185,11 @@ func updateHistoryTable(app *App) {
 		timeStr := t.Timestamp.Format("01-02 15:04")
 
 		// Convert quantity to lots
-		displayQty := t.Quantity
+		var lotSize float64
 		if app.client != nil {
-			lotSize := app.client.GetLotSize(t.Symbol)
-			if lotSize > 0 {
-				if qty, err := parseFloat(t.Quantity); err == nil {
-					displayQty = fmt.Sprintf("%v", qty/lotSize)
-				}
-			}
+			lotSize = app.client.GetLotSize(t.Symbol)
 		}
+		displayQty := displayLots(t.Quantity, lotSize)
 
 		tradeDisplayName := t.Name
 		if tradeDisplayName == "" {
@@ -244,6 +241,10 @@ func updateOrdersTable(app *App) {
 	}
 
 	app.dataMutex.RLock()
+	if app.selectedIdx < 0 || app.selectedIdx >= len(app.accounts) {
+		app.dataMutex.RUnlock()
+		return
+	}
 	accountID := app.accounts[app.selectedIdx].ID
 	orders := app.activeOrders[accountID]
 	app.dataMutex.RUnlock()
@@ -276,15 +277,11 @@ func updateOrdersTable(app *App) {
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		// Convert quantity to lots
-		displayQty := o.Quantity
+		var lotSize float64
 		if app.client != nil {
-			lotSize := app.client.GetLotSize(o.Symbol)
-			if lotSize > 0 {
-				if qty, err := parseFloat(o.Quantity); err == nil {
-					displayQty = fmt.Sprintf("%v", qty/lotSize)
-				}
-			}
+			lotSize = app.client.GetLotSize(o.Symbol)
 		}
+		displayQty := displayLots(o.Quantity, lotSize)
 
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Status).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightCyan)).SetAlign(tview.AlignRight))
