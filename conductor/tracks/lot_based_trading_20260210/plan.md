@@ -41,7 +41,7 @@ Goal: Implement lot-based input and validation in Buy and Close modals.
     - [ ] Modify `PlaceOrder` in `api/client.go` to perform the multiplication.
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Trading Modals & Logic' (Protocol in workflow.md)
 
-## Phase 4: History & Consistency
+## Phase 4: History & Consistency [checkpoint: d2bc627]
 Goal: Ensure all other quantity displays are consistent.
 
 - [x] Task: Update Trade History and Active Orders views. 56785b6
