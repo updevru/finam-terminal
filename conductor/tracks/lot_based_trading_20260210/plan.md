@@ -24,7 +24,7 @@ Goal: Update the main display components to show quantities in lots.
     - [ ] Write failing tests in `ui/portfolio_test.go` to verify the quantity column shows lots instead of shares.
     - [ ] Update `ui/render.go` (or wherever the positions table is rendered) to rename "Qty" to "Qty (Lots)".
     - [ ] Implement calculation: `DisplayQty = TotalShares / LotSize`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: UI Search & Portfolio Display' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Phase 2: UI Search & Portfolio Display' (Protocol in workflow.md)
 
 ## Phase 3: Trading Modals & Logic
 Goal: Implement lot-based input and validation in Buy and Close modals.
