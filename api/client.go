@@ -48,10 +48,11 @@ type Client struct {
 	refreshCancel context.CancelFunc
 
 	// Cache for instrument MIC codes
-	assetMicCache map[string]string  // ticker -> symbol@mic
-	assetLotCache map[string]float64 // ticker -> lot size
-	securityCache []models.SecurityInfo
-	assetMutex    sync.RWMutex
+	assetMicCache       map[string]string  // ticker -> symbol@mic
+	assetLotCache       map[string]float64 // ticker -> lot size
+	instrumentNameCache map[string]string   // ticker or symbol -> human-readable name
+	securityCache       []models.SecurityInfo
+	assetMutex          sync.RWMutex
 }
 
 // NewClient creates a new Finam API client
@@ -73,10 +74,11 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		marketDataClient: marketdata.NewMarketDataServiceClient(conn),
 		assetsClient:     assets.NewAssetsServiceClient(conn),
 		ordersClient:     orders.NewOrdersServiceClient(conn),
-		apiToken:         apiToken,
-		assetMicCache:    make(map[string]string),
-		assetLotCache:    make(map[string]float64),
-		securityCache:    make([]models.SecurityInfo, 0),
+		apiToken:            apiToken,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+		securityCache:       make([]models.SecurityInfo, 0),
 	}
 
 	// Authenticate
@@ -363,6 +365,29 @@ func (c *Client) GetLotSize(ticker string) float64 {
 	}
 
 	return 0
+}
+
+// GetInstrumentName returns the cached human-readable name for a ticker or full symbol.
+// Returns empty string if not found.
+func (c *Client) GetInstrumentName(key string) string {
+	c.assetMutex.RLock()
+	defer c.assetMutex.RUnlock()
+	return c.instrumentNameCache[key]
+}
+
+// UpdateInstrumentCache stores a human-readable name keyed by both ticker and full symbol.
+func (c *Client) UpdateInstrumentCache(ticker, fullSymbol, name string) {
+	if name == "" {
+		return
+	}
+	c.assetMutex.Lock()
+	defer c.assetMutex.Unlock()
+	if ticker != "" {
+		c.instrumentNameCache[ticker] = name
+	}
+	if fullSymbol != "" {
+		c.instrumentNameCache[fullSymbol] = name
+	}
 }
 
 // authenticate performs authentication and stores the JWT token

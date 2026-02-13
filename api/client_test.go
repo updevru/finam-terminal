@@ -593,6 +593,37 @@ func TestPlaceOrder_LotMultiplication(t *testing.T) {
 	}
 }
 
+func TestInstrumentNameCache(t *testing.T) {
+	client := &Client{
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	// Initially empty
+	if name := client.GetInstrumentName("SBER"); name != "" {
+		t.Errorf("Expected empty name for unknown key, got %s", name)
+	}
+
+	// Update cache with ticker, full symbol, and name
+	client.UpdateInstrumentCache("SBER", "SBER@TQBR", "Сбербанк")
+
+	// Lookup by ticker
+	if name := client.GetInstrumentName("SBER"); name != "Сбербанк" {
+		t.Errorf("Expected Сбербанк for ticker, got %s", name)
+	}
+
+	// Lookup by full symbol
+	if name := client.GetInstrumentName("SBER@TQBR"); name != "Сбербанк" {
+		t.Errorf("Expected Сбербанк for full symbol, got %s", name)
+	}
+
+	// Unknown key still returns empty
+	if name := client.GetInstrumentName("GAZP"); name != "" {
+		t.Errorf("Expected empty name for unknown key, got %s", name)
+	}
+}
+
 func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
