@@ -1,0 +1,9 @@
+{
+  "id": "local_timezone_dates_20260216",
+  "title": "Отображение дат в таймзоне пользователя",
+  "type": "bugfix",
+  "status": "planned",
+  "created_at": "2026-02-16",
+  "phases": 2,
+  "total_tasks": 6
+}

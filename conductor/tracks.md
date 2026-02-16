@@ -17,3 +17,11 @@ This file tracks all major tracks for the project. Each track has its own detail
 - [x] **Track: Отображение инструментов на человеческом языке.** ✅ Completed
 
 *Link: [./tracks/human_readable_names_20260210/](./tracks/human_readable_names_20260210/)*
+
+
+---
+
+
+- [ ] **Track: Отображение дат в таймзоне пользователя.** 🔜 Planned
+
+*Link: [./tracks/local_timezone_dates_20260216/](./tracks/local_timezone_dates_20260216/)*
