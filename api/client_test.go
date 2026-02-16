@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"finam-terminal/models"
 
@@ -438,6 +439,53 @@ func TestGetTradeHistory(t *testing.T) {
 	}
 	if trades[0].Name != "Сбербанк" {
 		t.Errorf("Expected Name Сбербанк, got '%s'", trades[0].Name)
+	}
+}
+
+func TestGetTradeHistory_LocalTimezone(t *testing.T) {
+	// Create a known UTC timestamp
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAccounts := &mockAccountsServiceClient{
+		TradesFunc: func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+			return &accounts.TradesResponse{
+				Trades: []*tradeapiv1.AccountTrade{
+					{
+						TradeId:   "T-TZ",
+						Symbol:    "SBER",
+						Price:     &decimal.Decimal{Value: "100"},
+						Size:      &decimal.Decimal{Value: "1"},
+						Side:      tradeapiv1.Side_SIDE_BUY,
+						Timestamp: ts,
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient:      mockAccounts,
+		instrumentNameCache: map[string]string{},
+	}
+
+	trades, err := client.GetTradeHistory("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(trades) != 1 {
+		t.Fatalf("Expected 1 trade, got %d", len(trades))
+	}
+
+	// The timestamp should be in local timezone, not UTC
+	expectedLocal := utcTime.Local()
+	if !trades[0].Timestamp.Equal(expectedLocal) {
+		t.Errorf("Timestamps should represent the same instant")
+	}
+	if trades[0].Timestamp.Location() != time.Local {
+		t.Errorf("Expected trade timestamp in local timezone (%s), got %s",
+			time.Local, trades[0].Timestamp.Location())
 	}
 }
 

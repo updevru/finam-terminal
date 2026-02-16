@@ -730,7 +730,7 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 			Price:     priceStr,
 			Quantity:  qtyStr,
 			Total:     fmt.Sprintf("%.2f", total),
-			Timestamp: t.Timestamp.AsTime(),
+			Timestamp: t.Timestamp.AsTime().Local(),
 		})
 	}
 	return trades, nil
