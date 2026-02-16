@@ -6,7 +6,7 @@
 
 ## Phase 1: Конвертация временных меток в API клиенте
 
-- [ ] Task: Конвертировать timestamp сделок в локальное время
+- [x] Task: Конвертировать timestamp сделок в локальное время `6fd774c`
   - File: `api/client.go`, строка ~733
   - Change: `t.Timestamp.AsTime()` → `t.Timestamp.AsTime().Local()`
   - Acceptance: Даты сделок в History отображаются в локальной таймзоне
