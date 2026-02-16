@@ -527,7 +527,7 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 			ID:       accountID,
 			Type:     accountResp.Type,
 			Status:   accountResp.Status,
-			OpenDate: accountResp.OpenAccountDate.AsTime(),
+			OpenDate: accountResp.OpenAccountDate.AsTime().Local(),
 		}
 
 		if equity := accountResp.Equity; equity != nil {
@@ -559,7 +559,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 		ID:       accountID,
 		Type:     accountResp.Type,
 		Status:   accountResp.Status,
-		OpenDate: accountResp.OpenAccountDate.AsTime(),
+		OpenDate: accountResp.OpenAccountDate.AsTime().Local(),
 	}
 
 	if equity := accountResp.Equity; equity != nil {

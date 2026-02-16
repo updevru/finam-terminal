@@ -539,6 +539,76 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+func TestGetAccounts_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return &auth.TokenDetailsResponse{AccountIds: []string{"acc1"}}, nil
+		},
+	}
+
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return &accounts.GetAccountResponse{
+				AccountId:       in.AccountId,
+				OpenAccountDate: ts,
+			}, nil
+		},
+	}
+
+	client := &Client{
+		authClient:     mockAuth,
+		accountsClient: mockAccounts,
+	}
+
+	accs, err := client.GetAccounts()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(accs) != 1 {
+		t.Fatalf("Expected 1 account, got %d", len(accs))
+	}
+
+	if accs[0].OpenDate.Location() != time.Local {
+		t.Errorf("Expected OpenDate in local timezone (%s), got %s",
+			time.Local, accs[0].OpenDate.Location())
+	}
+}
+
+func TestGetAccountDetails_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return &accounts.GetAccountResponse{
+				AccountId:       in.AccountId,
+				OpenAccountDate: ts,
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient:      mockAccounts,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	account, _, err := client.GetAccountDetails("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if account.OpenDate.Location() != time.Local {
+		t.Errorf("Expected OpenDate in local timezone (%s), got %s",
+			time.Local, account.OpenDate.Location())
+	}
+}
+
 func TestGetActiveOrders_LocalTimezone(t *testing.T) {
 	// Create a known UTC timestamp
 	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
