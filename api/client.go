@@ -527,7 +527,7 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 			ID:       accountID,
 			Type:     accountResp.Type,
 			Status:   accountResp.Status,
-			OpenDate: accountResp.OpenAccountDate.AsTime(),
+			OpenDate: accountResp.OpenAccountDate.AsTime().Local(),
 		}
 
 		if equity := accountResp.Equity; equity != nil {
@@ -559,7 +559,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 		ID:       accountID,
 		Type:     accountResp.Type,
 		Status:   accountResp.Status,
-		OpenDate: accountResp.OpenAccountDate.AsTime(),
+		OpenDate: accountResp.OpenAccountDate.AsTime().Local(),
 	}
 
 	if equity := accountResp.Equity; equity != nil {
@@ -651,7 +651,7 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			High:      formatDecimal(q.High),
 			Low:       formatDecimal(q.Low),
 			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime(),
+			Timestamp: q.Timestamp.AsTime().Local(),
 		}
 	}
 
@@ -730,7 +730,7 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 			Price:     priceStr,
 			Quantity:  qtyStr,
 			Total:     fmt.Sprintf("%.2f", total),
-			Timestamp: t.Timestamp.AsTime(),
+			Timestamp: t.Timestamp.AsTime().Local(),
 		})
 	}
 	return trades, nil
@@ -807,7 +807,7 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		}
 
 		if o.TransactAt != nil {
-			order.CreationTime = o.TransactAt.AsTime()
+			order.CreationTime = o.TransactAt.AsTime().Local()
 		}
 
 		activeOrders = append(activeOrders, order)
@@ -850,7 +850,7 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			LastSize:  formatDecimal(q.LastSize),
 			Volume:    formatDecimal(q.Volume),
 			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime(),
+			Timestamp: q.Timestamp.AsTime().Local(),
 		}
 	}
 

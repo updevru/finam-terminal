@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"finam-terminal/models"
 
@@ -441,6 +442,53 @@ func TestGetTradeHistory(t *testing.T) {
 	}
 }
 
+func TestGetTradeHistory_LocalTimezone(t *testing.T) {
+	// Create a known UTC timestamp
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAccounts := &mockAccountsServiceClient{
+		TradesFunc: func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+			return &accounts.TradesResponse{
+				Trades: []*tradeapiv1.AccountTrade{
+					{
+						TradeId:   "T-TZ",
+						Symbol:    "SBER",
+						Price:     &decimal.Decimal{Value: "100"},
+						Size:      &decimal.Decimal{Value: "1"},
+						Side:      tradeapiv1.Side_SIDE_BUY,
+						Timestamp: ts,
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient:      mockAccounts,
+		instrumentNameCache: map[string]string{},
+	}
+
+	trades, err := client.GetTradeHistory("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(trades) != 1 {
+		t.Fatalf("Expected 1 trade, got %d", len(trades))
+	}
+
+	// The timestamp should be in local timezone, not UTC
+	expectedLocal := utcTime.Local()
+	if !trades[0].Timestamp.Equal(expectedLocal) {
+		t.Errorf("Timestamps should represent the same instant")
+	}
+	if trades[0].Timestamp.Location() != time.Local {
+		t.Errorf("Expected trade timestamp in local timezone (%s), got %s",
+			time.Local, trades[0].Timestamp.Location())
+	}
+}
+
 func TestGetActiveOrders(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
@@ -488,6 +536,124 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 	if activeOrders[0].Name != "Газпром" {
 		t.Errorf("Expected Name Газпром, got '%s'", activeOrders[0].Name)
+	}
+}
+
+func TestGetAccounts_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return &auth.TokenDetailsResponse{AccountIds: []string{"acc1"}}, nil
+		},
+	}
+
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return &accounts.GetAccountResponse{
+				AccountId:       in.AccountId,
+				OpenAccountDate: ts,
+			}, nil
+		},
+	}
+
+	client := &Client{
+		authClient:     mockAuth,
+		accountsClient: mockAccounts,
+	}
+
+	accs, err := client.GetAccounts()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(accs) != 1 {
+		t.Fatalf("Expected 1 account, got %d", len(accs))
+	}
+
+	if accs[0].OpenDate.Location() != time.Local {
+		t.Errorf("Expected OpenDate in local timezone (%s), got %s",
+			time.Local, accs[0].OpenDate.Location())
+	}
+}
+
+func TestGetAccountDetails_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2020, 1, 15, 10, 0, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return &accounts.GetAccountResponse{
+				AccountId:       in.AccountId,
+				OpenAccountDate: ts,
+			}, nil
+		},
+	}
+
+	client := &Client{
+		accountsClient:      mockAccounts,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	account, _, err := client.GetAccountDetails("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if account.OpenDate.Location() != time.Local {
+		t.Errorf("Expected OpenDate in local timezone (%s), got %s",
+			time.Local, account.OpenDate.Location())
+	}
+}
+
+func TestGetActiveOrders_LocalTimezone(t *testing.T) {
+	// Create a known UTC timestamp
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockOrders := &mockOrdersServiceClient{
+		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+			return &orders.OrdersResponse{
+				Orders: []*orders.OrderState{
+					{
+						OrderId: "O-TZ",
+						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+						Order: &orders.Order{
+							Symbol:   "SBER",
+							Side:     tradeapiv1.Side_SIDE_BUY,
+							Quantity: &decimal.Decimal{Value: "10"},
+						},
+						TransactAt: ts,
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient:        mockOrders,
+		instrumentNameCache: map[string]string{},
+	}
+
+	activeOrders, err := client.GetActiveOrders("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(activeOrders) != 1 {
+		t.Fatalf("Expected 1 order, got %d", len(activeOrders))
+	}
+
+	expectedLocal := utcTime.Local()
+	if !activeOrders[0].CreationTime.Equal(expectedLocal) {
+		t.Errorf("Timestamps should represent the same instant")
+	}
+	if activeOrders[0].CreationTime.Location() != time.Local {
+		t.Errorf("Expected order timestamp in local timezone (%s), got %s",
+			time.Local, activeOrders[0].CreationTime.Location())
 	}
 }
 
@@ -683,6 +849,82 @@ func TestLoadAssetCache_PopulatesInstrumentNames(t *testing.T) {
 	// Verify names are cached by full symbol
 	if name := client.GetInstrumentName("SBER@TQBR"); name != "Сбербанк" {
 		t.Errorf("Expected Сбербанк for SBER@TQBR, got '%s'", name)
+	}
+}
+
+func TestGetQuotes_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return &marketdata.QuoteResponse{
+				Quote: &marketdata.Quote{
+					Symbol:    in.Symbol,
+					Last:      &decimal.Decimal{Value: "100"},
+					Timestamp: ts,
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 1},
+	}
+
+	quotes, err := client.GetQuotes("acc1", []string{"SBER"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	q, ok := quotes["SBER@TQBR"]
+	if !ok {
+		t.Fatal("Expected quote for SBER@TQBR")
+	}
+
+	if q.Timestamp.Location() != time.Local {
+		t.Errorf("Expected quote timestamp in local timezone (%s), got %s",
+			time.Local, q.Timestamp.Location())
+	}
+}
+
+func TestGetSnapshots_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return &marketdata.QuoteResponse{
+				Quote: &marketdata.Quote{
+					Symbol:    in.Symbol,
+					Last:      &decimal.Decimal{Value: "100"},
+					Timestamp: ts,
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 1},
+	}
+
+	quotes, err := client.GetSnapshots("acc1", []string{"SBER"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	q, ok := quotes["SBER"]
+	if !ok {
+		t.Fatal("Expected snapshot for SBER")
+	}
+
+	if q.Timestamp.Location() != time.Local {
+		t.Errorf("Expected snapshot timestamp in local timezone (%s), got %s",
+			time.Local, q.Timestamp.Location())
 	}
 }
 
