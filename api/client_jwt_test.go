@@ -15,18 +15,18 @@ func TestGetExpiryFromToken(t *testing.T) {
 	// 1. Create a dummy valid token
 	// Header: {"alg":"HS256","typ":"JWT"} -> eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9
 	header := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-	
+
 	// Payload: {"exp": <future_timestamp>}
 	expTime := time.Now().Add(1 * time.Hour).Truncate(time.Second)
 	expUnix := expTime.Unix()
 	payloadJson := fmt.Sprintf(`{"exp":%d}`, expUnix)
 	payload := base64.RawURLEncoding.EncodeToString([]byte(payloadJson))
-	
+
 	signature := "dummy_sig"
 	token := fmt.Sprintf("%s.%s.%s", header, payload, signature)
 
 	c := &Client{}
-	
+
 	// method to be implemented: getExpiryFromToken
 	gotTime, err := c.getExpiryFromToken(token)
 	if err != nil {
@@ -64,7 +64,7 @@ func TestTokenRefreshLoop(t *testing.T) {
 			payloadJson := fmt.Sprintf(`{"exp":%d}`, expTime)
 			payload := base64.RawURLEncoding.EncodeToString([]byte(payloadJson))
 			token := fmt.Sprintf("header.%s.sig", payload)
-			
+
 			return &auth.AuthResponse{Token: token}, nil
 		},
 	}
@@ -78,16 +78,16 @@ func TestTokenRefreshLoop(t *testing.T) {
 	client.refreshCancel = cancel
 
 	// Start refresh loop in background
-	// We'll modify startTokenRefresh to use a shorter lead time for testing if possible, 
+	// We'll modify startTokenRefresh to use a shorter lead time for testing if possible,
 	// or just wait. But for now, let's just test that it calls authenticate.
-	
+
 	// Implementation will happen in client.go
 	go client.startTokenRefresh(ctx)
 
 	// Wait for the loop to trigger at least one refresh
 	// Since it refreshes 2 minutes before expiry, and our token expires in 2 seconds,
 	// it should trigger immediately or very soon.
-	
+
 	time.Sleep(1100 * time.Millisecond)
 
 	if authCalls == 0 {
@@ -120,7 +120,7 @@ func TestLastRefreshUpdate(t *testing.T) {
 	}
 
 	initialRefresh := client.lastRefresh
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	client.refreshCancel = cancel
 	go client.startTokenRefresh(ctx)

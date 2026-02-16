@@ -81,16 +81,16 @@ type DataMutex struct {
 // NewApp creates a new TUI application
 func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	a := &App{
-		app:         tview.NewApplication(),
-		client:      client,
-		accounts:    accounts,
-		positions:   make(map[string][]models.Position),
-		history:     make(map[string][]models.Trade),
+		app:          tview.NewApplication(),
+		client:       client,
+		accounts:     accounts,
+		positions:    make(map[string][]models.Position),
+		history:      make(map[string][]models.Trade),
 		activeOrders: make(map[string][]models.Order),
-		quotes:      make(map[string]map[string]*models.Quote),
-		selectedIdx: 0,
-		stopChan:    make(chan struct{}),
-		pages:       tview.NewPages(),
+		quotes:       make(map[string]map[string]*models.Quote),
+		selectedIdx:  0,
+		stopChan:     make(chan struct{}),
+		pages:        tview.NewPages(),
 	}
 	a.portfolioView = NewPortfolioView(a.app)
 	a.header = createHeader()

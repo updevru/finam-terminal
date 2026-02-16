@@ -50,7 +50,7 @@ type Client struct {
 	// Cache for instrument MIC codes
 	assetMicCache       map[string]string  // ticker -> symbol@mic
 	assetLotCache       map[string]float64 // ticker -> lot size
-	instrumentNameCache map[string]string   // ticker or symbol -> human-readable name
+	instrumentNameCache map[string]string  // ticker or symbol -> human-readable name
 	securityCache       []models.SecurityInfo
 	assetMutex          sync.RWMutex
 }
@@ -68,12 +68,12 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 	}
 
 	client := &Client{
-		conn:             conn,
-		authClient:       auth.NewAuthServiceClient(conn),
-		accountsClient:   accounts.NewAccountsServiceClient(conn),
-		marketDataClient: marketdata.NewMarketDataServiceClient(conn),
-		assetsClient:     assets.NewAssetsServiceClient(conn),
-		ordersClient:     orders.NewOrdersServiceClient(conn),
+		conn:                conn,
+		authClient:          auth.NewAuthServiceClient(conn),
+		accountsClient:      accounts.NewAccountsServiceClient(conn),
+		marketDataClient:    marketdata.NewMarketDataServiceClient(conn),
+		assetsClient:        assets.NewAssetsServiceClient(conn),
+		ordersClient:        orders.NewOrdersServiceClient(conn),
 		apiToken:            apiToken,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
@@ -225,7 +225,7 @@ func (c *Client) loadAssetCache() error {
 
 		if asset.Ticker != "" {
 			c.assetMicCache[asset.Ticker] = fullSymbol
-			
+
 			// If we already have a MIC-qualified symbol, cache it too
 			if strings.Contains(asset.Ticker, "@") {
 				parts := strings.SplitN(asset.Ticker, "@", 2)

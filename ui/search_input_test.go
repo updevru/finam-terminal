@@ -13,7 +13,7 @@ func TestSearchModal_RussianInput(t *testing.T) {
 
 	// Simulate typing "Привет"
 	runes := []rune{'П', 'р', 'и', 'в', 'е', 'т'}
-	
+
 	for _, r := range runes {
 		event := tcell.NewEventKey(tcell.KeyRune, r, tcell.ModNone)
 		modal.Input.InputHandler()(event, func(p tview.Primitive) {})
