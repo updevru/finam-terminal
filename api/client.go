@@ -807,7 +807,7 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		}
 
 		if o.TransactAt != nil {
-			order.CreationTime = o.TransactAt.AsTime()
+			order.CreationTime = o.TransactAt.AsTime().Local()
 		}
 
 		activeOrders = append(activeOrders, order)

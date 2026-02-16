@@ -539,6 +539,54 @@ func TestGetActiveOrders(t *testing.T) {
 	}
 }
 
+func TestGetActiveOrders_LocalTimezone(t *testing.T) {
+	// Create a known UTC timestamp
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockOrders := &mockOrdersServiceClient{
+		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+			return &orders.OrdersResponse{
+				Orders: []*orders.OrderState{
+					{
+						OrderId: "O-TZ",
+						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+						Order: &orders.Order{
+							Symbol:   "SBER",
+							Side:     tradeapiv1.Side_SIDE_BUY,
+							Quantity: &decimal.Decimal{Value: "10"},
+						},
+						TransactAt: ts,
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient:        mockOrders,
+		instrumentNameCache: map[string]string{},
+	}
+
+	activeOrders, err := client.GetActiveOrders("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(activeOrders) != 1 {
+		t.Fatalf("Expected 1 order, got %d", len(activeOrders))
+	}
+
+	expectedLocal := utcTime.Local()
+	if !activeOrders[0].CreationTime.Equal(expectedLocal) {
+		t.Errorf("Timestamps should represent the same instant")
+	}
+	if activeOrders[0].CreationTime.Location() != time.Local {
+		t.Errorf("Expected order timestamp in local timezone (%s), got %s",
+			time.Local, activeOrders[0].CreationTime.Location())
+	}
+}
+
 func TestLotSizeRetrieval(t *testing.T) {
 	mockAssets := &mockAssetsServiceClient{
 		AssetsFunc: func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
