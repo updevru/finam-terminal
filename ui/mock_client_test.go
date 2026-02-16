@@ -12,10 +12,10 @@ type mockClient struct {
 	PlaceOrderFunc        func(accountID string, symbol string, buySell string, quantity float64) (string, error)
 	ClosePositionFunc     func(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
-	SearchSecuritiesFunc func(query string) ([]models.SecurityInfo, error)
-	GetSnapshotsFunc     func(accountID string, symbols []string) (map[string]models.Quote, error)
-	GetLotSizeFunc          func(ticker string) float64
-	GetInstrumentNameFunc   func(key string) string
+	SearchSecuritiesFunc  func(query string) ([]models.SecurityInfo, error)
+	GetSnapshotsFunc      func(accountID string, symbols []string) (map[string]models.Quote, error)
+	GetLotSizeFunc        func(ticker string) float64
+	GetInstrumentNameFunc func(key string) string
 
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
 	GetActiveOrdersFunc func(accountID string) ([]models.Order, error)

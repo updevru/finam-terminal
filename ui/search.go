@@ -368,7 +368,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 			SetTextColor(tcell.ColorGray).
 			SetAlign(tview.AlignRight).
 			SetMaxWidth(10)
-		
+
 		changeCell := tview.NewTableCell("").
 			SetAlign(tview.AlignRight).
 			SetMaxWidth(10)
@@ -400,7 +400,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 		} else {
 			changeCell.SetText("...").SetTextColor(tcell.ColorGray)
 		}
-		
+
 		m.Table.SetCell(row, 4, priceCell)
 		m.Table.SetCell(row, 5, changeCell)
 	}

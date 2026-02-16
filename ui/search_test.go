@@ -58,7 +58,7 @@ func TestSearchModal_Search(t *testing.T) {
 	quotes := map[string]models.Quote{
 		"SBER": {Last: "250.00"},
 	}
-	
+
 	modal.updateTable(quotes)
 
 	if modal.Table.GetRowCount() != 2 { // Header + 1 row
@@ -69,7 +69,7 @@ func TestSearchModal_Search(t *testing.T) {
 	if cell.Text != "SBER" {
 		t.Errorf("Expected cell text SBER, got %s", cell.Text)
 	}
-	
+
 	priceCell := modal.Table.GetCell(1, 4)
 	if priceCell.Text != "250.00" {
 		t.Errorf("Expected price 250.00, got %s", priceCell.Text)

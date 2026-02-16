@@ -164,4 +164,3 @@ func TestInputHandler_F2RefreshesOrders(t *testing.T) {
 		t.Error("Timed out waiting for GetActiveOrders to be called on F2")
 	}
 }
-

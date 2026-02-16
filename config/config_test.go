@@ -11,11 +11,11 @@ import (
 func TestFindToken(t *testing.T) {
 	// Create a temporary directory to act as home
 	tempHome := t.TempDir()
-	
+
 	// Backup original env/home if needed or just use a helper
 	// For testing, we might want to pass the home dir to FindToken or mock it.
 	// Let's assume FindToken uses os.UserHomeDir().
-	
+
 	// Create local .env
 	localEnv := filepath.Join(t.TempDir(), ".env") // Different temp dir for local
 	err := os.WriteFile(localEnv, []byte("FINAM_API_TOKEN=local-token"), 0644)
@@ -76,7 +76,7 @@ func TestFindToken(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		
+
 		token, path := findTokenInternal(tempHome, localEnv)
 		if token != "home-token" {
 			t.Errorf("Expected home-token (priority), got %s", token)
