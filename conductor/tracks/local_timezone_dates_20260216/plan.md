@@ -21,7 +21,7 @@
   - Change: `q.Timestamp.AsTime()` → `q.Timestamp.AsTime().Local()`
   - Acceptance: Временные метки котировок в локальной таймзоне
 
-- [ ] Task: Конвертировать дату открытия счёта в локальное время
+- [x] Task: Конвертировать дату открытия счёта в локальное время `6de8bc5`
   - File: `api/client.go`, строки ~530, ~562
   - Change: `accountResp.OpenAccountDate.AsTime()` → `accountResp.OpenAccountDate.AsTime().Local()`
   - Acceptance: Дата открытия счёта в локальной таймзоне
