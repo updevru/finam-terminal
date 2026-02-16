@@ -11,7 +11,7 @@
   - Change: `t.Timestamp.AsTime()` → `t.Timestamp.AsTime().Local()`
   - Acceptance: Даты сделок в History отображаются в локальной таймзоне
 
-- [ ] Task: Конвертировать timestamp ордеров в локальное время
+- [x] Task: Конвертировать timestamp ордеров в локальное время `3b63d90`
   - File: `api/client.go`, строка ~810
   - Change: `o.TransactAt.AsTime()` → `o.TransactAt.AsTime().Local()`
   - Acceptance: Даты ордеров в Orders отображаются в локальной таймзоне
