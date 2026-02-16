@@ -22,6 +22,6 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Отображение дат в таймзоне пользователя.** 🔜 Planned
+- [x] **Track: Отображение дат в таймзоне пользователя.** ✅ Completed
 
 *Link: [./tracks/local_timezone_dates_20260216/](./tracks/local_timezone_dates_20260216/)*
