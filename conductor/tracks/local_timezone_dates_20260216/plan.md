@@ -16,7 +16,7 @@
   - Change: `o.TransactAt.AsTime()` → `o.TransactAt.AsTime().Local()`
   - Acceptance: Даты ордеров в Orders отображаются в локальной таймзоне
 
-- [ ] Task: Конвертировать timestamp котировок в локальное время
+- [x] Task: Конвертировать timestamp котировок в локальное время `32351c4`
   - File: `api/client.go`, строки ~654, ~853
   - Change: `q.Timestamp.AsTime()` → `q.Timestamp.AsTime().Local()`
   - Acceptance: Временные метки котировок в локальной таймзоне
