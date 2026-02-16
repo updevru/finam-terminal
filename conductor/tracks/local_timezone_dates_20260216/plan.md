@@ -26,7 +26,7 @@
   - Change: `accountResp.OpenAccountDate.AsTime()` → `accountResp.OpenAccountDate.AsTime().Local()`
   - Acceptance: Дата открытия счёта в локальной таймзоне
 
-## Phase 2: Верификация
+## Phase 2: Верификация [checkpoint: 23b72fe]
 
 - [x] Task: Собрать проект и убедиться в отсутствии ошибок компиляции `bf1257f`
   - Command: `go build ./...`
