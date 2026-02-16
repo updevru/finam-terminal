@@ -651,7 +651,7 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			High:      formatDecimal(q.High),
 			Low:       formatDecimal(q.Low),
 			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime(),
+			Timestamp: q.Timestamp.AsTime().Local(),
 		}
 	}
 
@@ -850,7 +850,7 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			LastSize:  formatDecimal(q.LastSize),
 			Volume:    formatDecimal(q.Volume),
 			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime(),
+			Timestamp: q.Timestamp.AsTime().Local(),
 		}
 	}
 

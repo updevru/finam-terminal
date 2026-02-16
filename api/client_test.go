@@ -782,6 +782,82 @@ func TestLoadAssetCache_PopulatesInstrumentNames(t *testing.T) {
 	}
 }
 
+func TestGetQuotes_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return &marketdata.QuoteResponse{
+				Quote: &marketdata.Quote{
+					Symbol:    in.Symbol,
+					Last:      &decimal.Decimal{Value: "100"},
+					Timestamp: ts,
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 1},
+	}
+
+	quotes, err := client.GetQuotes("acc1", []string{"SBER"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	q, ok := quotes["SBER@TQBR"]
+	if !ok {
+		t.Fatal("Expected quote for SBER@TQBR")
+	}
+
+	if q.Timestamp.Location() != time.Local {
+		t.Errorf("Expected quote timestamp in local timezone (%s), got %s",
+			time.Local, q.Timestamp.Location())
+	}
+}
+
+func TestGetSnapshots_LocalTimezone(t *testing.T) {
+	utcTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ts := timestamppb.New(utcTime)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return &marketdata.QuoteResponse{
+				Quote: &marketdata.Quote{
+					Symbol:    in.Symbol,
+					Last:      &decimal.Decimal{Value: "100"},
+					Timestamp: ts,
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 1},
+	}
+
+	quotes, err := client.GetSnapshots("acc1", []string{"SBER"})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	q, ok := quotes["SBER"]
+	if !ok {
+		t.Fatal("Expected snapshot for SBER")
+	}
+
+	if q.Timestamp.Location() != time.Local {
+		t.Errorf("Expected snapshot timestamp in local timezone (%s), got %s",
+			time.Local, q.Timestamp.Location())
+	}
+}
+
 func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
