@@ -37,7 +37,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 2: Chart Renderer
 
-- [~] Task: Create `ui/chart.go` with `RenderCandlestickChart()` function
+- [x] Task: Create `ui/chart.go` with `RenderCandlestickChart()` function 155486c
   - Pure function: `RenderCandlestickChart(bars []models.Bar, width, height int) string`
   - Unicode chars: `█` (body), `│` (wick), `▄▀` (half-blocks for precision)
   - Color tags: `[green]` for bullish (close >= open), `[red]` for bearish
