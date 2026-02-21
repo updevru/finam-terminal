@@ -5,7 +5,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 1: Data Models & API Layer
+## Phase 1: Data Models & API Layer [checkpoint: 7e91ba7]
 
 - [x] Task: Add profile-related structs to `models/models.go` c37aa94
   - Add `Bar`, `AssetDetails`, `AssetParams`, `TradingSession`, `InstrumentProfile` structs
@@ -37,7 +37,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 2: Chart Renderer
 
-- [ ] Task: Create `ui/chart.go` with `RenderCandlestickChart()` function
+- [~] Task: Create `ui/chart.go` with `RenderCandlestickChart()` function
   - Pure function: `RenderCandlestickChart(bars []models.Bar, width, height int) string`
   - Unicode chars: `█` (body), `│` (wick), `▄▀` (half-blocks for precision)
   - Color tags: `[green]` for bullish (close >= open), `[red]` for bearish
