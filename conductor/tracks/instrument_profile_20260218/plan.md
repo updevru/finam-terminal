@@ -11,7 +11,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
   - Add `Bar`, `AssetDetails`, `AssetParams`, `TradingSession`, `InstrumentProfile` structs
   - Acceptance: Structs defined, `go build ./...` passes
 
-- [ ] Task: Add `GetBars()` method to `api/client.go`
+- [x] Task: Add `GetBars()` method to `api/client.go` 04d4eaf
   - Call `marketDataClient.Bars()` with `BarsRequest{Symbol, Timeframe, Interval}`
   - Parse `decimal.Decimal` fields to float64 via `formatDecimal()`
   - Timeframe param uses SDK `TimeFrame` enum (M5, H1, D, W)
