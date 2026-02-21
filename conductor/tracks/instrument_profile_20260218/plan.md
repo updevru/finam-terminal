@@ -23,12 +23,12 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
   - Map response fields: Board, Id, Ticker, Mic, Isin, Type, Name, Decimals, MinStep, LotSize, ExpirationDate, QuoteCurrency
   - Acceptance: Method compiles, returns `*models.AssetDetails`
 
-- [~] Task: Add `GetAssetParams()` method to `api/client.go`
+- [x] Task: Add `GetAssetParams()` method to `api/client.go` b693c2a
   - Call `assetsClient.GetAssetParams()` with `GetAssetParamsRequest{Symbol, AccountId}`
   - Map: IsTradable, Longable, Shortable (enum to human-readable), risk rates, margins
   - Acceptance: Method compiles, returns `*models.AssetParams`
 
-- [ ] Task: Add `GetSchedule()` method to `api/client.go`
+- [~] Task: Add `GetSchedule()` method to `api/client.go`
   - Call `assetsClient.Schedule()` with `ScheduleRequest{Symbol}`
   - Map sessions: type string, start/end times
   - Acceptance: Method compiles, returns `[]models.TradingSession`
