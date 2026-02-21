@@ -28,7 +28,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
   - Map: IsTradable, Longable, Shortable (enum to human-readable), risk rates, margins
   - Acceptance: Method compiles, returns `*models.AssetParams`
 
-- [~] Task: Add `GetSchedule()` method to `api/client.go`
+- [x] Task: Add `GetSchedule()` method to `api/client.go` d79a9cc
   - Call `assetsClient.Schedule()` with `ScheduleRequest{Symbol}`
   - Map sessions: type string, start/end times
   - Acceptance: Method compiles, returns `[]models.TradingSession`
