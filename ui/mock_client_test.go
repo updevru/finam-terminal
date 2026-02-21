@@ -2,6 +2,9 @@ package ui
 
 import (
 	"finam-terminal/models"
+	"time"
+
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 )
 
 // mockClient is a shared mock for testing UI components
@@ -95,5 +98,21 @@ func (m *mockClient) GetActiveOrders(accountID string) ([]models.Order, error) {
 	if m.GetActiveOrdersFunc != nil {
 		return m.GetActiveOrdersFunc(accountID)
 	}
+	return nil, nil
+}
+
+func (m *mockClient) GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error) {
+	return nil, nil
+}
+
+func (m *mockClient) GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error) {
+	return nil, nil
+}
+
+func (m *mockClient) GetAssetParams(accountID string, symbol string) (*models.AssetParams, error) {
+	return nil, nil
+}
+
+func (m *mockClient) GetSchedule(symbol string) ([]models.TradingSession, error) {
 	return nil, nil
 }

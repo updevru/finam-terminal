@@ -4,6 +4,7 @@ import (
 	"finam-terminal/models"
 	"log"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -136,6 +137,176 @@ func (a *App) loadOrdersAsync(accountID string) {
 	}()
 }
 
+// loadProfileAsync loads all profile data in parallel goroutines.
+func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
+	go func() {
+		profile := &models.InstrumentProfile{Symbol: symbol}
+		var mu sync.Mutex
+		var wg sync.WaitGroup
+
+		// 1. GetAssetInfo
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			details, err := a.client.GetAssetInfo(accountID, symbol)
+			if err != nil {
+				log.Printf("[WARN] GetAssetInfo failed for %s: %v", symbol, err)
+				return
+			}
+			mu.Lock()
+			profile.Details = details
+			mu.Unlock()
+		}()
+
+		// 2. GetAssetParams
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			params, err := a.client.GetAssetParams(accountID, symbol)
+			if err != nil {
+				log.Printf("[WARN] GetAssetParams failed for %s: %v", symbol, err)
+				return
+			}
+			mu.Lock()
+			profile.Params = params
+			mu.Unlock()
+		}()
+
+		// 3. GetQuotes
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			quotes, err := a.client.GetQuotes(accountID, []string{symbol})
+			if err != nil {
+				log.Printf("[WARN] GetQuotes failed for %s: %v", symbol, err)
+				return
+			}
+			mu.Lock()
+			for _, q := range quotes {
+				profile.Quote = q
+				break
+			}
+			mu.Unlock()
+		}()
+
+		// 4. GetSchedule
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sessions, err := a.client.GetSchedule(symbol)
+			if err != nil {
+				log.Printf("[WARN] GetSchedule failed for %s: %v", symbol, err)
+				return
+			}
+			mu.Lock()
+			profile.Schedule = sessions
+			mu.Unlock()
+		}()
+
+		// 5. GetBars
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			now := time.Now()
+			tf := profileTimeframeEnums[timeframeIdx]
+			from := now.Add(-profileTimeframeDurations[timeframeIdx])
+			bars, err := a.client.GetBars(accountID, symbol, tf, from, now)
+			if err != nil {
+				log.Printf("[WARN] GetBars failed for %s: %v", symbol, err)
+				return
+			}
+			mu.Lock()
+			profile.Bars = bars
+			mu.Unlock()
+		}()
+
+		wg.Wait()
+
+		a.app.QueueUpdateDraw(func() {
+			if a.profileOpen && a.profileSymbol == symbol {
+				a.profilePanel.Update(profile)
+			}
+		})
+	}()
+}
+
+// loadProfileBarsAsync reloads only bars for a timeframe switch.
+func (a *App) loadProfileBarsAsync(accountID, symbol string, timeframeIdx int) {
+	go func() {
+		now := time.Now()
+		tf := profileTimeframeEnums[timeframeIdx]
+		from := now.Add(-profileTimeframeDurations[timeframeIdx])
+
+		bars, err := a.client.GetBars(accountID, symbol, tf, from, now)
+		if err != nil {
+			log.Printf("[WARN] GetBars failed for %s (timeframe switch): %v", symbol, err)
+			return
+		}
+
+		a.app.QueueUpdateDraw(func() {
+			if a.profileOpen && a.profileSymbol == symbol {
+				a.profilePanel.UpdateChart(bars)
+			}
+		})
+	}()
+}
+
+// refreshProfileQuoteAndBars refreshes only quote and bars for an open profile.
+func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx int) {
+	go func() {
+		var wg sync.WaitGroup
+		var newQuote *models.Quote
+		var newBars []models.Bar
+		var mu sync.Mutex
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			quotes, err := a.client.GetQuotes(accountID, []string{symbol})
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			for _, q := range quotes {
+				newQuote = q
+				break
+			}
+			mu.Unlock()
+		}()
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			now := time.Now()
+			tf := profileTimeframeEnums[timeframeIdx]
+			from := now.Add(-profileTimeframeDurations[timeframeIdx])
+			bars, err := a.client.GetBars(accountID, symbol, tf, from, now)
+			if err != nil {
+				return
+			}
+			mu.Lock()
+			newBars = bars
+			mu.Unlock()
+		}()
+
+		wg.Wait()
+
+		a.app.QueueUpdateDraw(func() {
+			if a.profileOpen && a.profileSymbol == symbol {
+				if a.profilePanel.profile != nil {
+					if newQuote != nil {
+						a.profilePanel.profile.Quote = newQuote
+					}
+					if newBars != nil {
+						a.profilePanel.profile.Bars = newBars
+					}
+					a.profilePanel.Update(a.profilePanel.profile)
+				}
+			}
+		})
+	}()
+}
+
 // backgroundRefresh runs periodic data refresh
 func (a *App) backgroundRefresh() {
 	// Initial refresh immediately
@@ -160,6 +331,11 @@ func (a *App) backgroundRefresh() {
 				if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
 					activeID := a.accounts[a.selectedIdx].ID
 					a.loadDataAsync(activeID)
+
+					// Refresh profile if open
+					if a.profileOpen && a.profileSymbol != "" {
+						a.refreshProfileQuoteAndBars(activeID, a.profileSymbol, a.profileTimeframe)
+					}
 
 					// Refresh others
 					for i, acc := range a.accounts {
