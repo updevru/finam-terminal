@@ -891,6 +891,43 @@ func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.T
 	return bars, nil
 }
 
+// GetAssetInfo returns detailed instrument information for a symbol
+func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
+		Symbol:    fullSymbol,
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset info for %s: %w", fullSymbol, err)
+	}
+
+	details := &models.AssetDetails{
+		Board:         resp.Board,
+		ID:            resp.Id,
+		Ticker:        resp.Ticker,
+		MIC:           resp.Mic,
+		ISIN:          resp.Isin,
+		Type:          resp.Type,
+		Name:          resp.Name,
+		Decimals:      resp.Decimals,
+		MinStep:       resp.MinStep,
+		LotSize:       formatDecimal(resp.LotSize),
+		QuoteCurrency: resp.QuoteCurrency,
+	}
+
+	if resp.ExpirationDate != nil {
+		details.ExpirationDate = fmt.Sprintf("%04d-%02d-%02d",
+			resp.ExpirationDate.Year, resp.ExpirationDate.Month, resp.ExpirationDate.Day)
+	}
+
+	return details, nil
+}
+
 // parseDecimalFloat parses a google Decimal to float64, returns 0 on failure
 func parseDecimalFloat(d *decimal.Decimal) float64 {
 	if d == nil || d.Value == "" {
