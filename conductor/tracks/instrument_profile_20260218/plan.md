@@ -49,7 +49,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 3: Profile Panel Component
+## Phase 3: Profile Panel Component [checkpoint: 2370f00]
 
 - [x] Task: Create `ui/profile.go` with `ProfilePanel` struct c920178
   - Fields: `Layout *tview.Flex`, `InfoPanel *tview.TextView` (42 cols fixed), `ChartView *tview.TextView` (flex)
@@ -71,7 +71,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 4: Integration — Overlay & App State
 
-- [ ] Task: Add profile overlay management to `ui/app.go`
+- [x] Task: Add profile overlay management to `ui/app.go` 7004b6f
   - Add 4 new methods to `APIClient` interface: `GetBars`, `GetAssetInfo`, `GetAssetParams`, `GetSchedule`
   - Add `ProfilePanel *ProfilePanel` field to `App` struct
   - Add state fields: `profileSymbol string`, `profileTimeframe int` (default: 2 for Daily), `profileOpen bool`
@@ -83,13 +83,13 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
     - `switchProfileTimeframe(idx int)` — reload only bars for new timeframe
   - Acceptance: Profile overlay shows/hides correctly, `pages` manages main/profile views
 
-- [ ] Task: Add `loadProfileAsync()` to `ui/data.go`
+- [x] Task: Add `loadProfileAsync()` to `ui/data.go` 7004b6f
   - Launch 5 parallel goroutines (WaitGroup): GetAssetInfo, GetAssetParams, GetQuotes, GetSchedule, GetBars
   - Each failure logged but doesn't block others (partial data OK)
   - On completion: `QueueUpdateDraw` → update ProfilePanel, set status
   - Acceptance: Profile loads with parallel API calls, partial failures handled
 
-- [ ] Task: Add profile auto-refresh to `ui/data.go`
+- [x] Task: Add profile auto-refresh to `ui/data.go` 7004b6f
   - When `profileOpen == true`, include profile data refresh in `backgroundRefresh()` cycle
   - Refresh quote + bars on each cycle; asset info and schedule less frequently (or only on manual R)
   - Acceptance: Profile data stays current while overlay is open
