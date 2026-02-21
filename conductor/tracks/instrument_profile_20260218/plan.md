@@ -35,7 +35,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 2: Chart Renderer
+## Phase 2: Chart Renderer [checkpoint: b1ae822]
 
 - [x] Task: Create `ui/chart.go` with `RenderCandlestickChart()` function 155486c
   - Pure function: `RenderCandlestickChart(bars []models.Bar, width, height int) string`
@@ -51,14 +51,14 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 3: Profile Panel Component
 
-- [ ] Task: Create `ui/profile.go` with `ProfilePanel` struct
+- [x] Task: Create `ui/profile.go` with `ProfilePanel` struct c920178
   - Fields: `Layout *tview.Flex`, `InfoPanel *tview.TextView` (42 cols fixed), `ChartView *tview.TextView` (flex)
   - `app *tview.Application`, `profile *models.InstrumentProfile`, `timeframe int`
   - `Footer *tview.TextView` for keyboard hint bar
   - Layout: vertical Flex containing horizontal Flex (InfoPanel + ChartView) + Footer
   - Acceptance: Component instantiates without errors
 
-- [ ] Task: Implement `NewProfilePanel()`, `Update()`, `UpdateChart()`, `renderInfoPanel()`, `renderChart()` methods
+- [x] Task: Implement `NewProfilePanel()`, `Update()`, `UpdateChart()`, `renderInfoPanel()`, `renderChart()` methods c920178
   - `renderInfoPanel()`: formatted sections — Details, Quote, Trading, Schedule — with tview color tags
   - `renderChart()`: calls `RenderCandlestickChart()` using `ChartView.GetInnerRect()` for dimensions
   - `Update()`: full refresh of both panels
