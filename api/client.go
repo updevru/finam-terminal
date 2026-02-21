@@ -994,6 +994,37 @@ func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetP
 	return params, nil
 }
 
+// GetSchedule returns the trading schedule (sessions) for a symbol
+func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	resp, err := c.assetsClient.Schedule(ctx, &assets.ScheduleRequest{
+		Symbol: symbol,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedule for %s: %w", symbol, err)
+	}
+
+	sessions := make([]models.TradingSession, 0, len(resp.Sessions))
+	for _, s := range resp.Sessions {
+		session := models.TradingSession{
+			Type: s.Type,
+		}
+		if s.Interval != nil {
+			if s.Interval.StartTime != nil {
+				session.StartTime = s.Interval.StartTime.AsTime().Local()
+			}
+			if s.Interval.EndTime != nil {
+				session.EndTime = s.Interval.EndTime.AsTime().Local()
+			}
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
+}
+
 // parseDecimalFloat parses a google Decimal to float64, returns 0 on failure
 func parseDecimalFloat(d *decimal.Decimal) float64 {
 	if d == nil || d.Value == "" {
