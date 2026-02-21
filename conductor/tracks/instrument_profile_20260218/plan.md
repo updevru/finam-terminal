@@ -7,7 +7,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 1: Data Models & API Layer
 
-- [ ] Task: Add profile-related structs to `models/models.go`
+- [x] Task: Add profile-related structs to `models/models.go` c37aa94
   - Add `Bar`, `AssetDetails`, `AssetParams`, `TradingSession`, `InstrumentProfile` structs
   - Acceptance: Structs defined, `go build ./...` passes
 
