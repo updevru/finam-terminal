@@ -18,12 +18,12 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
   - Import: `marketdata` package, `interval.Interval`, `timestamppb`
   - Acceptance: Method compiles, returns `[]models.Bar`
 
-- [ ] Task: Add `GetAssetInfo()` method to `api/client.go`
+- [x] Task: Add `GetAssetInfo()` method to `api/client.go` 0275e0b
   - Call `assetsClient.GetAsset()` with `GetAssetRequest{Symbol, AccountId}`
   - Map response fields: Board, Id, Ticker, Mic, Isin, Type, Name, Decimals, MinStep, LotSize, ExpirationDate, QuoteCurrency
   - Acceptance: Method compiles, returns `*models.AssetDetails`
 
-- [ ] Task: Add `GetAssetParams()` method to `api/client.go`
+- [~] Task: Add `GetAssetParams()` method to `api/client.go`
   - Call `assetsClient.GetAssetParams()` with `GetAssetParamsRequest{Symbol, AccountId}`
   - Map: IsTradable, Longable, Shortable (enum to human-readable), risk rates, margins
   - Acceptance: Method compiles, returns `*models.AssetParams`
