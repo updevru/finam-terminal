@@ -69,7 +69,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 4: Integration — Overlay & App State
+## Phase 4: Integration — Overlay & App State [checkpoint: 05d1413]
 
 - [x] Task: Add profile overlay management to `ui/app.go` 7004b6f
   - Add 4 new methods to `APIClient` interface: `GetBars`, `GetAssetInfo`, `GetAssetParams`, `GetSchedule`
@@ -98,7 +98,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ## Phase 5: Input Handling & Search Integration
 
-- [ ] Task: Add profile keyboard handlers in `ui/input.go`
+- [x] Task: Add profile keyboard handlers in `ui/input.go` 1715522
   - Set `InputCapture` on `ProfilePanel.Layout` or `ChartView`:
     - `ESC` → `app.CloseProfile()` (return to portfolio)
     - `1/2/3/4` → switch timeframe via `app.switchProfileTimeframe()`
@@ -109,7 +109,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
   - Add `Enter` key handler on PositionsTable → `app.OpenProfile()`
   - Acceptance: All keyboard shortcuts work on profile overlay
 
-- [ ] Task: Update search modal in `ui/search.go`
+- [x] Task: Update search modal in `ui/search.go` 1715522
   - Add `onViewProfile func(symbol string)` callback to `SearchModal`
   - Update `NewSearchModal()` signature — add `onViewProfile` parameter
   - Add `P` key binding in results table → calls `onViewProfile` with selected symbol
