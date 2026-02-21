@@ -928,6 +928,72 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 	return details, nil
 }
 
+// GetAssetParams returns trading parameters for a symbol
+func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetParams, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.assetsClient.GetAssetParams(ctx, &assets.GetAssetParamsRequest{
+		Symbol:    fullSymbol,
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset params for %s: %w", fullSymbol, err)
+	}
+
+	params := &models.AssetParams{
+		LongRiskRate:  formatDecimal(resp.LongRiskRate),
+		ShortRiskRate: formatDecimal(resp.ShortRiskRate),
+	}
+
+	// IsTradable
+	if resp.IsTradable != nil {
+		params.IsTradable = resp.IsTradable.Value
+	} else {
+		params.IsTradable = resp.Tradeable
+	}
+
+	// Longable
+	if resp.Longable != nil {
+		switch resp.Longable.Value {
+		case assets.Longable_AVAILABLE:
+			params.Longable = "Available"
+		default:
+			params.Longable = "Not Available"
+		}
+	} else {
+		params.Longable = "N/A"
+	}
+
+	// Shortable
+	if resp.Shortable != nil {
+		switch resp.Shortable.Value {
+		case assets.Shortable_AVAILABLE:
+			params.Shortable = "Available"
+		default:
+			params.Shortable = "Not Available"
+		}
+	} else {
+		params.Shortable = "N/A"
+	}
+
+	// Initial margins
+	if resp.LongInitialMargin != nil {
+		params.LongInitialMargin = fmt.Sprintf("%.2f %s",
+			float64(resp.LongInitialMargin.Units)+float64(resp.LongInitialMargin.Nanos)/1e9,
+			resp.LongInitialMargin.CurrencyCode)
+	}
+	if resp.ShortInitialMargin != nil {
+		params.ShortInitialMargin = fmt.Sprintf("%.2f %s",
+			float64(resp.ShortInitialMargin.Units)+float64(resp.ShortInitialMargin.Nanos)/1e9,
+			resp.ShortInitialMargin.CurrencyCode)
+	}
+
+	return params, nil
+}
+
 // parseDecimalFloat parses a google Decimal to float64, returns 0 on failure
 func parseDecimalFloat(d *decimal.Decimal) float64 {
 	if d == nil || d.Value == "" {
