@@ -857,6 +857,52 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 	return quotes, nil
 }
 
+// GetBars returns candlestick bar data for a symbol
+func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.marketDataClient.Bars(ctx, &marketdata.BarsRequest{
+		Symbol:    fullSymbol,
+		Timeframe: timeframe,
+		Interval: &interval.Interval{
+			StartTime: timestamppb.New(from),
+			EndTime:   timestamppb.New(to),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bars for %s: %w", fullSymbol, err)
+	}
+
+	bars := make([]models.Bar, 0, len(resp.Bars))
+	for _, b := range resp.Bars {
+		bars = append(bars, models.Bar{
+			Timestamp: b.Timestamp.AsTime().Local(),
+			Open:      parseDecimalFloat(b.Open),
+			High:      parseDecimalFloat(b.High),
+			Low:       parseDecimalFloat(b.Low),
+			Close:     parseDecimalFloat(b.Close),
+			Volume:    parseDecimalFloat(b.Volume),
+		})
+	}
+
+	return bars, nil
+}
+
+// parseDecimalFloat parses a google Decimal to float64, returns 0 on failure
+func parseDecimalFloat(d *decimal.Decimal) float64 {
+	if d == nil || d.Value == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(strings.ReplaceAll(d.Value, ",", "."), 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
 // formatDecimal formats a google decimal value
 func formatDecimal(d *decimal.Decimal) string {
 	if d == nil || d.Value == "" {
