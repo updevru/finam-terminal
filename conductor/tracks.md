@@ -30,7 +30,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Instrument Profile Screen** 🔜 Planned
+- [x] **Track: Instrument Profile Screen** ✅ Completed
 
 *Link: [./tracks/instrument_profile_20260218/](./tracks/instrument_profile_20260218/)*
 *Spec: [./tracks/instrument_profile_20260218/spec.md](./tracks/instrument_profile_20260218/spec.md)*
