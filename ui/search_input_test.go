@@ -9,7 +9,7 @@ import (
 
 func TestSearchModal_RussianInput(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewSearchModal(app, nil, nil, nil)
+	modal := NewSearchModal(app, nil, nil, nil, nil)
 
 	// Simulate typing "Привет"
 	runes := []rune{'П', 'р', 'и', 'в', 'е', 'т'}

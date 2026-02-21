@@ -135,6 +135,9 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		a.OpenOrderModalWithTicker(ticker)
 	}, func() {
 		a.CloseSearchModal()
+	}, func(symbol string) {
+		a.CloseSearchModal()
+		a.OpenProfileForSymbol(symbol)
 	})
 
 	// Initialize ProfilePanel

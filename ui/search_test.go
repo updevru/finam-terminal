@@ -14,7 +14,7 @@ func TestNewSearchModal(t *testing.T) {
 	onSelect := func(ticker string) {}
 	onCancel := func() {}
 
-	modal := NewSearchModal(app, nil, onSelect, onCancel)
+	modal := NewSearchModal(app, nil, onSelect, onCancel, nil)
 
 	if modal == nil {
 		t.Fatal("Expected NewSearchModal to return a modal, got nil")
@@ -48,7 +48,7 @@ func TestSearchModal_Search(t *testing.T) {
 		},
 	}
 
-	modal := NewSearchModal(app, client, nil, nil)
+	modal := NewSearchModal(app, client, nil, nil, nil)
 
 	// We test PerformSearch directly to avoid QueueUpdateDraw/Application loop issues in tests
 	// But we want to make sure updateTable works.
@@ -78,7 +78,7 @@ func TestSearchModal_Search(t *testing.T) {
 
 func TestSearchModal_Navigation(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewSearchModal(app, nil, nil, nil)
+	modal := NewSearchModal(app, nil, nil, nil, nil)
 
 	app.SetFocus(modal.Input)
 	if app.GetFocus() != modal.Input {
@@ -103,7 +103,7 @@ func TestSearchModal_Navigation(t *testing.T) {
 
 func TestSearchModal_LotColumn(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewSearchModal(app, nil, nil, nil)
+	modal := NewSearchModal(app, nil, nil, nil, nil)
 
 	modal.results = []models.SecurityInfo{
 		{Ticker: "SBER", Symbol: "SBER@TQBR", Name: "Sberbank", Lot: 10, Currency: "RUB"},

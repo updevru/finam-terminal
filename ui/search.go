@@ -25,11 +25,12 @@ type SearchModal struct {
 	Table  *tview.Table
 	Footer *tview.TextView
 
-	app       *tview.Application
-	client    APISearchClient
-	accountID string
-	onSelect  func(ticker string)
-	onCancel  func()
+	app           *tview.Application
+	client        APISearchClient
+	accountID     string
+	onSelect      func(ticker string)
+	onCancel      func()
+	onViewProfile func(symbol string)
 
 	results      []models.SecurityInfo
 	searchTimer  *time.Timer
@@ -42,17 +43,18 @@ type SearchModal struct {
 }
 
 // NewSearchModal creates a new security search modal
-func NewSearchModal(app *tview.Application, client APISearchClient, onSelect func(ticker string), onCancel func()) *SearchModal {
+func NewSearchModal(app *tview.Application, client APISearchClient, onSelect func(ticker string), onCancel func(), onViewProfile func(symbol string)) *SearchModal {
 	m := &SearchModal{
-		Layout:      tview.NewFlex(),
-		Input:       tview.NewInputField(),
-		Table:       tview.NewTable(),
-		Footer:      tview.NewTextView(),
-		app:         app,
-		client:      client,
-		onSelect:    onSelect,
-		onCancel:    onCancel,
-		refreshStop: make(chan struct{}),
+		Layout:        tview.NewFlex(),
+		Input:         tview.NewInputField(),
+		Table:         tview.NewTable(),
+		Footer:        tview.NewTextView(),
+		app:           app,
+		client:        client,
+		onSelect:      onSelect,
+		onCancel:      onCancel,
+		onViewProfile: onViewProfile,
+		refreshStop:   make(chan struct{}),
 	}
 	m.setupUI()
 	return m
@@ -408,7 +410,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 }
 
 func (m *SearchModal) updateFooter() {
-	shortcuts := " [yellow]TAB[white] Switch Focus [yellow]UP/DOWN[white] Navigate [yellow]ENTER/A[white] Buy [yellow]ESC[white] Close"
+	shortcuts := " [yellow]TAB[white] Switch Focus [yellow]UP/DOWN[white] Navigate [yellow]ENTER/A[white] Buy [yellow]P[white] Profile [yellow]ESC[white] Close"
 	status := ""
 	if m.searching {
 		status = " | [yellow]Searching...[white]"
@@ -466,6 +468,20 @@ func (m *SearchModal) setupHandlers() {
 					m.stopRefresh()
 					if m.onSelect != nil {
 						m.onSelect(ticker)
+					}
+				}
+				return nil
+			}
+			if event.Rune() == 'p' || event.Rune() == 'P' {
+				row, _ := m.Table.GetSelection()
+				if row > 0 && row <= len(m.results) {
+					symbol := m.results[row-1].Symbol
+					if symbol == "" {
+						symbol = m.results[row-1].Ticker
+					}
+					m.stopRefresh()
+					if m.onViewProfile != nil {
+						m.onViewProfile(symbol)
 					}
 				}
 				return nil

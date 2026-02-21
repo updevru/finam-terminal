@@ -116,6 +116,13 @@ func setupInputHandlers(app *App) {
 				}
 				return nil
 			}
+			switch event.Key() {
+			case tcell.KeyEnter:
+				if table == app.portfolioView.TabbedView.PositionsTable {
+					app.OpenProfile()
+					return nil
+				}
+			}
 			switch event.Rune() {
 			case 'q', 'Q':
 				quit()
@@ -168,7 +175,68 @@ func setupInputHandlers(app *App) {
 		return event
 	})
 
+	// Profile overlay input handler
+	app.profilePanel.ChartView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		switch event.Key() {
+		case tcell.KeyEscape:
+			app.CloseProfile()
+			return nil
+		}
+		switch event.Rune() {
+		case '1':
+			app.switchProfileTimeframe(0)
+			return nil
+		case '2':
+			app.switchProfileTimeframe(1)
+			return nil
+		case '3':
+			app.switchProfileTimeframe(2)
+			return nil
+		case '4':
+			app.switchProfileTimeframe(3)
+			return nil
+		case 'a', 'A':
+			app.OpenOrderModalWithTicker(app.profileSymbol)
+			return nil
+		case 'r', 'R':
+			if app.selectedIdx >= 0 && app.selectedIdx < len(app.accounts) {
+				app.loadProfileAsync(app.accounts[app.selectedIdx].ID, app.profileSymbol, app.profileTimeframe)
+			}
+			return nil
+		case 's', 'S':
+			app.OpenSearchModal()
+			return nil
+		case 'q', 'Q':
+			quit()
+			return nil
+		}
+		return event
+	})
+
 	app.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		// If profile overlay is open, let profile handle its own keys
+		if app.IsProfileOpen() {
+			// Only intercept ESC at global level for modals on top of profile
+			if app.IsModalOpen() || app.IsCloseModalOpen() || app.IsSearchModalOpen() {
+				if event.Key() == tcell.KeyEscape {
+					if app.IsModalOpen() {
+						app.CloseOrderModal()
+						return nil
+					}
+					if app.IsCloseModalOpen() {
+						app.CloseCloseModal()
+						return nil
+					}
+					if app.IsSearchModalOpen() {
+						app.CloseSearchModal()
+						return nil
+					}
+				}
+				return event
+			}
+			return event
+		}
+
 		// If any modal is open, only handle Escape globally (if needed) or pass to focused widget
 		if app.IsModalOpen() || app.IsCloseModalOpen() || app.IsSearchModalOpen() {
 			if event.Key() == tcell.KeyEscape {
