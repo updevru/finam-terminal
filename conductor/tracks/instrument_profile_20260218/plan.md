@@ -96,7 +96,7 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 5: Input Handling & Search Integration
+## Phase 5: Input Handling & Search Integration [checkpoint: d8fdc03]
 
 - [x] Task: Add profile keyboard handlers in `ui/input.go` 1715522
   - Set `InputCapture` on `ProfilePanel.Layout` or `ChartView`:
@@ -119,18 +119,18 @@ Add a full-screen instrument profile overlay with candlestick chart to the TUI t
 
 ---
 
-## Phase 6: Tests & Polish
+## Phase 6: Tests & Polish [checkpoint: a987f3e]
 
-- [ ] Task: Update mock client in `ui/mock_client_test.go`
+- [x] Task: Update mock client in `ui/mock_client_test.go` 7004b6f
   - Add 4 mock methods: `GetBars`, `GetAssetInfo`, `GetAssetParams`, `GetSchedule`
   - Acceptance: `go test ./...` passes
 
-- [ ] Task: Update existing tests for new signatures
+- [x] Task: Update existing tests for new signatures 1715522
   - Update tests calling `NewSearchModal()` to include `onViewProfile` param
   - Verify no TabbedView changes break existing tests (should be minimal since TabbedView is unchanged)
   - Acceptance: All existing tests pass
 
-- [ ] Task: Update status bar in `ui/render.go`
+- [x] Task: Update status bar in `ui/render.go` a987f3e
   - When profile overlay is open, show profile-specific hints:
     `[1-4] Timeframe  [A] Order  [R] Refresh  [ESC] Back`
   - Acceptance: Status bar shows correct hints contextually
