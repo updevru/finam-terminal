@@ -461,7 +461,7 @@ func (m *SearchModal) setupHandlers() {
 			}
 			return nil
 		case tcell.KeyRune:
-			if event.Rune() == 'a' || event.Rune() == 'A' {
+			if event.Rune() == 'a' || event.Rune() == 'A' || event.Rune() == 'ф' || event.Rune() == 'Ф' {
 				row, _ := m.Table.GetSelection()
 				if row > 0 && row <= len(m.results) {
 					ticker := m.results[row-1].Ticker
@@ -472,7 +472,7 @@ func (m *SearchModal) setupHandlers() {
 				}
 				return nil
 			}
-			if event.Rune() == 'p' || event.Rune() == 'P' {
+			if event.Rune() == 'p' || event.Rune() == 'P' || event.Rune() == 'з' || event.Rune() == 'З' {
 				row, _ := m.Table.GetSelection()
 				if row > 0 && row <= len(m.results) {
 					symbol := m.results[row-1].Symbol

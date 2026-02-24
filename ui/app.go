@@ -199,6 +199,12 @@ func (a *App) IsModalOpen() bool {
 	return name == "modal"
 }
 
+// IsAlertOpen returns true if an alert/error modal is currently shown
+func (a *App) IsAlertOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "alert"
+}
+
 // IsCloseModalOpen returns true if the close position modal is currently open
 func (a *App) IsCloseModalOpen() bool {
 	name, _ := a.pages.GetFrontPage()
@@ -294,6 +300,8 @@ func (a *App) ShowError(msg string) {
 				a.app.SetFocus(a.orderModal.Form)
 			} else if a.IsCloseModalOpen() {
 				a.app.SetFocus(a.closeModal.Form)
+			} else if a.IsProfileOpen() {
+				a.app.SetFocus(a.profilePanel.ChartView)
 			}
 		})
 
@@ -311,7 +319,12 @@ func (a *App) Run() error {
 	flex.AddItem(a.statusBar, 1, 1, false)
 
 	// Setup Pages
+	// Note: z-order is determined by AddPage order (last = on top).
+	// Profile is added before modals so that modals render on top of profile.
 	a.pages.AddPage("main", flex, true, true)
+
+	// Add Profile overlay (full screen) — before modals so modals appear on top
+	a.pages.AddPage("profile", a.profilePanel.Layout, true, false)
 
 	// Add Modal (centered)
 	modalFlex := tview.NewFlex().
@@ -337,9 +350,6 @@ func (a *App) Run() error {
 
 	// Add Search Modal (full screen)
 	a.pages.AddPage("search_modal", a.searchModal.Layout, true, false)
-
-	// Add Profile overlay (full screen)
-	a.pages.AddPage("profile", a.profilePanel.Layout, true, false)
 
 	// Setup input handlers
 	setupInputHandlers(a)

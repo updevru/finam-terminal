@@ -225,6 +225,7 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 		a.app.QueueUpdateDraw(func() {
 			if a.profileOpen && a.profileSymbol == symbol {
 				a.profilePanel.Update(profile)
+				a.profilePanel.RestoreFooter()
 			}
 		})
 	}()

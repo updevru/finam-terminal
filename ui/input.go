@@ -124,23 +124,23 @@ func setupInputHandlers(app *App) {
 				}
 			}
 			switch event.Rune() {
-			case 'q', 'Q':
+			case 'q', 'Q', 'й', 'Й':
 				quit()
 				return nil
-			case 'r', 'R':
+			case 'r', 'R', 'к', 'К':
 				refresh()
 				return nil
-			case 'a', 'A':
+			case 'a', 'A', 'ф', 'Ф':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenOrderModal()
 				}
 				return nil
-			case 'c', 'C':
+			case 'c', 'C', 'с', 'С':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenCloseModal()
 				}
 				return nil
-			case 's', 'S':
+			case 's', 'S', 'ы', 'Ы':
 				app.OpenSearchModal()
 				return nil
 			}
@@ -165,76 +165,81 @@ func setupInputHandlers(app *App) {
 			return nil
 		}
 		switch event.Rune() {
-		case 'q', 'Q':
+		case 'q', 'Q', 'й', 'Й':
 			quit()
 			return nil
-		case 'r', 'R':
+		case 'r', 'R', 'к', 'К':
 			refresh()
 			return nil
 		}
 		return event
 	})
 
-	// Profile overlay input handler
-	app.profilePanel.ChartView.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			app.CloseProfile()
-			return nil
-		}
-		switch event.Rune() {
-		case '1':
-			app.switchProfileTimeframe(0)
-			return nil
-		case '2':
-			app.switchProfileTimeframe(1)
-			return nil
-		case '3':
-			app.switchProfileTimeframe(2)
-			return nil
-		case '4':
-			app.switchProfileTimeframe(3)
-			return nil
-		case 'a', 'A':
-			app.OpenOrderModalWithTicker(app.profileSymbol)
-			return nil
-		case 'r', 'R':
-			if app.selectedIdx >= 0 && app.selectedIdx < len(app.accounts) {
-				app.loadProfileAsync(app.accounts[app.selectedIdx].ID, app.profileSymbol, app.profileTimeframe)
-			}
-			return nil
-		case 's', 'S':
-			app.OpenSearchModal()
-			return nil
-		case 'q', 'Q':
-			quit()
-			return nil
-		}
-		return event
-	})
-
 	app.app.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		// If profile overlay is open, let profile handle its own keys
+		// If profile overlay is open, handle profile keys at global level
+		// to avoid focus-related issues with ChartView inside Flex/Pages
 		if app.IsProfileOpen() {
-			// Only intercept ESC at global level for modals on top of profile
+			// Alert modal (error dialog) on top — let all events pass through to it
+			if app.IsAlertOpen() {
+				return event
+			}
+			// Modals on top of profile: only handle Escape to close them
 			if app.IsModalOpen() || app.IsCloseModalOpen() || app.IsSearchModalOpen() {
 				if event.Key() == tcell.KeyEscape {
 					if app.IsModalOpen() {
 						app.CloseOrderModal()
+						app.app.SetFocus(app.profilePanel.ChartView)
 						return nil
 					}
 					if app.IsCloseModalOpen() {
 						app.CloseCloseModal()
+						app.app.SetFocus(app.profilePanel.ChartView)
 						return nil
 					}
 					if app.IsSearchModalOpen() {
 						app.CloseSearchModal()
+						app.app.SetFocus(app.profilePanel.ChartView)
 						return nil
 					}
 				}
 				return event
 			}
-			return event
+			// Profile keyboard shortcuts (handled globally for reliability)
+			switch event.Key() {
+			case tcell.KeyEscape:
+				app.CloseProfile()
+				return nil
+			}
+			switch event.Rune() {
+			case '1':
+				app.switchProfileTimeframe(0)
+				return nil
+			case '2':
+				app.switchProfileTimeframe(1)
+				return nil
+			case '3':
+				app.switchProfileTimeframe(2)
+				return nil
+			case '4':
+				app.switchProfileTimeframe(3)
+				return nil
+			case 'a', 'A', 'ф', 'Ф':
+				app.OpenOrderModalWithTicker(app.profileSymbol)
+				return nil
+			case 'r', 'R', 'к', 'К':
+				if app.selectedIdx >= 0 && app.selectedIdx < len(app.accounts) {
+					app.profilePanel.Footer.SetText("[yellow]Refreshing...[-]")
+					app.loadProfileAsync(app.accounts[app.selectedIdx].ID, app.profileSymbol, app.profileTimeframe)
+				}
+				return nil
+			case 's', 'S', 'ы', 'Ы':
+				app.OpenSearchModal()
+				return nil
+			case 'q', 'Q', 'й', 'Й':
+				quit()
+				return nil
+			}
+			return nil // Consume unhandled keys to prevent them from reaching ChartView
 		}
 
 		// If any modal is open, only handle Escape globally (if needed) or pass to focused widget
@@ -297,13 +302,13 @@ func setupInputHandlers(app *App) {
 			return nil
 		}
 		switch event.Rune() {
-		case 'q', 'Q':
+		case 'q', 'Q', 'й', 'Й':
 			quit()
 			return nil
-		case 'r', 'R':
+		case 'r', 'R', 'к', 'К':
 			refresh()
 			return nil
-		case 's', 'S':
+		case 's', 'S', 'ы', 'Ы':
 			app.OpenSearchModal()
 			return nil
 		}

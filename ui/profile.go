@@ -40,7 +40,7 @@ func NewProfilePanel(app *tview.Application) *ProfilePanel {
 	p.Footer = tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignCenter)
-	p.Footer.SetText("[yellow]1[white] M5  [yellow]2[white] H1  [yellow]3[white] D  [yellow]4[white] W  │  [yellow]A[white] Order  [yellow]R[white] Refresh  [yellow]ESC[white] Back")
+	p.Footer.SetText(profileFooterText)
 
 	// Horizontal: InfoPanel (42 cols fixed) + ChartView (flex)
 	contentRow := tview.NewFlex().SetDirection(tview.FlexColumn).
@@ -53,6 +53,13 @@ func NewProfilePanel(app *tview.Application) *ProfilePanel {
 		AddItem(p.Footer, 1, 0, false)
 
 	return p
+}
+
+const profileFooterText = "[yellow]1[white] M5  [yellow]2[white] H1  [yellow]3[white] D  [yellow]4[white] W  │  [yellow]A[white] Order  [yellow]R[white] Refresh  [yellow]ESC[white] Back"
+
+// RestoreFooter resets the footer to the default hint text.
+func (p *ProfilePanel) RestoreFooter() {
+	p.Footer.SetText(profileFooterText)
 }
 
 // Update performs a full refresh of both the info panel and chart.
