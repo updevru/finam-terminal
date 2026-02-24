@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.10.0] - 2026-02-24
+
+### Added
+- **Instrument Profile**: Full-screen instrument profile overlay opened via Enter on positions or P on search results, displaying asset details, trading parameters, quotes, trading schedule, and a Unicode candlestick chart with switchable timeframes (M5/H1/D/W) (`instrument_profile`).
+- **Candlestick Chart**: Unicode-based price chart with smart time labels on X-axis and support for multiple timeframes (`instrument_profile`).
+
+### Fixed
+- **Local Timezone**: All dates in History and Orders tables now display in the user's local timezone instead of UTC (`local_timezone_dates`).
+- **Code Formatting**: Fixed `gofmt` formatting across all Go source files.
+
 ## [v0.9.0] - 2026-02-13
 
 ### Added
