@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"time"
 
 	"finam-terminal/models"
 )
@@ -27,8 +28,8 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 		maxCandles = 1
 	}
 
-	// Reserve 1 row for X-axis labels
-	chartHeight := height - 1
+	// Reserve 2 rows for X-axis: separator line (└───) + labels row
+	chartHeight := height - 2
 	if chartHeight < 3 {
 		chartHeight = 3
 	}
@@ -114,34 +115,25 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 	sb.WriteString(strings.Repeat("─", chartWidth))
 	sb.WriteString("\n")
 
-	// X-axis labels
+	// X-axis labels with smart formatting based on timeframe
 	sb.WriteString("         ")
-	labelInterval := len(visibleBars) / 4
-	if labelInterval < 1 {
-		labelInterval = 1
-	}
-	for i, bar := range visibleBars {
-		if i%labelInterval == 0 || i == len(visibleBars)-1 {
-			label := bar.Timestamp.Format("01/02")
-			// Ensure label doesn't overflow
-			available := (len(visibleBars) - i) * 2
-			if len(label) <= available {
-				sb.WriteString(label)
-				// Pad remaining space for this label
-				remaining := labelInterval*2 - len(label)
-				if remaining > 0 && i != len(visibleBars)-1 {
-					sb.WriteString(strings.Repeat(" ", remaining))
-				}
-				// Skip positions covered by the label
-				for j := 1; j < len(label)/2+1 && i+j < len(visibleBars); j++ {
-						_ = j // positions consumed by the label
-				}
-			} else {
-				sb.WriteString("  ")
-			}
-		} else {
-			sb.WriteString("  ")
+	labels := buildXAxisLabels(visibleBars)
+
+	// Place labels using a cursor to prevent overlaps
+	cursor := 0 // next column position we can write to
+	for _, lbl := range labels {
+		col := lbl.pos * 2 // each candle = 2 columns
+		if col < cursor {
+			continue // would overlap previous label
 		}
+		// Pad to reach this column
+		if col > cursor {
+			sb.WriteString(strings.Repeat(" ", col-cursor))
+		}
+		sb.WriteString("[gray]")
+		sb.WriteString(lbl.text)
+		sb.WriteString("[-]")
+		cursor = col + len(lbl.text)
 	}
 
 	return sb.String()
@@ -161,6 +153,131 @@ func centerText(msg string, width, height int) string {
 	sb.WriteString(strings.Repeat(" ", leftPad))
 	sb.WriteString(msg)
 	return sb.String()
+}
+
+// xAxisLabel holds a positioned label for the X-axis.
+type xAxisLabel struct {
+	pos  int    // bar index
+	text string // display text
+}
+
+// buildXAxisLabels creates positioned labels for the X-axis based on bar timestamps.
+// It auto-detects intraday vs daily vs weekly timeframes and uses appropriate formatting.
+func buildXAxisLabels(bars []models.Bar) []xAxisLabel {
+	if len(bars) == 0 {
+		return nil
+	}
+
+	// Detect timeframe from median interval between bars
+	tf := detectTimeframe(bars)
+
+	var labels []xAxisLabel
+	n := len(bars)
+
+	// Choose label interval so labels are ~8-12 chars apart (each candle = 2 cols)
+	// Labels are 5-8 chars wide, need at least 2 char gap between them
+	var labelWidth int
+	switch tf {
+	case tfMinutes:
+		labelWidth = 5 // "HH:MM"
+	case tfHours:
+		labelWidth = 5 // "HH:MM"
+	case tfDaily:
+		labelWidth = 5 // "DD.MM"
+	default:
+		labelWidth = 8 // "DD.MM.YY"
+	}
+	minSpacing := labelWidth + 3 // label width + minimum gap
+	minBarsBetween := minSpacing / 2
+	if minBarsBetween < 1 {
+		minBarsBetween = 1
+	}
+
+	// Desired ~5-7 labels across the chart
+	desiredLabels := 6
+	interval := n / desiredLabels
+	if interval < minBarsBetween {
+		interval = minBarsBetween
+	}
+
+	prevDay := -1
+	for i := 0; i < n; i++ {
+		bar := bars[i]
+		isFirst := i == 0
+		isLast := i == n-1
+
+		switch tf {
+		case tfMinutes, tfHours:
+			// For intraday: show time, but mark day boundaries with date
+			day := bar.Timestamp.YearDay()
+			if isFirst || (day != prevDay && prevDay != -1) {
+				// Day boundary — show date
+				labels = append(labels, xAxisLabel{pos: i, text: bar.Timestamp.Format("02.01")})
+				prevDay = day
+				continue
+			}
+			prevDay = day
+			if isFirst || isLast || i%interval == 0 {
+				labels = append(labels, xAxisLabel{pos: i, text: bar.Timestamp.Format("15:04")})
+			}
+
+		case tfDaily:
+			if isFirst || isLast || i%interval == 0 {
+				labels = append(labels, xAxisLabel{pos: i, text: bar.Timestamp.Format("02.01")})
+			}
+
+		default: // weekly+
+			if isFirst || isLast || i%interval == 0 {
+				labels = append(labels, xAxisLabel{pos: i, text: bar.Timestamp.Format("02.01.06")})
+			}
+		}
+	}
+
+	return labels
+}
+
+type timeframeType int
+
+const (
+	tfMinutes timeframeType = iota
+	tfHours
+	tfDaily
+	tfWeekly
+)
+
+// detectTimeframe determines the chart timeframe from bar intervals.
+func detectTimeframe(bars []models.Bar) timeframeType {
+	if len(bars) < 2 {
+		return tfDaily
+	}
+	// Collect intervals, skip gaps (weekends, overnight)
+	var intervals []time.Duration
+	for i := 1; i < len(bars) && i < 10; i++ {
+		d := bars[i].Timestamp.Sub(bars[i-1].Timestamp)
+		if d > 0 {
+			intervals = append(intervals, d)
+		}
+	}
+	if len(intervals) == 0 {
+		return tfDaily
+	}
+	// Use minimum interval (most representative, skips weekend gaps)
+	minInterval := intervals[0]
+	for _, d := range intervals[1:] {
+		if d < minInterval {
+			minInterval = d
+		}
+	}
+	switch {
+	case minInterval < 30*time.Minute:
+		return tfMinutes
+	case minInterval < 4*time.Hour:
+		return tfHours
+	case minInterval < 3*24*time.Hour:
+		return tfDaily
+	default:
+		return tfWeekly
+	}
 }
 
 // formatPriceLabel formats a price value for the Y-axis gutter (max 8 chars)
