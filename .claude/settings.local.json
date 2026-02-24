@@ -11,7 +11,8 @@
       "Bash(go vet:*)",
       "WebSearch",
       "Bash(ls:*)",
-      "Bash(go list:*)"
+      "Bash(go list:*)",
+      "Bash(grep:*)"
     ]
   }
 }
