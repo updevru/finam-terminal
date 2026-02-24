@@ -367,11 +367,16 @@ func updateStatusBar(app *App) {
 		statusText = " | " + statusText
 	}
 
-	shortcuts := "[yellow]F2[white] Refresh [yellow]Tab[white] Switch Area [yellow]←/→[white] Tabs [yellow]q[white] Quit"
-	// Check if TabbedView.PositionsTable is active and focused
-	if app.portfolioView.TabbedView.ActiveTab == TabPositions &&
-		app.app.GetFocus() == app.portfolioView.TabbedView.PositionsTable {
-		shortcuts += " | [yellow]A[white] Buy [yellow]C[white] Close"
+	var shortcuts string
+	if app.profileOpen {
+		shortcuts = "[yellow]1-4[white] Timeframe  [yellow]A[white] Order  [yellow]R[white] Refresh  [yellow]ESC[white] Back"
+	} else {
+		shortcuts = "[yellow]F2[white] Refresh [yellow]Tab[white] Switch Area [yellow]←/→[white] Tabs [yellow]q[white] Quit"
+		// Check if TabbedView.PositionsTable is active and focused
+		if app.portfolioView.TabbedView.ActiveTab == TabPositions &&
+			app.app.GetFocus() == app.portfolioView.TabbedView.PositionsTable {
+			shortcuts += " | [yellow]A[white] Buy [yellow]C[white] Close"
+		}
 	}
 
 	app.statusBar.SetDynamicColors(true)

@@ -8,6 +8,7 @@ import (
 	"finam-terminal/models"
 
 	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/rivo/tview"
 )
 
@@ -33,6 +34,12 @@ type APIClient interface {
 	// History and Orders
 	GetTradeHistory(accountID string) ([]models.Trade, error)
 	GetActiveOrders(accountID string) ([]models.Order, error)
+
+	// Instrument Profile
+	GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error)
+	GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error)
+	GetAssetParams(accountID string, symbol string) (*models.AssetParams, error)
+	GetSchedule(symbol string) ([]models.TradingSession, error)
 }
 
 // App represents the TUI application
@@ -62,6 +69,12 @@ type App struct {
 	// UI Components
 	header    *tview.TextView
 	statusBar *tview.TextView
+
+	// Profile overlay
+	profilePanel     *ProfilePanel
+	profileSymbol    string
+	profileTimeframe int  // 0=M5, 1=H1, 2=D, 3=W
+	profileOpen      bool
 }
 
 type StatusType int
@@ -122,7 +135,14 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		a.OpenOrderModalWithTicker(ticker)
 	}, func() {
 		a.CloseSearchModal()
+	}, func(symbol string) {
+		a.CloseSearchModal()
+		a.OpenProfileForSymbol(symbol)
 	})
+
+	// Initialize ProfilePanel
+	a.profilePanel = NewProfilePanel(a.app)
+	a.profileTimeframe = 2 // Default: Daily
 
 	return a
 }
@@ -177,6 +197,12 @@ func (a *App) OpenOrderModalWithTicker(ticker string) {
 func (a *App) IsModalOpen() bool {
 	name, _ := a.pages.GetFrontPage()
 	return name == "modal"
+}
+
+// IsAlertOpen returns true if an alert/error modal is currently shown
+func (a *App) IsAlertOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "alert"
 }
 
 // IsCloseModalOpen returns true if the close position modal is currently open
@@ -274,6 +300,8 @@ func (a *App) ShowError(msg string) {
 				a.app.SetFocus(a.orderModal.Form)
 			} else if a.IsCloseModalOpen() {
 				a.app.SetFocus(a.closeModal.Form)
+			} else if a.IsProfileOpen() {
+				a.app.SetFocus(a.profilePanel.ChartView)
 			}
 		})
 
@@ -291,7 +319,12 @@ func (a *App) Run() error {
 	flex.AddItem(a.statusBar, 1, 1, false)
 
 	// Setup Pages
+	// Note: z-order is determined by AddPage order (last = on top).
+	// Profile is added before modals so that modals render on top of profile.
 	a.pages.AddPage("main", flex, true, true)
+
+	// Add Profile overlay (full screen) — before modals so modals appear on top
+	a.pages.AddPage("profile", a.profilePanel.Layout, true, false)
 
 	// Add Modal (centered)
 	modalFlex := tview.NewFlex().
@@ -436,6 +469,101 @@ func (a *App) OpenCloseModal() {
 			}
 		}
 		a.dataMutex.RUnlock()
+	}
+}
+
+// profileTimeframeDurations maps timeframe index to lookback duration
+var profileTimeframeDurations = [4]time.Duration{
+	7 * 24 * time.Hour,     // M5: 7 days
+	30 * 24 * time.Hour,    // H1: 30 days
+	365 * 24 * time.Hour,   // D: 1 year
+	5 * 365 * 24 * time.Hour, // W: 5 years
+}
+
+// profileTimeframeEnums maps timeframe index to SDK TimeFrame enum
+var profileTimeframeEnums = [4]marketdata.TimeFrame{
+	marketdata.TimeFrame_TIME_FRAME_M5,
+	marketdata.TimeFrame_TIME_FRAME_H1,
+	marketdata.TimeFrame_TIME_FRAME_D,
+	marketdata.TimeFrame_TIME_FRAME_W,
+}
+
+// OpenProfile opens the profile overlay for the currently selected position.
+func (a *App) OpenProfile() {
+	row, _ := a.portfolioView.TabbedView.PositionsTable.GetSelection()
+	if row <= 0 {
+		return
+	}
+	idx := row - 1
+
+	a.dataMutex.RLock()
+	if a.selectedIdx >= len(a.accounts) {
+		a.dataMutex.RUnlock()
+		return
+	}
+	accID := a.accounts[a.selectedIdx].ID
+	positions := a.positions[accID]
+	if idx < 0 || idx >= len(positions) {
+		a.dataMutex.RUnlock()
+		return
+	}
+	symbol := positions[idx].Symbol
+	a.dataMutex.RUnlock()
+
+	a.OpenProfileForSymbol(symbol)
+}
+
+// OpenProfileForSymbol opens the profile overlay for an arbitrary symbol.
+func (a *App) OpenProfileForSymbol(symbol string) {
+	a.profileSymbol = symbol
+	a.profileOpen = true
+	a.profilePanel.SetTimeframe(a.profileTimeframe)
+	a.profilePanel.Update(nil) // Show loading state
+	a.pages.SwitchToPage("profile")
+	a.app.SetFocus(a.profilePanel.ChartView)
+
+	a.dataMutex.RLock()
+	accountID := ""
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		accountID = a.accounts[a.selectedIdx].ID
+	}
+	a.dataMutex.RUnlock()
+
+	if accountID != "" {
+		a.loadProfileAsync(accountID, symbol, a.profileTimeframe)
+	}
+}
+
+// CloseProfile closes the profile overlay and returns to the main view.
+func (a *App) CloseProfile() {
+	a.profileOpen = false
+	a.profileSymbol = ""
+	a.pages.SwitchToPage("main")
+	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+}
+
+// IsProfileOpen returns true if the profile overlay is currently shown.
+func (a *App) IsProfileOpen() bool {
+	return a.profileOpen
+}
+
+// switchProfileTimeframe reloads bars for a new timeframe.
+func (a *App) switchProfileTimeframe(idx int) {
+	if idx < 0 || idx > 3 {
+		return
+	}
+	a.profileTimeframe = idx
+	a.profilePanel.SetTimeframe(idx)
+
+	a.dataMutex.RLock()
+	accountID := ""
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		accountID = a.accounts[a.selectedIdx].ID
+	}
+	a.dataMutex.RUnlock()
+
+	if accountID != "" && a.profileSymbol != "" {
+		a.loadProfileBarsAsync(accountID, a.profileSymbol, idx)
 	}
 }
 

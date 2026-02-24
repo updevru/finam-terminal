@@ -22,6 +22,8 @@ The project follows a clean modular structure:
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
     *   `data.go`: Data fetching logic for trades history and active orders.
     *   `search.go`: Dedicated search window for finding securities.
+    *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart.
+    *   `chart.go`: Unicode candlestick chart renderer with smart time labels.
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
 *   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata.
 
@@ -121,7 +123,31 @@ go build -o finam-trade.exe main.go
     *   **File:** `api/client.go` (`GetActiveOrders`)
     *   **Usage:** Fetching pending/active orders for display in the Orders tab.
 
-6.  **Instrument Name Cache**
+6.  **Asset Info**
+    *   **Service:** `AssetsServiceClient`
+    *   **Method:** `GetAsset`
+    *   **File:** `api/client.go` (`GetAssetInfo`)
+    *   **Usage:** Retrieving detailed instrument information (name, ISIN, type, board, currency, lot size, decimals, expiration).
+
+7.  **Asset Trading Parameters**
+    *   **Service:** `AssetsServiceClient`
+    *   **Method:** `GetAssetParams`
+    *   **File:** `api/client.go` (`GetAssetParams`)
+    *   **Usage:** Fetching trading parameters (tradability, long/short availability, risk rates, margins).
+
+8.  **Candlestick Bars**
+    *   **Service:** `MarketDataServiceClient`
+    *   **Method:** `Bars`
+    *   **File:** `api/client.go` (`GetBars`)
+    *   **Usage:** Fetching OHLCV candlestick data for chart rendering. Supports multiple timeframes (M5, H1, D, W).
+
+9.  **Trading Schedule**
+    *   **Service:** `AssetsServiceClient`
+    *   **Method:** `Schedule`
+    *   **File:** `api/client.go` (`GetSchedule`)
+    *   **Usage:** Retrieving trading session times for an instrument.
+
+10.  **Instrument Name Cache**
     *   **File:** `api/client.go` (`InstrumentCache`, `GetInstrumentName`, `UpdateInstrumentCache`)
     *   **Usage:** Centralized O(1) cache mapping ticker symbols to human-readable names. Populated during asset loading and search operations.
 

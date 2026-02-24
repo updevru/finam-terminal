@@ -857,6 +857,189 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 	return quotes, nil
 }
 
+// GetBars returns candlestick bar data for a symbol
+func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.marketDataClient.Bars(ctx, &marketdata.BarsRequest{
+		Symbol:    fullSymbol,
+		Timeframe: timeframe,
+		Interval: &interval.Interval{
+			StartTime: timestamppb.New(from),
+			EndTime:   timestamppb.New(to),
+		},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get bars for %s: %w", fullSymbol, err)
+	}
+	if resp == nil {
+		return nil, nil
+	}
+
+	bars := make([]models.Bar, 0, len(resp.Bars))
+	for _, b := range resp.Bars {
+		bars = append(bars, models.Bar{
+			Timestamp: b.Timestamp.AsTime().Local(),
+			Open:      parseDecimalFloat(b.Open),
+			High:      parseDecimalFloat(b.High),
+			Low:       parseDecimalFloat(b.Low),
+			Close:     parseDecimalFloat(b.Close),
+			Volume:    parseDecimalFloat(b.Volume),
+		})
+	}
+
+	return bars, nil
+}
+
+// GetAssetInfo returns detailed instrument information for a symbol
+func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
+		Symbol:    fullSymbol,
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset info for %s: %w", fullSymbol, err)
+	}
+
+	details := &models.AssetDetails{
+		Board:         resp.Board,
+		ID:            resp.Id,
+		Ticker:        resp.Ticker,
+		MIC:           resp.Mic,
+		ISIN:          resp.Isin,
+		Type:          resp.Type,
+		Name:          resp.Name,
+		Decimals:      resp.Decimals,
+		MinStep:       resp.MinStep,
+		LotSize:       formatDecimal(resp.LotSize),
+		QuoteCurrency: resp.QuoteCurrency,
+	}
+
+	if resp.ExpirationDate != nil {
+		details.ExpirationDate = fmt.Sprintf("%04d-%02d-%02d",
+			resp.ExpirationDate.Year, resp.ExpirationDate.Month, resp.ExpirationDate.Day)
+	}
+
+	return details, nil
+}
+
+// GetAssetParams returns trading parameters for a symbol
+func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetParams, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	resp, err := c.assetsClient.GetAssetParams(ctx, &assets.GetAssetParamsRequest{
+		Symbol:    fullSymbol,
+		AccountId: accountID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get asset params for %s: %w", fullSymbol, err)
+	}
+
+	params := &models.AssetParams{
+		LongRiskRate:  formatDecimal(resp.LongRiskRate),
+		ShortRiskRate: formatDecimal(resp.ShortRiskRate),
+	}
+
+	// IsTradable
+	if resp.IsTradable != nil {
+		params.IsTradable = resp.IsTradable.Value
+	} else {
+		params.IsTradable = resp.GetTradeable() //nolint:staticcheck // fallback for older API versions
+	}
+
+	// Longable
+	if resp.Longable != nil {
+		switch resp.Longable.Value {
+		case assets.Longable_AVAILABLE:
+			params.Longable = "Available"
+		default:
+			params.Longable = "Not Available"
+		}
+	} else {
+		params.Longable = "N/A"
+	}
+
+	// Shortable
+	if resp.Shortable != nil {
+		switch resp.Shortable.Value {
+		case assets.Shortable_AVAILABLE:
+			params.Shortable = "Available"
+		default:
+			params.Shortable = "Not Available"
+		}
+	} else {
+		params.Shortable = "N/A"
+	}
+
+	// Initial margins
+	if resp.LongInitialMargin != nil {
+		params.LongInitialMargin = fmt.Sprintf("%.2f %s",
+			float64(resp.LongInitialMargin.Units)+float64(resp.LongInitialMargin.Nanos)/1e9,
+			resp.LongInitialMargin.CurrencyCode)
+	}
+	if resp.ShortInitialMargin != nil {
+		params.ShortInitialMargin = fmt.Sprintf("%.2f %s",
+			float64(resp.ShortInitialMargin.Units)+float64(resp.ShortInitialMargin.Nanos)/1e9,
+			resp.ShortInitialMargin.CurrencyCode)
+	}
+
+	return params, nil
+}
+
+// GetSchedule returns the trading schedule (sessions) for a symbol
+func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	resp, err := c.assetsClient.Schedule(ctx, &assets.ScheduleRequest{
+		Symbol: symbol,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get schedule for %s: %w", symbol, err)
+	}
+
+	sessions := make([]models.TradingSession, 0, len(resp.Sessions))
+	for _, s := range resp.Sessions {
+		session := models.TradingSession{
+			Type: s.Type,
+		}
+		if s.Interval != nil {
+			if s.Interval.StartTime != nil {
+				session.StartTime = s.Interval.StartTime.AsTime().Local()
+			}
+			if s.Interval.EndTime != nil {
+				session.EndTime = s.Interval.EndTime.AsTime().Local()
+			}
+		}
+		sessions = append(sessions, session)
+	}
+
+	return sessions, nil
+}
+
+// parseDecimalFloat parses a google Decimal to float64, returns 0 on failure
+func parseDecimalFloat(d *decimal.Decimal) float64 {
+	if d == nil || d.Value == "" {
+		return 0
+	}
+	v, err := strconv.ParseFloat(strings.ReplaceAll(d.Value, ",", "."), 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
 // formatDecimal formats a google decimal value
 func formatDecimal(d *decimal.Decimal) string {
 	if d == nil || d.Value == "" {
