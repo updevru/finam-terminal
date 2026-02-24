@@ -955,7 +955,7 @@ func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetP
 	if resp.IsTradable != nil {
 		params.IsTradable = resp.IsTradable.Value
 	} else {
-		params.IsTradable = resp.Tradeable
+		params.IsTradable = resp.GetTradeable() //nolint:staticcheck // fallback for older API versions
 	}
 
 	// Longable

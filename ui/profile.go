@@ -105,10 +105,10 @@ func (p *ProfilePanel) renderInfoPanel() {
 	// Title
 	symbol := p.profile.Symbol
 	if p.profile.Details != nil && p.profile.Details.Name != "" {
-		sb.WriteString(fmt.Sprintf("[yellow::b]%s[-:-:-]\n", truncate(p.profile.Details.Name, 38)))
-		sb.WriteString(fmt.Sprintf("[white]%s\n", symbol))
+		fmt.Fprintf(&sb, "[yellow::b]%s[-:-:-]\n", truncate(p.profile.Details.Name, 38))
+		fmt.Fprintf(&sb, "[white]%s\n", symbol)
 	} else {
-		sb.WriteString(fmt.Sprintf("[yellow::b]%s[-:-:-]\n", symbol))
+		fmt.Fprintf(&sb, "[yellow::b]%s[-:-:-]\n", symbol)
 	}
 	sb.WriteString("\n")
 
@@ -174,7 +174,7 @@ func (p *ProfilePanel) renderInfoPanel() {
 		for _, s := range tradingSessions {
 			start := s.StartTime.Format("15:04")
 			end := s.EndTime.Format("15:04")
-			sb.WriteString(fmt.Sprintf(" [green]%-14s [white]%s - %s\n", sessionDisplayName(s.Type), start, end))
+			fmt.Fprintf(&sb, " [green]%-14s [white]%s - %s\n", sessionDisplayName(s.Type), start, end)
 		}
 	} else {
 		sb.WriteString("[gray]Schedule unavailable\n")
@@ -207,7 +207,7 @@ func writeField(sb *strings.Builder, label, value string) {
 	if value == "" {
 		value = "N/A"
 	}
-	sb.WriteString(fmt.Sprintf(" [white]%-12s [lightgray]%s\n", label, value))
+	fmt.Fprintf(sb, " [white]%-12s [lightgray]%s\n", label, value)
 }
 
 // sessionDisplayNames maps API session type constants to human-readable names.

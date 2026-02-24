@@ -75,7 +75,7 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 		// Y-axis label (every 4th row or first/last)
 		if row == 0 || row == chartHeight-1 || row%(chartHeight/4+1) == 0 {
 			label := formatPriceLabel(rowPriceHigh)
-			sb.WriteString(fmt.Sprintf("%8s│", label))
+			fmt.Fprintf(&sb, "%8s│", label)
 		} else {
 			sb.WriteString("        │")
 		}
