@@ -875,6 +875,9 @@ func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.T
 	if err != nil {
 		return nil, fmt.Errorf("failed to get bars for %s: %w", fullSymbol, err)
 	}
+	if resp == nil {
+		return nil, nil
+	}
 
 	bars := make([]models.Bar, 0, len(resp.Bars))
 	for _, b := range resp.Bars {

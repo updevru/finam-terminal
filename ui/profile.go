@@ -21,6 +21,11 @@ type ProfilePanel struct {
 	timeframe int // 0=M5, 1=H1, 2=D, 3=W
 }
 
+// GetProfile returns the current instrument profile (may be nil).
+func (p *ProfilePanel) GetProfile() *models.InstrumentProfile {
+	return p.profile
+}
+
 // NewProfilePanel creates a new ProfilePanel with the standard layout.
 func NewProfilePanel(app *tview.Application) *ProfilePanel {
 	p := &ProfilePanel{
@@ -203,13 +208,14 @@ func writeField(sb *strings.Builder, label, value string) {
 	sb.WriteString(fmt.Sprintf(" [white]%-12s [lightgray]%s\n", label, value))
 }
 
-// truncate truncates a string to maxLen characters with ellipsis.
+// truncate truncates a string to maxLen runes with ellipsis.
 func truncate(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
 		return s
 	}
 	if maxLen <= 3 {
-		return s[:maxLen]
+		return string(runes[:maxLen])
 	}
-	return s[:maxLen-3] + "..."
+	return string(runes[:maxLen-3]) + "..."
 }

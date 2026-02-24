@@ -294,14 +294,14 @@ func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx 
 
 		a.app.QueueUpdateDraw(func() {
 			if a.profileOpen && a.profileSymbol == symbol {
-				if a.profilePanel.profile != nil {
+				if p := a.profilePanel.GetProfile(); p != nil {
 					if newQuote != nil {
-						a.profilePanel.profile.Quote = newQuote
+						p.Quote = newQuote
 					}
 					if newBars != nil {
-						a.profilePanel.profile.Bars = newBars
+						p.Bars = newBars
 					}
-					a.profilePanel.Update(a.profilePanel.profile)
+					a.profilePanel.Update(p)
 				}
 			}
 		})

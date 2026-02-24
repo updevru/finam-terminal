@@ -165,6 +165,10 @@ func TestTruncate(t *testing.T) {
 		{"this is a very long string", 10, "this is..."},
 		{"ab", 2, "ab"},
 		{"abc", 2, "ab"},
+		{"Сбербанк", 10, "Сбербанк"},            // 8 runes, fits in 10
+		{"Сбербанк России", 10, "Сбербан..."},    // 15 runes, truncated to 10
+		{"Привет", 6, "Привет"},                  // exact fit
+		{"Привет мир", 6, "При..."},              // 10 runes, truncated
 	}
 
 	for _, tc := range tests {

@@ -96,7 +96,7 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 				if bodyTop >= rowPriceLow && bodyBot <= rowPriceHigh {
 					// Body intersects this row
 					char = color + "█" + "[-]"
-				} else if bar.High >= rowPriceLow && bar.Low <= rowPriceHigh {
+				} else {
 					// Wick only
 					char = color + "│" + "[-]"
 				}
@@ -134,7 +134,7 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 				}
 				// Skip positions covered by the label
 				for j := 1; j < len(label)/2+1 && i+j < len(visibleBars); j++ {
-					// These positions are consumed by the label
+						_ = j // positions consumed by the label
 				}
 			} else {
 				sb.WriteString("  ")
