@@ -92,8 +92,8 @@ func TestProfilePanel_Update(t *testing.T) {
 	if !strings.Contains(text, "280.50") {
 		t.Error("InfoPanel should contain last price")
 	}
-	if !strings.Contains(text, "MAIN") {
-		t.Error("InfoPanel should contain schedule session type")
+	if !strings.Contains(text, "Main") {
+		t.Error("InfoPanel should contain schedule session display name")
 	}
 }
 
@@ -175,6 +175,107 @@ func TestTruncate(t *testing.T) {
 		got := truncate(tc.input, tc.maxLen)
 		if got != tc.want {
 			t.Errorf("truncate(%q, %d) = %q, want %q", tc.input, tc.maxLen, got, tc.want)
+		}
+	}
+}
+
+func TestActiveSessions(t *testing.T) {
+	base := time.Date(2024, 1, 15, 0, 0, 0, 0, time.Local)
+
+	t.Run("derives trading windows from CLOSED gaps", func(t *testing.T) {
+		sessions := []models.TradingSession{
+			{Type: "CLOSED", StartTime: base, EndTime: base.Add(6*time.Hour + 50*time.Minute)},
+			{Type: "CLOSED", StartTime: base.Add(9*time.Hour + 49*time.Minute), EndTime: base.Add(9*time.Hour + 50*time.Minute)},
+			{Type: "CLOSED", StartTime: base.Add(18*time.Hour + 39*time.Minute), EndTime: base.Add(18*time.Hour + 40*time.Minute)},
+			{Type: "CLOSED", StartTime: base.Add(18*time.Hour + 50*time.Minute), EndTime: base.Add(19 * time.Hour)},
+		}
+
+		result := activeSessions(sessions)
+
+		if len(result) != 3 {
+			t.Fatalf("expected 3 trading windows, got %d", len(result))
+		}
+		if result[0].StartTime != base.Add(6*time.Hour+50*time.Minute) || result[0].EndTime != base.Add(9*time.Hour+49*time.Minute) {
+			t.Errorf("window 0: got %s-%s, want 06:50-09:49", result[0].StartTime.Format("15:04"), result[0].EndTime.Format("15:04"))
+		}
+		if result[1].StartTime != base.Add(9*time.Hour+50*time.Minute) || result[1].EndTime != base.Add(18*time.Hour+39*time.Minute) {
+			t.Errorf("window 1: got %s-%s, want 09:50-18:39", result[1].StartTime.Format("15:04"), result[1].EndTime.Format("15:04"))
+		}
+		if result[2].StartTime != base.Add(18*time.Hour+40*time.Minute) || result[2].EndTime != base.Add(18*time.Hour+50*time.Minute) {
+			t.Errorf("window 2: got %s-%s, want 18:40-18:50", result[2].StartTime.Format("15:04"), result[2].EndTime.Format("15:04"))
+		}
+	})
+
+	t.Run("deduplicates non-CLOSED sessions", func(t *testing.T) {
+		sessions := []models.TradingSession{
+			{Type: "EARLY_TRADING", StartTime: base.Add(7 * time.Hour), EndTime: base.Add(9*time.Hour + 49*time.Minute)},
+			{Type: "EARLY_TRADING", StartTime: base.Add(7 * time.Hour), EndTime: base.Add(9*time.Hour + 49*time.Minute)},
+			{Type: "EARLY_TRADING", StartTime: base.Add(7 * time.Hour), EndTime: base.Add(9*time.Hour + 49*time.Minute)},
+			{Type: "CORE_TRADING", StartTime: base.Add(10 * time.Hour), EndTime: base.Add(18*time.Hour + 39*time.Minute)},
+			{Type: "CLOSED", StartTime: base, EndTime: base.Add(7 * time.Hour)},
+		}
+		result := activeSessions(sessions)
+		if len(result) != 2 {
+			t.Fatalf("expected 2 unique sessions, got %d", len(result))
+		}
+		if result[0].Type != "EARLY_TRADING" {
+			t.Errorf("expected EARLY_TRADING, got %s", result[0].Type)
+		}
+		if result[1].Type != "CORE_TRADING" {
+			t.Errorf("expected CORE_TRADING, got %s", result[1].Type)
+		}
+	})
+
+	t.Run("deduplicates same type with different times", func(t *testing.T) {
+		sessions := []models.TradingSession{
+			{Type: "OPENING_AUCTION", StartTime: base.Add(6*time.Hour + 50*time.Minute), EndTime: base.Add(6*time.Hour + 59*time.Minute)},
+			{Type: "OPENING_AUCTION", StartTime: base.Add(6*time.Hour + 59*time.Minute), EndTime: base.Add(7 * time.Hour)},
+			{Type: "OPENING_AUCTION", StartTime: base.Add(9*time.Hour + 50*time.Minute), EndTime: base.Add(9*time.Hour + 59*time.Minute)},
+			{Type: "EARLY_TRADING", StartTime: base.Add(7 * time.Hour), EndTime: base.Add(9*time.Hour + 49*time.Minute)},
+		}
+		result := activeSessions(sessions)
+		if len(result) != 2 {
+			t.Fatalf("expected 2 unique sessions (one per type), got %d", len(result))
+		}
+	})
+
+	t.Run("returns nil for empty input", func(t *testing.T) {
+		result := activeSessions(nil)
+		if result != nil {
+			t.Errorf("expected nil, got %v", result)
+		}
+	})
+
+	t.Run("handles single CLOSED session", func(t *testing.T) {
+		sessions := []models.TradingSession{
+			{Type: "CLOSED", StartTime: base, EndTime: base.Add(6 * time.Hour)},
+		}
+		result := activeSessions(sessions)
+		if len(result) != 0 {
+			t.Errorf("expected 0 windows from single CLOSED, got %d", len(result))
+		}
+	})
+}
+
+func TestSessionDisplayName(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"EARLY_TRADING", "Early"},
+		{"CORE_TRADING", "Main"},
+		{"LATE_TRADING", "Late"},
+		{"AFTER_TRADING", "After-hours"},
+		{"OPENING_AUCTION", "Opening"},
+		{"CLOSING_AUCTION", "Closing"},
+		{"MAIN", "Main"},
+		{"CLOSED", "Closed"},
+		{"UNKNOWN_TYPE", "UNKNOWN_TYPE"},
+	}
+	for _, tc := range tests {
+		got := sessionDisplayName(tc.input)
+		if got != tc.want {
+			t.Errorf("sessionDisplayName(%q) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }

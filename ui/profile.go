@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"finam-terminal/models"
@@ -169,10 +170,11 @@ func (p *ProfilePanel) renderInfoPanel() {
 	// Schedule section
 	if len(p.profile.Schedule) > 0 {
 		sb.WriteString("[cyan::b]─── Schedule ───[-:-:-]\n")
-		for _, s := range p.profile.Schedule {
+		tradingSessions := activeSessions(p.profile.Schedule)
+		for _, s := range tradingSessions {
 			start := s.StartTime.Format("15:04")
 			end := s.EndTime.Format("15:04")
-			sb.WriteString(fmt.Sprintf(" [white]%-10s [gray]%s - %s\n", s.Type, start, end))
+			sb.WriteString(fmt.Sprintf(" [green]%-14s [white]%s - %s\n", sessionDisplayName(s.Type), start, end))
 		}
 	} else {
 		sb.WriteString("[gray]Schedule unavailable\n")
@@ -206,6 +208,91 @@ func writeField(sb *strings.Builder, label, value string) {
 		value = "N/A"
 	}
 	sb.WriteString(fmt.Sprintf(" [white]%-12s [lightgray]%s\n", label, value))
+}
+
+// sessionDisplayNames maps API session type constants to human-readable names.
+var sessionDisplayNames = map[string]string{
+	"EARLY_TRADING":   "Early",
+	"CORE_TRADING":    "Main",
+	"LATE_TRADING":    "Late",
+	"AFTER_TRADING":   "After-hours",
+	"OPENING_AUCTION": "Opening",
+	"CLOSING_AUCTION": "Closing",
+	"EVENING":         "Evening",
+	"MORNING":         "Morning",
+	"MAIN":            "Main",
+	"CLOSED":          "Closed",
+}
+
+// sessionDisplayName returns a human-readable name for a session type constant.
+func sessionDisplayName(raw string) string {
+	if name, ok := sessionDisplayNames[raw]; ok {
+		return name
+	}
+	return raw
+}
+
+// activeSessions filters and deduplicates schedule sessions.
+// If non-CLOSED sessions exist, returns unique ones.
+// Otherwise, derives trading windows from CLOSED gaps.
+func activeSessions(sessions []models.TradingSession) []models.TradingSession {
+	var closed []models.TradingSession
+	var active []models.TradingSession
+	for _, s := range sessions {
+		if strings.EqualFold(s.Type, "CLOSED") {
+			closed = append(closed, s)
+		} else {
+			active = append(active, s)
+		}
+	}
+
+	if len(active) > 0 {
+		result := dedup(active)
+		sort.Slice(result, func(i, j int) bool {
+			return result[i].StartTime.Format("15:04") < result[j].StartTime.Format("15:04")
+		})
+		return result
+	}
+
+	if len(closed) == 0 {
+		return nil
+	}
+
+	// Sort CLOSED sessions by start time
+	sort.Slice(closed, func(i, j int) bool {
+		return closed[i].StartTime.Before(closed[j].StartTime)
+	})
+
+	// Derive trading windows from gaps between consecutive CLOSED periods
+	var result []models.TradingSession
+	for i := 0; i < len(closed)-1; i++ {
+		gapStart := closed[i].EndTime
+		gapEnd := closed[i+1].StartTime
+		if !gapEnd.After(gapStart) {
+			continue
+		}
+		result = append(result, models.TradingSession{
+			Type:      "Trading",
+			StartTime: gapStart,
+			EndTime:   gapEnd,
+		})
+	}
+
+	return result
+}
+
+// dedup keeps only one entry per session type (the first occurrence).
+func dedup(sessions []models.TradingSession) []models.TradingSession {
+	seen := make(map[string]bool)
+	var result []models.TradingSession
+	for _, s := range sessions {
+		if seen[s.Type] {
+			continue
+		}
+		seen[s.Type] = true
+		result = append(result, s)
+	}
+	return result
 }
 
 // truncate truncates a string to maxLen runes with ellipsis.
