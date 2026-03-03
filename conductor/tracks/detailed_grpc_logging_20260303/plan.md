@@ -42,13 +42,13 @@
 
 ## Phase 4: Market Data (4 вызова)
 
-- [ ] Task: `GetQuotes` — MarketDataService.LastQuote
+- [x] Task: `GetQuotes` — MarketDataService.LastQuote 79b4dbe
   - Параметры: Symbol
   - Acceptance: заменяет текущий `[WARN]`, лог + continue сохранён
-- [ ] Task: `GetSnapshots` — MarketDataService.LastQuote
+- [x] Task: `GetSnapshots` — MarketDataService.LastQuote 79b4dbe
   - Параметры: Symbol
   - Acceptance: заменяет текущий `[WARN]`, лог + continue сохранён
-- [ ] Task: `GetBars` — MarketDataService.Bars
+- [x] Task: `GetBars` — MarketDataService.Bars 79b4dbe
   - Параметры: Symbol, Timeframe, Interval
   - Acceptance: лог + wrapped error return сохранён
 
