@@ -1,0 +1,9 @@
+{
+  "id": "detailed_grpc_logging_20260303",
+  "title": "Detailed gRPC Error Logging for Broker Support",
+  "type": "enhancement",
+  "status": "planned",
+  "created_at": "2026-03-03T00:00:00Z",
+  "phases": 7,
+  "total_tasks": 19
+}
