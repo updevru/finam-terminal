@@ -544,9 +544,8 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 			AccountId: accountID,
 		})
 		if err != nil {
+			c.logGRPCError("AccountsService", "GetAccount", err, fmt.Sprintf("AccountId: %s", accountID))
 			grpcStatus, _ := status.FromError(err)
-			log.Printf("[ERROR] AccountsService.GetAccount failed | AccountId: %s | gRPC code: %s | Message: %s | Endpoint: %s",
-				accountID, grpcStatus.Code(), grpcStatus.Message(), c.conn.Target())
 			accountsList = append(accountsList, models.AccountInfo{
 				ID:        accountID,
 				LoadError: grpcStatus.Message(),
@@ -583,6 +582,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AccountsService", "GetAccount", err, fmt.Sprintf("AccountId: %s", accountID))
 		return nil, nil, fmt.Errorf("failed to get account: %w", err)
 	}
 
@@ -729,6 +729,9 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 		},
 	})
 	if err != nil {
+		c.logGRPCError("AccountsService", "Trades", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Interval: %s / %s", startTime.Format(time.RFC3339), now.Format(time.RFC3339)))
 		return nil, fmt.Errorf("failed to get trades: %w", err)
 	}
 
@@ -776,6 +779,7 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("OrdersService", "GetOrders", err, fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
 

@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
@@ -219,5 +221,141 @@ func TestGetAccounts_TokenDetails_LogsGRPCError(t *testing.T) {
 	// Token must NOT appear in log
 	if strings.Contains(output, "token") && strings.Contains(output, "Token:") {
 		t.Errorf("Log must not contain the token value")
+	}
+}
+
+func TestGetAccounts_GetAccountLoop_UsesHelper(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return &auth.TokenDetailsResponse{AccountIds: []string{"acc-fail"}}, nil
+		},
+	}
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return nil, grpcstatus.Error(codes.NotFound, "account not found")
+		},
+	}
+
+	client := &Client{authClient: mockAuth, accountsClient: mockAccounts}
+	accs, err := client.GetAccounts()
+
+	// Should not return error — adds account with LoadError instead
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(accs) != 1 || accs[0].LoadError == "" {
+		t.Errorf("Expected account with LoadError set")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AccountsService.GetAccount failed",
+		"AccountId: acc-fail",
+		"gRPC code: NotFound",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetAccountDetails_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			return nil, grpcstatus.Error(codes.Internal, "db error")
+		},
+	}
+
+	client := &Client{accountsClient: mockAccounts}
+	_, _, err := client.GetAccountDetails("acc-xyz")
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AccountsService.GetAccount failed",
+		"AccountId: acc-xyz",
+		"gRPC code: Internal",
+		"Message: db error",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetTradeHistory_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAccounts := &mockAccountsServiceClient{
+		TradesFunc: func(ctx context.Context, in *accounts.TradesRequest, opts ...grpc.CallOption) (*accounts.TradesResponse, error) {
+			return nil, grpcstatus.Error(codes.Unavailable, "service down")
+		},
+	}
+
+	client := &Client{accountsClient: mockAccounts}
+	_, err := client.GetTradeHistory("acc-hist")
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AccountsService.Trades failed",
+		"AccountId: acc-hist",
+		"gRPC code: Unavailable",
+		"Message: service down",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetActiveOrders_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockOrders := &mockOrdersServiceClient{
+		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+			return nil, grpcstatus.Error(codes.DeadlineExceeded, "timeout")
+		},
+	}
+
+	client := &Client{ordersClient: mockOrders}
+	_, err := client.GetActiveOrders("acc-orders")
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"OrdersService.GetOrders failed",
+		"AccountId: acc-orders",
+		"gRPC code: DeadlineExceeded",
+		"Message: timeout",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
 	}
 }
