@@ -318,7 +318,7 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 		AccountId: accountID,
 	})
 	if err != nil {
-		log.Printf("[WARN] Failed to fetch asset '%s': %v", fetchSymbol, err)
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", fetchSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		if hasSymbol {
 			return fullSymbol
 		}
@@ -367,7 +367,7 @@ func (c *Client) fetchLotSize(symbol string, accountID string) {
 		AccountId: accountID,
 	})
 	if err != nil {
-		log.Printf("[WARN] Failed to fetch lot size for '%s': %v", symbol, err)
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", symbol), fmt.Sprintf("AccountId: %s", accountID))
 		return
 	}
 
@@ -945,6 +945,7 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", fullSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get asset info for %s: %w", fullSymbol, err)
 	}
 
@@ -982,6 +983,7 @@ func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetP
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "GetAssetParams", err, fmt.Sprintf("Symbol: %s", fullSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get asset params for %s: %w", fullSymbol, err)
 	}
 

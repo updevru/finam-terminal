@@ -477,3 +477,161 @@ func (m *mockMarketDataBarsClient) Bars(ctx context.Context, in *marketdata.Bars
 func (m *mockMarketDataBarsClient) LastQuote(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
 	return nil, nil // Not used in bars tests
 }
+
+func TestGetFullSymbol_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return nil, grpcstatus.Error(codes.NotFound, "asset not found")
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	_ = client.getFullSymbol("UNKNOWN", "acc1")
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.GetAsset failed",
+		"Symbol: UNKNOWN",
+		"AccountId: acc1",
+		"gRPC code: NotFound",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestFetchLotSize_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return nil, grpcstatus.Error(codes.Internal, "server error")
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	client.fetchLotSize("SBER@TQBR", "acc2")
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.GetAsset failed",
+		"Symbol: SBER@TQBR",
+		"AccountId: acc2",
+		"gRPC code: Internal",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetAssetInfo_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return nil, grpcstatus.Error(codes.Unavailable, "service unavailable")
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 1},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	_, err := client.GetAssetInfo("acc1", "SBER")
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.GetAsset failed",
+		"Symbol: SBER@TQBR",
+		"AccountId: acc1",
+		"gRPC code: Unavailable",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+// mockAssetsGetAssetParamsClient extends mockAssetsServiceClient with GetAssetParams
+type mockAssetsGetAssetParamsClient struct {
+	assets.AssetsServiceClient
+	GetAssetFunc       func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error)
+	GetAssetParamsFunc func(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error)
+}
+
+func (m *mockAssetsGetAssetParamsClient) GetAsset(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+	return m.GetAssetFunc(ctx, in, opts...)
+}
+
+func (m *mockAssetsGetAssetParamsClient) GetAssetParams(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error) {
+	return m.GetAssetParamsFunc(ctx, in, opts...)
+}
+
+func TestGetAssetParams_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	client := &Client{
+		assetsClient: &mockAssetsGetAssetParamsClient{
+			GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+				return &assets.GetAssetResponse{Ticker: "SBER", Board: "TQBR"}, nil
+			},
+			GetAssetParamsFunc: func(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error) {
+				return nil, grpcstatus.Error(codes.PermissionDenied, "no access")
+			},
+		},
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 1},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	_, err := client.GetAssetParams("acc1", "SBER")
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.GetAssetParams failed",
+		"Symbol: SBER@TQBR",
+		"AccountId: acc1",
+		"gRPC code: PermissionDenied",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
