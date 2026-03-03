@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"finam-terminal/api"
 	"finam-terminal/config"
@@ -97,6 +98,22 @@ func main() {
 	if err := ui.RunStartupSteps(steps); err != nil {
 		fmt.Printf("Startup failed: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Warn about accounts with broker errors
+	hasErrors := false
+	for _, acc := range accounts {
+		if acc.LoadError != "" {
+			if !hasErrors {
+				fmt.Println()
+				hasErrors = true
+			}
+			fmt.Printf("\033[33m⚠ Account %s — broker error: %s\033[0m\n", acc.ID, acc.LoadError)
+		}
+	}
+	if hasErrors {
+		fmt.Println("\033[33m  Starting in limited mode. See finam-terminal.log for details.\033[0m")
+		time.Sleep(2 * time.Second)
 	}
 
 	// Start TUI

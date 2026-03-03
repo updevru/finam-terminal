@@ -10,8 +10,13 @@ import (
 
 // loadDataAsync loads account data from API asynchronously, preventing UI blocking.
 func (a *App) loadDataAsync(accountID string) {
-	// Skip "Updating..." status to avoid UI lockups on start
-	// a.SetStatus("Updating...", StatusLoading)
+	// Check if this account has a load error — skip API calls
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			a.SetStatus("Account unavailable: "+acc.LoadError, StatusError)
+			return
+		}
+	}
 
 	go func() {
 		// Fetch data in a separate goroutine
@@ -91,6 +96,11 @@ func (a *App) loadDataAsync(accountID string) {
 
 // loadHistoryAsync loads trade history from API asynchronously
 func (a *App) loadHistoryAsync(accountID string) {
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			return
+		}
+	}
 	a.SetStatus("Loading History...", StatusLoading)
 	go func() {
 		history, err := a.client.GetTradeHistory(accountID)
@@ -115,6 +125,11 @@ func (a *App) loadHistoryAsync(accountID string) {
 
 // loadOrdersAsync loads active orders from API asynchronously
 func (a *App) loadOrdersAsync(accountID string) {
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			return
+		}
+	}
 	a.SetStatus("Loading Orders...", StatusLoading)
 	go func() {
 		orders, err := a.client.GetActiveOrders(accountID)

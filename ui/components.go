@@ -137,6 +137,15 @@ func (pv *PortfolioView) UpdateAccounts(accounts []models.AccountInfo) {
 // UpdateSummary updates the account summary area
 func (pv *PortfolioView) UpdateSummary(acc models.AccountInfo) {
 	pv.SummaryArea.Clear()
+	pv.SummaryArea.SetDynamicColors(true)
+
+	if acc.LoadError != "" {
+		_, _ = fmt.Fprintf(pv.SummaryArea, " Account ID: %s\n", acc.ID)
+		_, _ = fmt.Fprintf(pv.SummaryArea, " Status:     [red]Unavailable[-]\n")
+		_, _ = fmt.Fprintf(pv.SummaryArea, " Error:      [red]%s[-]\n", acc.LoadError)
+		_, _ = fmt.Fprintf(pv.SummaryArea, "             Contact broker support\n")
+		return
+	}
 
 	equity := acc.Equity
 	if val, err := strconv.ParseFloat(equity, 64); err == nil {

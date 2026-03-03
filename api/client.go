@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
@@ -519,7 +520,13 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 			AccountId: accountID,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get account %s: %v", accountID, err)
+			grpcStatus, _ := status.FromError(err)
+			log.Printf("[ERROR] AccountsService.GetAccount failed | AccountId: %s | gRPC code: %s | Message: %s | Endpoint: %s",
+				accountID, grpcStatus.Code(), grpcStatus.Message(), c.conn.Target())
+			accountsList = append(accountsList, models.AccountInfo{
+				ID:        accountID,
+				LoadError: grpcStatus.Message(),
+			})
 			continue
 		}
 
