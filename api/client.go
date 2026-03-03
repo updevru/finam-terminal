@@ -202,6 +202,27 @@ func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
 	return time.Unix(claims.Exp, 0), nil
 }
 
+// logGRPCError logs a detailed error message for a failed gRPC call.
+// service and method identify the gRPC service and method.
+// params are optional "Key: value" strings describing request parameters.
+func (c *Client) logGRPCError(service, method string, err error, params ...string) {
+	grpcStatus, _ := status.FromError(err)
+	endpoint := ""
+	if c.conn != nil {
+		endpoint = c.conn.Target()
+	}
+	parts := []string{
+		fmt.Sprintf("[ERROR] %s.%s failed", service, method),
+	}
+	parts = append(parts, params...)
+	parts = append(parts,
+		fmt.Sprintf("gRPC code: %s", grpcStatus.Code()),
+		fmt.Sprintf("Message: %s", grpcStatus.Message()),
+		fmt.Sprintf("Endpoint: %s", endpoint),
+	)
+	log.Println(strings.Join(parts, " | "))
+}
+
 // loadAssetCache loads all available instruments and their MIC codes
 func (c *Client) loadAssetCache() error {
 	ctx, cancel := c.getContext()
