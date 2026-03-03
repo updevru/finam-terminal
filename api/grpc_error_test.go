@@ -635,3 +635,92 @@ func TestGetAssetParams_LogsGRPCError(t *testing.T) {
 		}
 	}
 }
+
+// mockAssetsScheduleClient extends mock with Schedule
+type mockAssetsScheduleClient struct {
+	assets.AssetsServiceClient
+	ScheduleFunc func(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error)
+	GetAssetFunc func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error)
+}
+
+func (m *mockAssetsScheduleClient) Schedule(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error) {
+	return m.ScheduleFunc(ctx, in, opts...)
+}
+
+func (m *mockAssetsScheduleClient) GetAsset(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+	if m.GetAssetFunc != nil {
+		return m.GetAssetFunc(ctx, in, opts...)
+	}
+	return nil, grpcstatus.Error(codes.Unimplemented, "not mocked")
+}
+
+func TestGetSchedule_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	client := &Client{
+		assetsClient: &mockAssetsScheduleClient{
+			ScheduleFunc: func(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error) {
+				return nil, grpcstatus.Error(codes.NotFound, "no schedule")
+			},
+		},
+	}
+
+	_, err := client.GetSchedule("SBER@TQBR")
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.Schedule failed",
+		"Symbol: SBER@TQBR",
+		"gRPC code: NotFound",
+		"Message: no schedule",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestPlaceOrder_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			return nil, grpcstatus.Error(codes.InvalidArgument, "bad order")
+		},
+	}
+
+	client := &Client{
+		ordersClient:  mockOrders,
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+	}
+
+	_, err := client.PlaceOrder("acc1", "SBER", "Buy", 5)
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"OrdersService.PlaceOrder failed",
+		"AccountId: acc1",
+		"Symbol: SBER@TQBR",
+		"Side: Buy",
+		"Quantity: 5",
+		"gRPC code: InvalidArgument",
+		"Message: bad order",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}

@@ -509,6 +509,11 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 
 	resp, err := c.ordersClient.PlaceOrder(ctx, req)
 	if err != nil {
+		c.logGRPCError("OrdersService", "PlaceOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Side: %s", buySell),
+			fmt.Sprintf("Quantity: %v", quantity))
 		return "", fmt.Errorf("failed to place order: %w", err)
 	}
 
@@ -1047,6 +1052,7 @@ func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
 		Symbol: symbol,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "Schedule", err, fmt.Sprintf("Symbol: %s", symbol))
 		return nil, fmt.Errorf("failed to get schedule for %s: %w", symbol, err)
 	}
 
