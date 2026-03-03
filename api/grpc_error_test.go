@@ -8,9 +8,12 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -358,4 +361,119 @@ func TestGetActiveOrders_LogsGRPCError(t *testing.T) {
 			t.Errorf("Log output missing %q.\nGot: %s", check, output)
 		}
 	}
+}
+
+func TestGetQuotes_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return nil, grpcstatus.Error(codes.NotFound, "no data")
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 1},
+	}
+
+	_, _ = client.GetQuotes("acc1", []string{"SBER"})
+
+	output := buf.String()
+	checks := []string{
+		"MarketDataService.LastQuote failed",
+		"Symbol: SBER@TQBR",
+		"gRPC code: NotFound",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetSnapshots_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockMarketData := &mockMarketDataServiceClient{
+		LastQuoteFunc: func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+			return nil, grpcstatus.Error(codes.Unavailable, "service down")
+		},
+	}
+
+	client := &Client{
+		marketDataClient: mockMarketData,
+		assetMicCache:    map[string]string{"GAZP": "GAZP@TQBR"},
+		assetLotCache:    map[string]float64{"GAZP": 1},
+	}
+
+	_, _ = client.GetSnapshots("acc1", []string{"GAZP"})
+
+	output := buf.String()
+	checks := []string{
+		"MarketDataService.LastQuote failed",
+		"Symbol: GAZP@TQBR",
+		"gRPC code: Unavailable",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetBars_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	// Need a mock for Bars method
+	client := &Client{
+		marketDataClient: &mockMarketDataBarsClient{
+			BarsFunc: func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error) {
+				return nil, grpcstatus.Error(codes.InvalidArgument, "bad timeframe")
+			},
+		},
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 1},
+	}
+
+	now := time.Now()
+	_, err := client.GetBars("acc1", "SBER", marketdata.TimeFrame_TIME_FRAME_D, now.AddDate(0, 0, -7), now)
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"MarketDataService.Bars failed",
+		"Symbol: SBER@TQBR",
+		"gRPC code: InvalidArgument",
+		"Message: bad timeframe",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+// mockMarketDataBarsClient extends mock to include Bars method
+type mockMarketDataBarsClient struct {
+	marketdata.MarketDataServiceClient
+	BarsFunc func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error)
+}
+
+func (m *mockMarketDataBarsClient) Bars(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error) {
+	return m.BarsFunc(ctx, in, opts...)
+}
+
+func (m *mockMarketDataBarsClient) LastQuote(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
+	return nil, nil // Not used in bars tests
 }

@@ -660,7 +660,7 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			Symbol: fullSymbol,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get quote for %s: %v", fullSymbol, err)
+			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue
 		}
 
@@ -870,7 +870,7 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			Symbol: fullSymbol,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get snapshot for %s: %v", fullSymbol, err)
+			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue
 		}
 
@@ -908,6 +908,10 @@ func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.T
 		},
 	})
 	if err != nil {
+		c.logGRPCError("MarketDataService", "Bars", err,
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Timeframe: %s", timeframe),
+			fmt.Sprintf("Interval: %s / %s", from.Format(time.RFC3339), to.Format(time.RFC3339)))
 		return nil, fmt.Errorf("failed to get bars for %s: %w", fullSymbol, err)
 	}
 	if resp == nil {
