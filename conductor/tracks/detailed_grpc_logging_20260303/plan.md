@@ -27,16 +27,16 @@
 
 ## Phase 3: Account Operations (4 вызова)
 
-- [ ] Task: `GetAccounts` (GetAccount loop) — уже реализован, рефакторить на хелпер
+- [x] Task: `GetAccounts` (GetAccount loop) — уже реализован, рефакторить на хелпер 6daf1e9
   - Параметры: AccountId
   - Acceptance: формат сохранён, используется хелпер
-- [ ] Task: `GetAccountDetails` — AccountsService.GetAccount
+- [x] Task: `GetAccountDetails` — AccountsService.GetAccount 6daf1e9
   - Параметры: AccountId
   - Acceptance: лог + wrapped error return сохранён
-- [ ] Task: `GetTradeHistory` — AccountsService.Trades
+- [x] Task: `GetTradeHistory` — AccountsService.Trades 6daf1e9
   - Параметры: AccountId, Interval (start/end в RFC3339)
   - Acceptance: лог + wrapped error return сохранён
-- [ ] Task: `GetActiveOrders` — OrdersService.GetOrders
+- [x] Task: `GetActiveOrders` — OrdersService.GetOrders 6daf1e9
   - Параметры: AccountId
   - Acceptance: лог + wrapped error return сохранён
 
