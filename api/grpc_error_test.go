@@ -2,11 +2,15 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	grpcstatus "google.golang.org/grpc/status"
 )
@@ -108,5 +112,112 @@ func TestLogGRPCError_NonGRPCError(t *testing.T) {
 	// For non-gRPC errors, status.FromError returns codes.Unknown
 	if !strings.Contains(output, "gRPC code: Unknown") {
 		t.Errorf("Log output missing gRPC code for non-gRPC error.\nGot: %s", output)
+	}
+}
+
+func TestAuthenticate_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAuth := &mockAuthServiceClient{
+		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+			return nil, grpcstatus.Error(codes.Unauthenticated, "bad token")
+		},
+	}
+
+	client := &Client{authClient: mockAuth}
+	err := client.authenticate("secret")
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AuthService.Auth failed",
+		"gRPC code: Unauthenticated",
+		"Message: bad token",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+	// Token must NOT appear in log
+	if strings.Contains(output, "secret") {
+		t.Errorf("Log must not contain the secret token.\nGot: %s", output)
+	}
+}
+
+func TestLoadAssetCache_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAssets := &mockAssetsServiceClient{
+		AssetsFunc: func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
+			return nil, grpcstatus.Error(codes.Internal, "server error")
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+		securityCache:       nil,
+	}
+	err := client.loadAssetCache()
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AssetsService.Assets failed",
+		"gRPC code: Internal",
+		"Message: server error",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+}
+
+func TestGetAccounts_TokenDetails_LogsGRPCError(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return nil, grpcstatus.Error(codes.PermissionDenied, "expired")
+		},
+	}
+
+	client := &Client{authClient: mockAuth}
+	_, err := client.GetAccounts()
+
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+
+	output := buf.String()
+	checks := []string{
+		"AuthService.TokenDetails failed",
+		"gRPC code: PermissionDenied",
+		"Message: expired",
+	}
+	for _, check := range checks {
+		if !strings.Contains(output, check) {
+			t.Errorf("Log output missing %q.\nGot: %s", check, output)
+		}
+	}
+	// Token must NOT appear in log
+	if strings.Contains(output, "token") && strings.Contains(output, "Token:") {
+		t.Errorf("Log must not contain the token value")
 	}
 }

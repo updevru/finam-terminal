@@ -231,6 +231,7 @@ func (c *Client) loadAssetCache() error {
 	// Use empty request to get all assets (subject to API limits)
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
+		c.logGRPCError("AssetsService", "Assets", err)
 		return fmt.Errorf("failed to get assets: %w", err)
 	}
 
@@ -436,6 +437,7 @@ func (c *Client) authenticate(apiToken string) error {
 
 	resp, err := c.authClient.Auth(ctx, &auth.AuthRequest{Secret: apiToken})
 	if err != nil {
+		c.logGRPCError("AuthService", "Auth", err)
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
@@ -532,6 +534,7 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 
 	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: c.token})
 	if err != nil {
+		c.logGRPCError("AuthService", "TokenDetails", err)
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
 
