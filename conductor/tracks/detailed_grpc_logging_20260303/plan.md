@@ -15,13 +15,13 @@
 
 ## Phase 2: Auth & Asset Cache (3 вызова)
 
-- [ ] Task: `authenticate` — AuthService.Auth
+- [x] Task: `authenticate` — AuthService.Auth af173e6
   - Параметры для лога: нет (токен секретный)
   - Acceptance: лог содержит сервис, метод, gRPC code, endpoint
-- [ ] Task: `loadAssetCache` — AssetsService.Assets
+- [x] Task: `loadAssetCache` — AssetsService.Assets af173e6
   - Параметры для лога: нет (пустой запрос)
   - Acceptance: лог содержит сервис, метод, gRPC code, endpoint
-- [ ] Task: `GetAccounts` (TokenDetails) — AuthService.TokenDetails
+- [x] Task: `GetAccounts` (TokenDetails) — AuthService.TokenDetails af173e6
   - Параметры для лога: нет (токен секретный)
   - Acceptance: лог содержит сервис, метод, gRPC code, endpoint
 
