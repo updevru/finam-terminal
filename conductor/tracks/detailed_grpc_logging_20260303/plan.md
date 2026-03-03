@@ -54,16 +54,16 @@
 
 ## Phase 5: Asset Info (4 вызова)
 
-- [ ] Task: `getFullSymbol` — AssetsService.GetAsset
+- [x] Task: `getFullSymbol` — AssetsService.GetAsset 9dc3aed
   - Параметры: Symbol, AccountId
   - Acceptance: заменяет текущий `[WARN]`, fallback-логика сохранена
-- [ ] Task: `fetchLotSize` — AssetsService.GetAsset
+- [x] Task: `fetchLotSize` — AssetsService.GetAsset 9dc3aed
   - Параметры: Symbol, AccountId
   - Acceptance: заменяет текущий `[WARN]`
-- [ ] Task: `GetAssetInfo` — AssetsService.GetAsset
+- [x] Task: `GetAssetInfo` — AssetsService.GetAsset 9dc3aed
   - Параметры: Symbol, AccountId
   - Acceptance: лог + wrapped error return сохранён
-- [ ] Task: `GetAssetParams` — AssetsService.GetAssetParams
+- [x] Task: `GetAssetParams` — AssetsService.GetAssetParams 9dc3aed
   - Параметры: Symbol, AccountId
   - Acceptance: лог + wrapped error return сохранён
 
