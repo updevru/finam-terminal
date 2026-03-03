@@ -69,10 +69,10 @@
 
 ## Phase 6: Orders & Schedule (2 вызова)
 
-- [ ] Task: `GetSchedule` — AssetsService.Schedule
+- [x] Task: `GetSchedule` — AssetsService.Schedule 45cf7d7
   - Параметры: Symbol
   - Acceptance: лог + wrapped error return сохранён
-- [ ] Task: `PlaceOrder` — OrdersService.PlaceOrder
+- [x] Task: `PlaceOrder` — OrdersService.PlaceOrder 45cf7d7
   - Параметры: AccountId, Symbol, Side, Quantity (в лотах)
   - Acceptance: лог + wrapped error return сохранён
 
