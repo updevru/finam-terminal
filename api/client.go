@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
@@ -201,6 +202,27 @@ func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
 	return time.Unix(claims.Exp, 0), nil
 }
 
+// logGRPCError logs a detailed error message for a failed gRPC call.
+// service and method identify the gRPC service and method.
+// params are optional "Key: value" strings describing request parameters.
+func (c *Client) logGRPCError(service, method string, err error, params ...string) {
+	grpcStatus, _ := status.FromError(err)
+	endpoint := ""
+	if c.conn != nil {
+		endpoint = c.conn.Target()
+	}
+	parts := []string{
+		fmt.Sprintf("[ERROR] %s.%s failed", service, method),
+	}
+	parts = append(parts, params...)
+	parts = append(parts,
+		fmt.Sprintf("gRPC code: %s", grpcStatus.Code()),
+		fmt.Sprintf("Message: %s", grpcStatus.Message()),
+		fmt.Sprintf("Endpoint: %s", endpoint),
+	)
+	log.Println(strings.Join(parts, " | "))
+}
+
 // loadAssetCache loads all available instruments and their MIC codes
 func (c *Client) loadAssetCache() error {
 	ctx, cancel := c.getContext()
@@ -209,6 +231,7 @@ func (c *Client) loadAssetCache() error {
 	// Use empty request to get all assets (subject to API limits)
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
+		c.logGRPCError("AssetsService", "Assets", err)
 		return fmt.Errorf("failed to get assets: %w", err)
 	}
 
@@ -295,7 +318,7 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 		AccountId: accountID,
 	})
 	if err != nil {
-		log.Printf("[WARN] Failed to fetch asset '%s': %v", fetchSymbol, err)
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", fetchSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		if hasSymbol {
 			return fullSymbol
 		}
@@ -344,7 +367,7 @@ func (c *Client) fetchLotSize(symbol string, accountID string) {
 		AccountId: accountID,
 	})
 	if err != nil {
-		log.Printf("[WARN] Failed to fetch lot size for '%s': %v", symbol, err)
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", symbol), fmt.Sprintf("AccountId: %s", accountID))
 		return
 	}
 
@@ -414,6 +437,7 @@ func (c *Client) authenticate(apiToken string) error {
 
 	resp, err := c.authClient.Auth(ctx, &auth.AuthRequest{Secret: apiToken})
 	if err != nil {
+		c.logGRPCError("AuthService", "Auth", err)
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
@@ -485,6 +509,11 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 
 	resp, err := c.ordersClient.PlaceOrder(ctx, req)
 	if err != nil {
+		c.logGRPCError("OrdersService", "PlaceOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Side: %s", buySell),
+			fmt.Sprintf("Quantity: %v", quantity))
 		return "", fmt.Errorf("failed to place order: %w", err)
 	}
 
@@ -510,6 +539,7 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 
 	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: c.token})
 	if err != nil {
+		c.logGRPCError("AuthService", "TokenDetails", err)
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
 
@@ -519,7 +549,12 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 			AccountId: accountID,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get account %s: %v", accountID, err)
+			c.logGRPCError("AccountsService", "GetAccount", err, fmt.Sprintf("AccountId: %s", accountID))
+			grpcStatus, _ := status.FromError(err)
+			accountsList = append(accountsList, models.AccountInfo{
+				ID:        accountID,
+				LoadError: grpcStatus.Message(),
+			})
 			continue
 		}
 
@@ -552,6 +587,7 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AccountsService", "GetAccount", err, fmt.Sprintf("AccountId: %s", accountID))
 		return nil, nil, fmt.Errorf("failed to get account: %w", err)
 	}
 
@@ -629,7 +665,7 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			Symbol: fullSymbol,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get quote for %s: %v", fullSymbol, err)
+			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue
 		}
 
@@ -698,6 +734,9 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 		},
 	})
 	if err != nil {
+		c.logGRPCError("AccountsService", "Trades", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Interval: %s / %s", startTime.Format(time.RFC3339), now.Format(time.RFC3339)))
 		return nil, fmt.Errorf("failed to get trades: %w", err)
 	}
 
@@ -745,6 +784,7 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("OrdersService", "GetOrders", err, fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get orders: %w", err)
 	}
 
@@ -835,7 +875,7 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			Symbol: fullSymbol,
 		})
 		if err != nil {
-			log.Printf("[WARN] Failed to get snapshot for %s: %v", fullSymbol, err)
+			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue
 		}
 
@@ -873,6 +913,10 @@ func (c *Client) GetBars(accountID string, symbol string, timeframe marketdata.T
 		},
 	})
 	if err != nil {
+		c.logGRPCError("MarketDataService", "Bars", err,
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Timeframe: %s", timeframe),
+			fmt.Sprintf("Interval: %s / %s", from.Format(time.RFC3339), to.Format(time.RFC3339)))
 		return nil, fmt.Errorf("failed to get bars for %s: %w", fullSymbol, err)
 	}
 	if resp == nil {
@@ -906,6 +950,7 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", fullSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get asset info for %s: %w", fullSymbol, err)
 	}
 
@@ -943,6 +988,7 @@ func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetP
 		AccountId: accountID,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "GetAssetParams", err, fmt.Sprintf("Symbol: %s", fullSymbol), fmt.Sprintf("AccountId: %s", accountID))
 		return nil, fmt.Errorf("failed to get asset params for %s: %w", fullSymbol, err)
 	}
 
@@ -1006,6 +1052,7 @@ func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
 		Symbol: symbol,
 	})
 	if err != nil {
+		c.logGRPCError("AssetsService", "Schedule", err, fmt.Sprintf("Symbol: %s", symbol))
 		return nil, fmt.Errorf("failed to get schedule for %s: %w", symbol, err)
 	}
 

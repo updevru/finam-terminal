@@ -19,6 +19,13 @@ func updateAccountList(app *App) {
 	}
 
 	for i, acc := range app.accounts {
+		if acc.LoadError != "" {
+			app.portfolioView.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
+			app.portfolioView.AccountTable.SetCell(i+1, 1, tview.NewTableCell("[error]").SetTextColor(tcell.ColorRed))
+			app.portfolioView.AccountTable.SetCell(i+1, 2, tview.NewTableCell("—").SetTextColor(tcell.ColorGray))
+			continue
+		}
+
 		equity := acc.Equity
 		if val, err := parseFloat(equity); err == nil {
 			equity = fmt.Sprintf("%.2f", val)
@@ -130,10 +137,18 @@ func updatePositionsTable(app *App) {
 	}
 
 	if len(pos) == 0 {
-		app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell("No open positions").
-			SetSelectable(false).
-			SetAlign(tview.AlignCenter).
-			SetTextColor(tcell.ColorGray))
+		acc := app.accounts[app.selectedIdx]
+		if acc.LoadError != "" {
+			app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell("Broker error: "+acc.LoadError).
+				SetSelectable(false).
+				SetAlign(tview.AlignCenter).
+				SetTextColor(tcell.ColorRed))
+		} else {
+			app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell("No open positions").
+				SetSelectable(false).
+				SetAlign(tview.AlignCenter).
+				SetTextColor(tcell.ColorGray))
+		}
 	}
 }
 

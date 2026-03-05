@@ -10,12 +10,17 @@ import (
 
 // loadDataAsync loads account data from API asynchronously, preventing UI blocking.
 func (a *App) loadDataAsync(accountID string) {
-	// Skip "Updating..." status to avoid UI lockups on start
-	// a.SetStatus("Updating...", StatusLoading)
+	// Check if this account has a load error — skip API calls
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			a.SetStatus("Account unavailable: "+acc.LoadError, StatusError)
+			return
+		}
+	}
 
 	go func() {
 		// Fetch data in a separate goroutine
-		_, pos, err := a.client.GetAccountDetails(accountID)
+		accInfo, pos, err := a.client.GetAccountDetails(accountID)
 		if err != nil {
 			log.Printf("[WARN] Failed to load positions for %s: %v", accountID, err)
 
@@ -23,20 +28,8 @@ func (a *App) loadDataAsync(accountID string) {
 			if err != nil && (err.Error() == "context deadline exceeded" || strings.Contains(err.Error(), "DeadlineExceeded")) {
 				errMsg = "Connection Timeout"
 			}
-			// Update status only on error or completion
+			// Update status only on error or completion — keep cached data visible
 			a.SetStatus(errMsg, StatusError)
-
-			// On error, we can schedule a UI update to clear data
-			a.app.QueueUpdateDraw(func() {
-				a.dataMutex.Lock()
-				a.positions[accountID] = []models.Position{}
-				a.quotes[accountID] = make(map[string]*models.Quote)
-				a.dataMutex.Unlock()
-				if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
-					updatePositionsTable(a)
-					updateInfoPanel(a)
-				}
-			})
 			return
 		}
 
@@ -77,10 +70,21 @@ func (a *App) loadDataAsync(accountID string) {
 			} else {
 				a.quotes[accountID] = make(map[string]*models.Quote)
 			}
+			// Update account info (Equity, UnrealizedPnL) with fresh data from API
+			if accInfo != nil {
+				for i := range a.accounts {
+					if a.accounts[i].ID == accountID {
+						a.accounts[i].Equity = accInfo.Equity
+						a.accounts[i].UnrealizedPnL = accInfo.UnrealizedPnL
+						break
+					}
+				}
+			}
 			a.dataMutex.Unlock()
 
 			// If the data for the currently viewed account is updated, refresh the view.
 			if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
+				updateAccountList(a)
 				updatePositionsTable(a)
 				updateInfoPanel(a)
 				updateStatusBar(a)
@@ -91,6 +95,11 @@ func (a *App) loadDataAsync(accountID string) {
 
 // loadHistoryAsync loads trade history from API asynchronously
 func (a *App) loadHistoryAsync(accountID string) {
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			return
+		}
+	}
 	a.SetStatus("Loading History...", StatusLoading)
 	go func() {
 		history, err := a.client.GetTradeHistory(accountID)
@@ -115,6 +124,11 @@ func (a *App) loadHistoryAsync(accountID string) {
 
 // loadOrdersAsync loads active orders from API asynchronously
 func (a *App) loadOrdersAsync(accountID string) {
+	for _, acc := range a.accounts {
+		if acc.ID == accountID && acc.LoadError != "" {
+			return
+		}
+	}
 	a.SetStatus("Loading Orders...", StatusLoading)
 	go func() {
 		orders, err := a.client.GetActiveOrders(accountID)

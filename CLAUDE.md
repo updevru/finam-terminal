@@ -25,7 +25,7 @@ The project follows a clean modular structure:
     *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart.
     *   `chart.go`: Unicode candlestick chart renderer with smart time labels.
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
-*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata.
+*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker.
 
 ## Getting Started
 
@@ -150,6 +150,10 @@ go build -o finam-trade.exe main.go
 10.  **Instrument Name Cache**
     *   **File:** `api/client.go` (`InstrumentCache`, `GetInstrumentName`, `UpdateInstrumentCache`)
     *   **Usage:** Centralized O(1) cache mapping ticker symbols to human-readable names. Populated during asset loading and search operations.
+
+11.  **gRPC Error Logging**
+    *   **File:** `api/client.go` (`logGRPCError`)
+    *   **Usage:** Unified helper used by all 16 gRPC calls to log errors in a structured format: `[ERROR] Service.Method failed | Param: value | gRPC code: <code> | Message: <msg> | Endpoint: <addr>`. Never logs secrets (tokens).
 
 # Conductor Context
 

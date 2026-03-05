@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.10.1] - 2026-03-05
+
+### Added
+- **Detailed gRPC Error Logging**: All 16 gRPC API calls now log errors in a unified format including service, method, request parameters, gRPC status code, error message, and endpoint — makes broker support diagnosis significantly easier (`detailed_grpc_logging`).
+
+### Fixed
+- **Broker Error Indication**: Accounts that fail to load from the broker now display an error indicator in the UI instead of silently showing stale data (`detailed_grpc_logging`).
+- **Portfolio Preservation**: Portfolio data is preserved on transient API errors and Equity/PnL values update in real-time.
+
 ## [v0.10.0] - 2026-02-24
 
 ### Added

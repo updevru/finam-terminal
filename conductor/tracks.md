@@ -36,3 +36,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/instrument_profile_20260218/spec.md](./tracks/instrument_profile_20260218/spec.md)*
 *Plan: [./tracks/instrument_profile_20260218/plan.md](./tracks/instrument_profile_20260218/plan.md)*
 *Phases: 6 | Tasks: 14*
+
+
+---
+
+
+- [x] **Track: Detailed gRPC Error Logging for Broker Support** ✅ Completed
+
+*Link: [./tracks/detailed_grpc_logging_20260303/](./tracks/detailed_grpc_logging_20260303/)*
+*Spec: [./tracks/detailed_grpc_logging_20260303/spec.md](./tracks/detailed_grpc_logging_20260303/spec.md)*
+*Plan: [./tracks/detailed_grpc_logging_20260303/plan.md](./tracks/detailed_grpc_logging_20260303/plan.md)*
+*Phases: 7 | Tasks: 19*

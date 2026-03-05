@@ -14,6 +14,7 @@ type AccountInfo struct {
 	Equity        string
 	UnrealizedPnL string
 	OpenDate      time.Time
+	LoadError     string // Non-empty if account failed to load from broker
 }
 
 // Position represents a trading position
