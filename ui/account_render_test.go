@@ -164,6 +164,42 @@ func TestUpdateAccountList_SelectionCoversCorrectRow(t *testing.T) {
 	}
 }
 
+func TestUpdateAccountList_ErrorAccount(t *testing.T) {
+	accounts := []models.AccountInfo{
+		{ID: "ERR_ACC", LoadError: "broker unavailable"},
+		{ID: "OK_ACC", Equity: "5000.00", UnrealizedPnL: "100.00"},
+	}
+	app := createTestAppWithAccounts(accounts)
+	updateAccountList(app)
+
+	// 2 accounts × 2 rows = 4
+	if app.portfolioView.AccountTable.GetRowCount() != 4 {
+		t.Fatalf("Expected 4 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
+	}
+
+	// Error account row 0: ID
+	idCell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if idCell.Text != "ERR_ACC" {
+		t.Errorf("Expected error account ID 'ERR_ACC', got %q", idCell.Text)
+	}
+
+	// Error account row 1: "[error]" in red
+	errCell := app.portfolioView.AccountTable.GetCell(1, 0)
+	if errCell.Text != "[error]" {
+		t.Errorf("Expected '[error]' text, got %q", errCell.Text)
+	}
+	fg, _, _ := errCell.Style.Decompose()
+	if fg != tcell.ColorRed {
+		t.Errorf("Expected error text in red, got %v", fg)
+	}
+
+	// Normal account still renders correctly at rows 2-3
+	okIDCell := app.portfolioView.AccountTable.GetCell(2, 0)
+	if okIDCell.Text != "OK_ACC" {
+		t.Errorf("Expected normal account ID 'OK_ACC', got %q", okIDCell.Text)
+	}
+}
+
 func TestUpdateAccountList_EmptyAccounts(t *testing.T) {
 	app := createTestAppWithAccounts([]models.AccountInfo{})
 	updateAccountList(app)
