@@ -946,6 +946,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			Side:   side,
 		}
 
+		// Populate executed/remaining quantities from OrderState
+		order.ExecutedQty = formatDecimal(o.ExecutedQuantity)
+		order.RemainingQty = formatDecimal(o.RemainingQuantity)
+
 		if o.Order != nil {
 			order.Symbol = o.Order.Symbol
 			c.assetMutex.RLock()
@@ -966,6 +970,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			}
 			order.Quantity = formatDecimal(o.Order.Quantity)
 
+			// Populate separate price fields
+			order.LimitPrice = formatDecimal(o.Order.LimitPrice)
+			order.StopPrice = formatDecimal(o.Order.StopPrice)
+
 			// Show the most relevant price based on order type
 			switch o.Order.Type {
 			case orders.OrderType_ORDER_TYPE_STOP, orders.OrderType_ORDER_TYPE_STOP_LIMIT:
@@ -978,6 +986,17 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			if order.Price == "0" || order.Price == "" || order.Price == "N/A" {
 				order.Price = "Market"
 			}
+
+			// Stop condition
+			switch o.Order.StopCondition {
+			case orders.StopCondition_STOP_CONDITION_LAST_UP:
+				order.StopCondition = "Last Up"
+			case orders.StopCondition_STOP_CONDITION_LAST_DOWN:
+				order.StopCondition = "Last Down"
+			}
+
+			// Validity
+			order.Validity = formatValidBefore(o.Order.ValidBefore)
 		}
 
 		// Check for SL/TP linked orders
@@ -992,15 +1011,29 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 				}
 				c.assetMutex.RUnlock()
 			}
-			// Show SL and TP prices
-			slPrice := formatDecimal(o.SltpOrder.SlPrice)
-			tpPrice := formatDecimal(o.SltpOrder.TpPrice)
-			var priceParts []string
-			if slPrice != "" && slPrice != "N/A" && slPrice != "0" {
-				priceParts = append(priceParts, "SL:"+slPrice)
+
+			// Populate SL/TP specific fields
+			order.SLPrice = formatDecimal(o.SltpOrder.SlPrice)
+			order.TPPrice = formatDecimal(o.SltpOrder.TpPrice)
+			order.SLQty = formatDecimal(o.SltpOrder.QuantitySl)
+			order.TPQty = formatDecimal(o.SltpOrder.QuantityTp)
+			order.Validity = formatValidBefore(o.SltpOrder.ValidBefore)
+
+			// Populate side from SL/TP order
+			switch o.SltpOrder.Side {
+			case tradeapiv1.Side_SIDE_BUY:
+				order.Side = "Buy"
+			case tradeapiv1.Side_SIDE_SELL:
+				order.Side = "Sell"
 			}
-			if tpPrice != "" && tpPrice != "N/A" && tpPrice != "0" {
-				priceParts = append(priceParts, "TP:"+tpPrice)
+
+			// Show SL and TP prices in the combined Price field
+			var priceParts []string
+			if order.SLPrice != "" && order.SLPrice != "N/A" && order.SLPrice != "0" {
+				priceParts = append(priceParts, "SL:"+order.SLPrice)
+			}
+			if order.TPPrice != "" && order.TPPrice != "N/A" && order.TPPrice != "0" {
+				priceParts = append(priceParts, "TP:"+order.TPPrice)
 			}
 			if len(priceParts) > 0 {
 				order.Price = strings.Join(priceParts, " ")
@@ -1234,6 +1267,20 @@ func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
 	}
 
 	return sessions, nil
+}
+
+// formatValidBefore converts a ValidBefore enum to a human-readable string.
+func formatValidBefore(vb orders.ValidBefore) string {
+	switch vb {
+	case orders.ValidBefore_VALID_BEFORE_END_OF_DAY:
+		return "Day"
+	case orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL:
+		return "GTC"
+	case orders.ValidBefore_VALID_BEFORE_GOOD_TILL_DATE:
+		return "GTD"
+	default:
+		return ""
+	}
 }
 
 // parseDecimalFloat parses a google Decimal to float64, returns 0 on failure

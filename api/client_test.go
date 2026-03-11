@@ -966,6 +966,132 @@ func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 	}
 }
 
+func TestGetActiveOrders_ExtendedFields(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		GetOrdersFunc: func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
+			return &orders.OrdersResponse{
+				Orders: []*orders.OrderState{
+					{
+						OrderId: "STOP-1",
+						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+						Order: &orders.Order{
+							Symbol:        "SBER",
+							Side:          tradeapiv1.Side_SIDE_SELL,
+							Type:          orders.OrderType_ORDER_TYPE_STOP,
+							Quantity:      &decimal.Decimal{Value: "100"},
+							StopPrice:     &decimal.Decimal{Value: "240.00"},
+							StopCondition: orders.StopCondition_STOP_CONDITION_LAST_DOWN,
+							ValidBefore:   orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL,
+						},
+						ExecutedQuantity:  &decimal.Decimal{Value: "0"},
+						RemainingQuantity: &decimal.Decimal{Value: "100"},
+						TransactAt:        timestamppb.Now(),
+					},
+					{
+						OrderId: "LIMIT-1",
+						Status:  orders.OrderStatus_ORDER_STATUS_PARTIALLY_FILLED,
+						Order: &orders.Order{
+							Symbol:      "GAZP",
+							Side:        tradeapiv1.Side_SIDE_BUY,
+							Type:        orders.OrderType_ORDER_TYPE_LIMIT,
+							Quantity:    &decimal.Decimal{Value: "200"},
+							LimitPrice:  &decimal.Decimal{Value: "150.00"},
+							ValidBefore: orders.ValidBefore_VALID_BEFORE_END_OF_DAY,
+						},
+						ExecutedQuantity:  &decimal.Decimal{Value: "50"},
+						RemainingQuantity: &decimal.Decimal{Value: "150"},
+						TransactAt:        timestamppb.Now(),
+					},
+					{
+						OrderId: "SLTP-1",
+						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+						SltpOrder: &orders.SLTPOrder{
+							Symbol:     "AAPL",
+							Side:       tradeapiv1.Side_SIDE_SELL,
+							SlPrice:    &decimal.Decimal{Value: "170.00"},
+							TpPrice:    &decimal.Decimal{Value: "200.00"},
+							QuantitySl: &decimal.Decimal{Value: "10"},
+							QuantityTp: &decimal.Decimal{Value: "10"},
+							ValidBefore: orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL,
+						},
+						TransactAt: timestamppb.Now(),
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+		instrumentNameCache: map[string]string{
+			"SBER": "Сбербанк",
+			"GAZP": "Газпром",
+		},
+	}
+
+	activeOrders, err := client.GetActiveOrders("acc1")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(activeOrders) != 3 {
+		t.Fatalf("Expected 3 orders, got %d", len(activeOrders))
+	}
+
+	// Stop order checks
+	stop := activeOrders[0]
+	if stop.StopCondition != "Last Down" {
+		t.Errorf("Expected StopCondition 'Last Down', got '%s'", stop.StopCondition)
+	}
+	if stop.StopPrice != "240.00" {
+		t.Errorf("Expected StopPrice '240.00', got '%s'", stop.StopPrice)
+	}
+	if stop.Validity != "GTC" {
+		t.Errorf("Expected Validity 'GTC', got '%s'", stop.Validity)
+	}
+	if stop.ExecutedQty != "0" {
+		t.Errorf("Expected ExecutedQty '0', got '%s'", stop.ExecutedQty)
+	}
+	if stop.RemainingQty != "100" {
+		t.Errorf("Expected RemainingQty '100', got '%s'", stop.RemainingQty)
+	}
+
+	// Limit order checks
+	limit := activeOrders[1]
+	if limit.LimitPrice != "150.00" {
+		t.Errorf("Expected LimitPrice '150.00', got '%s'", limit.LimitPrice)
+	}
+	if limit.Validity != "Day" {
+		t.Errorf("Expected Validity 'Day', got '%s'", limit.Validity)
+	}
+	if limit.ExecutedQty != "50" {
+		t.Errorf("Expected ExecutedQty '50', got '%s'", limit.ExecutedQty)
+	}
+	if limit.RemainingQty != "150" {
+		t.Errorf("Expected RemainingQty '150', got '%s'", limit.RemainingQty)
+	}
+
+	// SL/TP order checks
+	sltp := activeOrders[2]
+	if sltp.Type != "SL/TP" {
+		t.Errorf("Expected Type 'SL/TP', got '%s'", sltp.Type)
+	}
+	if sltp.SLPrice != "170.00" {
+		t.Errorf("Expected SLPrice '170.00', got '%s'", sltp.SLPrice)
+	}
+	if sltp.TPPrice != "200.00" {
+		t.Errorf("Expected TPPrice '200.00', got '%s'", sltp.TPPrice)
+	}
+	if sltp.SLQty != "10" {
+		t.Errorf("Expected SLQty '10', got '%s'", sltp.SLQty)
+	}
+	if sltp.TPQty != "10" {
+		t.Errorf("Expected TPQty '10', got '%s'", sltp.TPQty)
+	}
+	if sltp.Validity != "GTC" {
+		t.Errorf("Expected Validity 'GTC', got '%s'", sltp.Validity)
+	}
+}
+
 func TestCancelOrder_Success(t *testing.T) {
 	mockOrders := &mockOrdersServiceClient{
 		CancelOrderFunc: func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error) {
