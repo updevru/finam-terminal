@@ -320,6 +320,97 @@ func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	return nil
 }
 
+// getSelectedOrder returns the order currently selected in the Orders table.
+func (a *App) getSelectedOrder() (models.Order, error) {
+	row, _ := a.portfolioView.TabbedView.OrdersTable.GetSelection()
+	if row <= 0 {
+		return models.Order{}, fmt.Errorf("no order selected")
+	}
+	idx := row - 1
+
+	a.dataMutex.RLock()
+	defer a.dataMutex.RUnlock()
+
+	if a.selectedIdx < 0 || a.selectedIdx >= len(a.accounts) {
+		return models.Order{}, fmt.Errorf("no account selected")
+	}
+	accountID := a.accounts[a.selectedIdx].ID
+	orders := a.activeOrders[accountID]
+
+	if idx < 0 || idx >= len(orders) {
+		return models.Order{}, fmt.Errorf("invalid order selection")
+	}
+
+	return orders[idx], nil
+}
+
+// cancelOrder cancels an order and refreshes the orders list.
+func (a *App) cancelOrder(accountID, orderID string) error {
+	a.SetStatus("Cancelling order...", StatusLoading)
+
+	err := a.client.CancelOrder(accountID, orderID)
+	if err != nil {
+		msg := extractUserMessage(err)
+		a.SetStatus(fmt.Sprintf("Cancel failed: %s", msg), StatusError)
+		return err
+	}
+
+	a.SetStatus(fmt.Sprintf("Order %s cancelled", orderID), StatusSuccess)
+
+	// Refresh orders
+	a.loadOrdersAsync(accountID)
+
+	return nil
+}
+
+// ShowCancelConfirmation shows a Yes/No confirmation modal for cancelling an order.
+func (a *App) ShowCancelConfirmation() {
+	order, err := a.getSelectedOrder()
+	if err != nil {
+		a.SetStatus("No order selected", StatusError)
+		return
+	}
+
+	if order.Status != "Active" && order.Status != "New" && order.Status != "Partial" {
+		a.SetStatus("Order is not cancellable", StatusError)
+		return
+	}
+
+	a.dataMutex.RLock()
+	accountID := a.accounts[a.selectedIdx].ID
+	a.dataMutex.RUnlock()
+
+	displayName := order.Name
+	if displayName == "" {
+		displayName = order.Symbol
+	}
+	text := fmt.Sprintf("Cancel %s %s %s @ %s?", order.Type, order.Side, displayName, order.Price)
+
+	modal := tview.NewModal().
+		SetText(text).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("cancel_confirm")
+			a.app.SetFocus(a.portfolioView.TabbedView.OrdersTable)
+			if buttonLabel == "Yes" {
+				go func() {
+					if err := a.cancelOrder(accountID, order.ID); err != nil {
+						a.app.QueueUpdateDraw(func() {
+							updateStatusBar(a)
+						})
+					} else {
+						a.app.QueueUpdateDraw(func() {
+							updateOrdersTable(a)
+							updateStatusBar(a)
+						})
+					}
+				}()
+			}
+		})
+
+	a.pages.AddPage("cancel_confirm", modal, false, true)
+}
+
 // ShowError displays an error modal
 func (a *App) ShowError(msg string) {
 	modal := tview.NewModal().
