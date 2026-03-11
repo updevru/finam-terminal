@@ -94,7 +94,7 @@ Extend the trading terminal with limit, stop-loss, take-profit, and linked SL+TP
   - Test validation (missing prices, zero prices, negative prices)
   - Acceptance: All order types work end-to-end
 
-- [~] Task: Update CLAUDE.md with new API methods documentation
+- [x] Task: Update CLAUDE.md with new API methods documentation *(968e0c8)*
   - Document `PlaceSLTPOrder` API method
   - Document order type support in `PlaceOrder`
   - Acceptance: CLAUDE.md reflects current capabilities
