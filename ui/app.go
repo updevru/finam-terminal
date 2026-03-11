@@ -215,6 +215,12 @@ func (a *App) IsCloseModalOpen() bool {
 	return name == "close_modal"
 }
 
+// IsCancelConfirmOpen returns true if the cancel confirmation modal is currently open
+func (a *App) IsCancelConfirmOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "cancel_confirm"
+}
+
 // SubmitOrder submits a new order based on the order submission from the modal
 func (a *App) SubmitOrder(sub OrderSubmission) error {
 	a.dataMutex.RLock()
