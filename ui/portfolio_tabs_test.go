@@ -244,8 +244,8 @@ func TestOrdersTable_EnhancedColumns(t *testing.T) {
 
 	updateOrdersTable(app)
 
-	// Verify header includes new columns
-	expectedHeaders := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Validity", "Time"}
+	// Verify header includes new columns (no Validity — it's inlined into Price/Condition)
+	expectedHeaders := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Time"}
 	for i, expected := range expectedHeaders {
 		cell := app.portfolioView.TabbedView.OrdersTable.GetCell(0, i)
 		if cell.Text != expected {
@@ -253,16 +253,10 @@ func TestOrdersTable_EnhancedColumns(t *testing.T) {
 		}
 	}
 
-	// Row 1: Stop order — Price/Condition should show "SL: 240.00 ↓"
+	// Row 1: Stop order — Price/Condition should show "SL: 240.00 ↓" (GTC omitted)
 	priceCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 6)
 	if priceCell.Text != "SL: 240.00 ↓" {
 		t.Errorf("Stop order Price/Condition: expected 'SL: 240.00 ↓', got '%s'", priceCell.Text)
-	}
-
-	// Validity column
-	validityCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 7)
-	if validityCell.Text != "GTC" {
-		t.Errorf("Stop order Validity: expected 'GTC', got '%s'", validityCell.Text)
 	}
 
 	// Executed column
@@ -275,5 +269,27 @@ func TestOrdersTable_EnhancedColumns(t *testing.T) {
 	sltpPriceCell := app.portfolioView.TabbedView.OrdersTable.GetCell(2, 6)
 	if sltpPriceCell.Text != "SL:170.00 / TP:200.00" {
 		t.Errorf("SL/TP order Price/Condition: expected 'SL:170.00 / TP:200.00', got '%s'", sltpPriceCell.Text)
+	}
+}
+
+func TestOrdersTable_NonGTCValidityInlined(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(ticker string) float64 { return 1 }
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+
+	app.activeOrders["acc1"] = []models.Order{
+		{
+			ID: "LIM-1", Symbol: "SBER", Side: "Buy",
+			Type: "Limit", Status: "Active", Quantity: "10",
+			LimitPrice: "250.00", Validity: "Day",
+		},
+	}
+
+	updateOrdersTable(app)
+
+	// Price/Condition should include "(Day)"
+	priceCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 6)
+	if priceCell.Text != "250.00 (Day)" {
+		t.Errorf("Expected '250.00 (Day)', got '%s'", priceCell.Text)
 	}
 }

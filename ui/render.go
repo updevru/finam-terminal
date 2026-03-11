@@ -241,7 +241,7 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Validity", "Time"}
+	headers := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -340,9 +340,7 @@ func updateOrdersTable(app *App) {
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(priceCondition).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 7, tview.NewTableCell(o.Validity).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 8, tview.NewTableCell(timeStr).
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 7, tview.NewTableCell(timeStr).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 	}
 
@@ -355,7 +353,9 @@ func updateOrdersTable(app *App) {
 }
 
 // formatOrderPriceCondition builds a display string for the Price/Condition column.
+// Non-GTC validity is appended in parentheses, e.g. "SL: 100.50 ↓ (Day)".
 func formatOrderPriceCondition(o models.Order) string {
+	var result string
 	switch o.Type {
 	case "SL/TP":
 		var parts []string
@@ -366,9 +366,10 @@ func formatOrderPriceCondition(o models.Order) string {
 			parts = append(parts, "TP:"+o.TPPrice)
 		}
 		if len(parts) > 0 {
-			return strings.Join(parts, " / ")
+			result = strings.Join(parts, " / ")
+		} else {
+			result = o.Price
 		}
-		return o.Price
 	case "Stop":
 		arrow := ""
 		if o.StopCondition == "Last Down" {
@@ -376,14 +377,20 @@ func formatOrderPriceCondition(o models.Order) string {
 		} else if o.StopCondition == "Last Up" {
 			arrow = " ↑"
 		}
-		return "SL: " + o.StopPrice + arrow
+		result = "SL: " + o.StopPrice + arrow
 	case "Stop-Limit":
-		return "Stop: " + o.StopPrice + " Lim: " + o.LimitPrice
+		result = "Stop: " + o.StopPrice + " Lim: " + o.LimitPrice
 	case "Limit":
-		return o.LimitPrice
+		result = o.LimitPrice
 	default:
-		return o.Price
+		result = o.Price
 	}
+
+	// Append non-GTC validity
+	if o.Validity != "" && o.Validity != "GTC" {
+		result += " (" + o.Validity + ")"
+	}
+	return result
 }
 
 // updateInfoPanel refreshes the info panel
