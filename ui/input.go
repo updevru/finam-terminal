@@ -145,6 +145,11 @@ func setupInputHandlers(app *App) {
 					app.ShowCancelConfirmation()
 				}
 				return nil
+			case 'e', 'E', 'у', 'У':
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowModifyOrderModal()
+				}
+				return nil
 			case 'c', 'C', 'с', 'С':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenCloseModal()

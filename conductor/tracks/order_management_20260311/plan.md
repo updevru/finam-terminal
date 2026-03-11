@@ -45,7 +45,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Only show Cancel/Modify when a cancellable order is selected
   - Acceptance: Status bar updates dynamically based on active tab and selection
 
-## Phase 4: Cancel Order Flow
+## Phase 4: Cancel Order Flow [checkpoint: 9de8f77]
 
 - [x] Task: Create cancel confirmation modal `cbcbd70`
   - Simple Yes/No modal: "Cancel order TYPE SIDE TICKER @ PRICE? [Yes/No]"
@@ -61,7 +61,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
 
 ## Phase 5: Modify Order Flow
 
-- [ ] Task: Implement modify flow (cancel + re-place)
+- [x] Task: Implement modify flow (cancel + re-place)
   - `E` on Orders tab opens the order modal pre-filled with order's current parameters
   - Extract: symbol, side, type, quantity, price(s) from the selected order
   - On submit: cancel old order first, then place new order
@@ -69,7 +69,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - If cancel succeeds but placement fails: show error explaining old order was cancelled
   - Acceptance: User can modify order parameters, old order cancelled, new order placed
 
-- [ ] Task: Pre-fill order modal from existing order data
+- [x] Task: Pre-fill order modal from existing order data
   - Map order fields back to modal fields (type dropdown, price inputs, quantity)
   - Handle all order types: Market, Limit, Stop, Take-Profit, SL/TP
   - For SL/TP: pre-fill both SL and TP prices and quantities

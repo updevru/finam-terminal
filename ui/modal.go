@@ -346,6 +346,76 @@ func (m *OrderModal) ResetOrderType() {
 	m.rebuildPriceFields()
 }
 
+// SetDirection sets the direction dropdown to "Buy" or "Sell"
+func (m *OrderModal) SetDirection(dir string) {
+	for i, opt := range []string{"Buy", "Sell"} {
+		if opt == dir {
+			m.direction.SetCurrentOption(i)
+			m.currentDir = dir
+			return
+		}
+	}
+}
+
+// SetOrderType sets the order type dropdown and rebuilds price fields
+func (m *OrderModal) SetOrderType(orderType string) {
+	for i, opt := range orderTypeOptions {
+		if opt == orderType {
+			m.orderType.SetCurrentOption(i)
+			m.currentOrderType = orderType
+			m.rebuildPriceFields()
+			return
+		}
+	}
+}
+
+// SetLimitPrice sets the limit price field value (must be called after SetOrderType)
+func (m *OrderModal) SetLimitPrice(price float64) {
+	if m.limitPriceField != nil && price > 0 {
+		m.limitPriceField.SetText(strconv.FormatFloat(price, 'f', -1, 64))
+	}
+}
+
+// SetStopPrice sets the stop price field value (must be called after SetOrderType)
+func (m *OrderModal) SetStopPrice(price float64) {
+	if m.stopPriceField != nil && price > 0 {
+		m.stopPriceField.SetText(strconv.FormatFloat(price, 'f', -1, 64))
+	}
+}
+
+// SetSLPrice sets the SL price field value (must be called after SetOrderType for SL+TP)
+func (m *OrderModal) SetSLPrice(price float64) {
+	if m.slPriceField != nil && price > 0 {
+		m.slPriceField.SetText(strconv.FormatFloat(price, 'f', -1, 64))
+	}
+}
+
+// SetTPPrice sets the TP price field value (must be called after SetOrderType for SL+TP or Take-Profit)
+func (m *OrderModal) SetTPPrice(price float64) {
+	if m.tpPriceField != nil && price > 0 {
+		m.tpPriceField.SetText(strconv.FormatFloat(price, 'f', -1, 64))
+	}
+}
+
+// SetModifyTitle sets the modal title for modify mode
+func (m *OrderModal) SetModifyTitle(name string) {
+	if name != "" {
+		m.Layout.SetTitle(fmt.Sprintf(" Modify Order — %s ", name))
+	} else {
+		m.Layout.SetTitle(" Modify Order ")
+	}
+}
+
+// SetCallback replaces the submit callback
+func (m *OrderModal) SetCallback(cb func(OrderSubmission)) {
+	m.callback = cb
+}
+
+// GetCallback returns the current callback
+func (m *OrderModal) GetCallback() func(OrderSubmission) {
+	return m.callback
+}
+
 func (m *OrderModal) getPriceFieldValue(field *tview.InputField) float64 {
 	if field == nil {
 		return 0
