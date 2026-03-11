@@ -18,7 +18,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
 
 ## Phase 2: Enhanced Order Model & Data
 
-- [ ] Task: Extend `models.Order` with detailed fields
+- [x] Task: Extend `models.Order` with detailed fields `07f0927`
   - Add fields: `StopCondition`, `LimitPrice`, `StopPrice`, `Validity`, `ExecutedQty`, `RemainingQty`, `SLQty`, `TPQty`, `SLPrice`, `TPPrice`
   - Acceptance: Model compiles, no breaking changes to existing code
 
