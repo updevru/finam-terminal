@@ -157,14 +157,24 @@ type InstrumentProfile struct {
 
 // Order represents an active order
 type Order struct {
-	ID           string
-	Symbol       string
-	Name         string
-	Side         string
-	Type         string
-	Status       string
-	Quantity     string
-	Executed     string
-	Price        string
-	CreationTime time.Time
+	ID            string
+	Symbol        string
+	Name          string
+	Side          string
+	Type          string
+	Status        string
+	Quantity      string
+	Executed      string
+	Price         string
+	StopCondition string
+	LimitPrice    string
+	StopPrice     string
+	Validity      string
+	ExecutedQty   string
+	RemainingQty  string
+	SLQty         string
+	TPQty         string
+	SLPrice       string
+	TPPrice       string
+	CreationTime  time.Time
 }
