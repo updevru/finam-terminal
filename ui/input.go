@@ -122,6 +122,11 @@ func setupInputHandlers(app *App) {
 					app.OpenProfile()
 					return nil
 				}
+			case tcell.KeyDelete:
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowCancelConfirmation()
+					return nil
+				}
 			}
 			switch event.Rune() {
 			case 'q', 'Q', 'й', 'Й':
@@ -133,6 +138,11 @@ func setupInputHandlers(app *App) {
 			case 'a', 'A', 'ф', 'Ф':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenOrderModal()
+				}
+				return nil
+			case 'x', 'X', 'ч', 'Ч':
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowCancelConfirmation()
 				}
 				return nil
 			case 'c', 'C', 'с', 'С':
