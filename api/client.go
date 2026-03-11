@@ -936,15 +936,54 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 				order.Type = "Limit"
 			case orders.OrderType_ORDER_TYPE_MARKET:
 				order.Type = "Market"
+			case orders.OrderType_ORDER_TYPE_STOP:
+				order.Type = "Stop"
+			case orders.OrderType_ORDER_TYPE_STOP_LIMIT:
+				order.Type = "Stop-Limit"
 			default:
 				order.Type = o.Order.Type.String()
-				// Remove prefix if it's still there after String()
 				order.Type = strings.TrimPrefix(order.Type, "ORDER_TYPE_")
 			}
 			order.Quantity = formatDecimal(o.Order.Quantity)
-			order.Price = formatDecimal(o.Order.LimitPrice)
-			if order.Price == "0" || order.Price == "" {
+
+			// Show the most relevant price based on order type
+			switch o.Order.Type {
+			case orders.OrderType_ORDER_TYPE_STOP, orders.OrderType_ORDER_TYPE_STOP_LIMIT:
+				order.Price = formatDecimal(o.Order.StopPrice)
+			case orders.OrderType_ORDER_TYPE_LIMIT:
+				order.Price = formatDecimal(o.Order.LimitPrice)
+			default:
+				order.Price = formatDecimal(o.Order.LimitPrice)
+			}
+			if order.Price == "0" || order.Price == "" || order.Price == "N/A" {
 				order.Price = "Market"
+			}
+		}
+
+		// Check for SL/TP linked orders
+		if o.SltpOrder != nil {
+			order.Type = "SL/TP"
+			symbol := o.SltpOrder.Symbol
+			if symbol != "" {
+				order.Symbol = symbol
+				c.assetMutex.RLock()
+				if name := c.instrumentNameCache[symbol]; name != "" {
+					order.Name = name
+				}
+				c.assetMutex.RUnlock()
+			}
+			// Show SL and TP prices
+			slPrice := formatDecimal(o.SltpOrder.SlPrice)
+			tpPrice := formatDecimal(o.SltpOrder.TpPrice)
+			var priceParts []string
+			if slPrice != "" && slPrice != "N/A" && slPrice != "0" {
+				priceParts = append(priceParts, "SL:"+slPrice)
+			}
+			if tpPrice != "" && tpPrice != "N/A" && tpPrice != "0" {
+				priceParts = append(priceParts, "TP:"+tpPrice)
+			}
+			if len(priceParts) > 0 {
+				order.Price = strings.Join(priceParts, " ")
 			}
 		}
 
