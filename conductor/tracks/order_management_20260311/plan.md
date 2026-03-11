@@ -47,7 +47,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
 
 ## Phase 4: Cancel Order Flow
 
-- [ ] Task: Create cancel confirmation modal
+- [x] Task: Create cancel confirmation modal `cbcbd70`
   - Simple Yes/No modal: "Cancel order TYPE SIDE TICKER @ PRICE? [Yes/No]"
   - On Yes: call `CancelOrder`, refresh orders list, show status
   - On No: return to orders table
