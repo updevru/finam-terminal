@@ -22,7 +22,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Add fields: `StopCondition`, `LimitPrice`, `StopPrice`, `Validity`, `ExecutedQty`, `RemainingQty`, `SLQty`, `TPQty`, `SLPrice`, `TPPrice`
   - Acceptance: Model compiles, no breaking changes to existing code
 
-- [ ] Task: Update `GetActiveOrders` to populate new fields
+- [x] Task: Update `GetActiveOrders` to populate new fields `3937dd1`
   - Parse stop condition from `o.Order.StopCondition` -> "Last Up" / "Last Down"
   - Parse both `LimitPrice` and `StopPrice` separately (currently only one is shown as `Price`)
   - Parse `ValidBefore` -> "GTC" / "Day" / etc.
