@@ -460,6 +460,11 @@ func updateStatusBar(app *App) {
 			app.app.GetFocus() == app.portfolioView.TabbedView.PositionsTable {
 			shortcuts += " | [yellow]A[white] Buy [yellow]C[white] Close"
 		}
+		// Check if TabbedView.OrdersTable is active and focused
+		if app.portfolioView.TabbedView.ActiveTab == TabOrders &&
+			app.app.GetFocus() == app.portfolioView.TabbedView.OrdersTable {
+			shortcuts += " | [yellow]X[white] Cancel [yellow]E[white] Modify [yellow]R[white] Refresh"
+		}
 	}
 
 	app.statusBar.SetDynamicColors(true)

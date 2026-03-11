@@ -185,6 +185,44 @@ func TestOrdersTable_InstrumentHeader(t *testing.T) {
 	}
 }
 
+func TestStatusBar_OrdersTabShortcuts(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(ticker string) float64 { return 1 }
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+
+	// Add a cancellable order
+	app.activeOrders["acc1"] = []models.Order{
+		{ID: "O1", Symbol: "SBER", Side: "Buy", Type: "Limit", Status: "New", Quantity: "10"},
+	}
+
+	// Switch to Orders tab and focus the table
+	app.portfolioView.TabbedView.SetTab(TabOrders)
+	app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+
+	updateStatusBar(app)
+
+	statusText := app.statusBar.GetText(false)
+	if !contains(statusText, "Cancel") {
+		t.Errorf("Expected status bar to contain 'Cancel' when Orders tab focused, got '%s'", statusText)
+	}
+	if !contains(statusText, "Modify") {
+		t.Errorf("Expected status bar to contain 'Modify' when Orders tab focused, got '%s'", statusText)
+	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && searchString(s, substr)
+}
+
+func searchString(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
 func TestOrdersTable_EnhancedColumns(t *testing.T) {
 	mock := &mockClient{}
 	mock.GetLotSizeFunc = func(ticker string) float64 { return 10 }
