@@ -81,7 +81,7 @@ func TestUpdateAccountList_PnLColors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cell := app.portfolioView.AccountTable.GetCell(tt.pnlRow, tt.pnlCol)
-			_, fg, _ := cell.Style.Decompose()
+			fg, _, _ := cell.Style.Decompose()
 			if fg != tt.expectedColor {
 				t.Errorf("Expected color %v, got %v for cell text %q", tt.expectedColor, fg, cell.Text)
 			}

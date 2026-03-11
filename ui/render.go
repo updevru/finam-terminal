@@ -11,36 +11,51 @@ import (
 	"github.com/rivo/tview"
 )
 
-// updateAccountList refreshes the account list
+// updateAccountList refreshes the account list using two-row-per-account layout.
+// Row 0: Account ID
+// Row 1: Equity (formatted with thousands separator) + UnrealizedPnL (colored)
 func updateAccountList(app *App) {
 	app.portfolioView.AccountTable.Clear()
-	headers := []string{"ID", "Type", "Equity"}
-	for i, h := range headers {
-		app.portfolioView.AccountTable.SetCell(0, i, tview.NewTableCell(h).
-			SetTextColor(tcell.ColorYellow).
-			SetSelectable(false))
-	}
 
 	for i, acc := range app.accounts {
+		idRow := i * 2
+		dataRow := idRow + 1
+
 		if acc.LoadError != "" {
-			app.portfolioView.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-			app.portfolioView.AccountTable.SetCell(i+1, 1, tview.NewTableCell("[error]").SetTextColor(tcell.ColorRed))
-			app.portfolioView.AccountTable.SetCell(i+1, 2, tview.NewTableCell("—").SetTextColor(tcell.ColorGray))
+			app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
+			app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell("[error]").SetTextColor(tcell.ColorRed))
 			continue
 		}
 
-		equity := acc.Equity
-		if val, err := parseFloat(equity); err == nil {
-			equity = fmt.Sprintf("%.2f", val)
-		}
+		// Row 0: Account ID
+		app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
 
-		app.portfolioView.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-		app.portfolioView.AccountTable.SetCell(i+1, 1, tview.NewTableCell(acc.Type).SetTextColor(tcell.ColorWhite))
-		app.portfolioView.AccountTable.SetCell(i+1, 2, tview.NewTableCell(equity).SetTextColor(tcell.ColorWhite))
+		// Row 1: Equity + PnL
+		equity := "—"
+		if val, err := parseFloat(acc.Equity); err == nil {
+			equity = formatNumber(val, 2)
+		}
+		app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(equity).SetTextColor(tcell.ColorWhite))
+
+		// PnL with sign and color
+		pnlText := "0.00"
+		pnlColor := tcell.ColorGray
+		if val, err := parseFloat(acc.UnrealizedPnL); err == nil {
+			if val > 0 {
+				pnlText = "+" + formatNumber(val, 2)
+				pnlColor = tcell.ColorGreen
+			} else if val < 0 {
+				pnlText = formatNumber(val, 2) // already has minus sign
+				pnlColor = tcell.ColorRed
+			}
+		}
+		app.portfolioView.AccountTable.SetCell(dataRow, 1, tview.NewTableCell(pnlText).SetTextColor(pnlColor))
 	}
-	// Select the row corresponding to selectedIdx
-	// Row 0 is header, so row i+1 matches account i
-	app.portfolioView.AccountTable.Select(app.selectedIdx+1, 0)
+
+	// Select the row corresponding to selectedIdx (2 rows per account)
+	if len(app.accounts) > 0 {
+		app.portfolioView.AccountTable.Select(app.selectedIdx*2, 0)
+	}
 }
 
 // updatePositionsTable refreshes the positions table
