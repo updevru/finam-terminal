@@ -75,15 +75,15 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - For SL/TP: pre-fill both SL and TP prices and quantities
   - Acceptance: Modal opens with all fields correctly pre-filled from selected order
 
-## Phase 6: Polish & Edge Cases
+## Phase 6: Polish & Edge Cases [checkpoint: pending]
 
-- [ ] Task: Handle error scenarios gracefully
+- [x] Task: Handle error scenarios gracefully
   - Order already executed/cancelled when user tries to cancel -> friendly message
   - Network timeout during cancel -> show error, suggest refresh
   - Race condition: order fills between display and cancel -> handle 404/400 from API
   - Acceptance: All error paths produce user-friendly messages
 
-- [ ] Task: Ensure background refresh compatibility
+- [x] Task: Ensure background refresh compatibility
   - Orders tab auto-refreshes alongside positions
   - Cancel/modify operations trigger immediate refresh
   - No race conditions between background refresh and user-initiated cancel

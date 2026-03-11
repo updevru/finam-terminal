@@ -3,6 +3,7 @@ package ui
 import (
 	"finam-terminal/api"
 	"finam-terminal/models"
+	"fmt"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -272,5 +273,82 @@ func TestModifyOrderFlow_CancelThenPlace(t *testing.T) {
 	}
 	if placedParams == nil {
 		t.Fatal("Expected order params to be set for Limit order")
+	}
+}
+
+func TestModifyOrderFlow_CancelFails_NoNewOrder(t *testing.T) {
+	placeCalled := false
+
+	mock := &mockClient{
+		GetLotSizeFunc: func(ticker string) float64 { return 1 },
+		CancelOrderFunc: func(accountID, orderID string) error {
+			return fmt.Errorf("rpc error: code = NotFound desc = Order already executed")
+		},
+		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *api.OrderParams) (string, error) {
+			placeCalled = true
+			return "NEW-1", nil
+		},
+	}
+
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	setupModalPage(app)
+	app.activeOrders["acc1"] = []models.Order{
+		{ID: "O1", Symbol: "SBER", Side: "Buy", Type: "Limit", Status: "Active", Quantity: "10", LimitPrice: "250"},
+	}
+
+	updateOrdersTable(app)
+	app.portfolioView.TabbedView.OrdersTable.Select(1, 0)
+
+	app.ShowModifyOrderModal()
+
+	sub := app.orderModal.buildSubmission()
+	app.orderModal.GetCallback()(sub)
+
+	if placeCalled {
+		t.Error("PlaceOrder should NOT be called when cancel fails")
+	}
+}
+
+func TestModifyOrderFlow_CallbackRestoredAfterModify(t *testing.T) {
+	originalCallbackCalled := false
+	mock := &mockClient{
+		GetLotSizeFunc: func(ticker string) float64 { return 1 },
+		CancelOrderFunc: func(accountID, orderID string) error {
+			return nil
+		},
+		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *api.OrderParams) (string, error) {
+			return "NEW-1", nil
+		},
+		GetActiveOrdersFunc: func(accountID string) ([]models.Order, error) {
+			return nil, nil
+		},
+	}
+
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	setupModalPage(app)
+
+	// Save original callback reference
+	app.orderModal.SetCallback(func(sub OrderSubmission) {
+		originalCallbackCalled = true
+	})
+
+	app.activeOrders["acc1"] = []models.Order{
+		{ID: "O1", Symbol: "SBER", Side: "Buy", Type: "Market", Status: "Active", Quantity: "10"},
+	}
+
+	updateOrdersTable(app)
+	app.portfolioView.TabbedView.OrdersTable.Select(1, 0)
+
+	app.ShowModifyOrderModal()
+
+	// Invoke the modify callback
+	sub := app.orderModal.buildSubmission()
+	app.orderModal.GetCallback()(sub)
+
+	// Now invoke the callback again — should be the original
+	app.orderModal.GetCallback()(sub)
+
+	if !originalCallbackCalled {
+		t.Error("Original callback should be restored after modify")
 	}
 }
