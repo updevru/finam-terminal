@@ -468,8 +468,16 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
+// OrderParams holds parameters for placing an order beyond basic market orders.
+type OrderParams struct {
+	OrderType  string  // models.OrderTypeMarket, OrderTypeLimit, OrderTypeStop
+	LimitPrice float64 // Required for Limit orders
+	StopPrice  float64 // Required for Stop-Loss orders
+}
+
 // PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
-func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
+// params is optional — when nil or when OrderType is empty/Market, a market order is placed.
+func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *OrderParams) (string, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
@@ -507,6 +515,25 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		Type:      orders.OrderType_ORDER_TYPE_MARKET,
 	}
 
+	// Apply order type parameters
+	if params != nil {
+		switch params.OrderType {
+		case "Limit":
+			req.Type = orders.OrderType_ORDER_TYPE_LIMIT
+			req.LimitPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.LimitPrice)}
+		case "Stop-Loss":
+			req.Type = orders.OrderType_ORDER_TYPE_STOP
+			req.StopPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.StopPrice)}
+			// Auto-select stop condition based on direction
+			if side == tradeapiv1.Side_SIDE_SELL {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
+			} else {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
+			}
+			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
+		}
+	}
+
 	resp, err := c.ordersClient.PlaceOrder(ctx, req)
 	if err != nil {
 		c.logGRPCError("OrdersService", "PlaceOrder", err,
@@ -529,7 +556,7 @@ func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity 
 		return "", fmt.Errorf("could not determine close direction for quantity %s", currentQuantity)
 	}
 
-	return c.PlaceOrder(accountID, symbol, dir, closeQuantity)
+	return c.PlaceOrder(accountID, symbol, dir, closeQuantity, nil)
 }
 
 // GetAccounts returns a list of all accounts

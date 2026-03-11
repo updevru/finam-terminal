@@ -703,7 +703,7 @@ func TestPlaceOrder_LogsGRPCError(t *testing.T) {
 		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
 	}
 
-	_, err := client.PlaceOrder("acc1", "SBER", "Buy", 5)
+	_, err := client.PlaceOrder("acc1", "SBER", "Buy", 5, nil)
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}

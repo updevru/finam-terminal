@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"finam-terminal/api"
 	"finam-terminal/models"
 	"fmt"
 	"testing"
@@ -9,7 +10,7 @@ import (
 func TestSubmitOrder_Success(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
 	mockClient := &mockClient{
-		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
+		PlaceOrderFunc: func(id string, sym string, side string, qty float64, params *api.OrderParams) (string, error) {
 			if id != "acc1" {
 				return "", fmt.Errorf("wrong account")
 			}
@@ -37,7 +38,7 @@ func TestSubmitOrder_Success(t *testing.T) {
 func TestSubmitOrder_Error(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
 	mockClient := &mockClient{
-		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
+		PlaceOrderFunc: func(id string, sym string, side string, qty float64, params *api.OrderParams) (string, error) {
 			return "", fmt.Errorf("api error")
 		},
 	}

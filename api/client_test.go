@@ -121,7 +121,7 @@ func TestPlaceOrder_Success(t *testing.T) {
 		},
 	}
 
-	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10)
+	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -148,7 +148,7 @@ func TestPlaceOrder_Error(t *testing.T) {
 		},
 	}
 
-	_, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10)
+	_, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10, nil)
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}
@@ -775,7 +775,7 @@ func TestPlaceOrder_LotMultiplication(t *testing.T) {
 	}
 
 	// Place order for 1 lot
-	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 1)
+	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 1, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
@@ -952,7 +952,7 @@ func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 		},
 	}
 
-	txID, err := client.PlaceOrder("test-acc", "GAZP", "Sell", 5)
+	txID, err := client.PlaceOrder("test-acc", "GAZP", "Sell", 5, nil)
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}

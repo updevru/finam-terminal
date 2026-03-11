@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"finam-terminal/api"
 	"finam-terminal/models"
 
 	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
@@ -22,7 +23,7 @@ type APIClient interface {
 	GetAccounts() ([]models.AccountInfo, error)
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
-	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
+	PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
 	// Search operations
@@ -224,7 +225,7 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	// Show loading status
 	a.SetStatus("Placing order...", StatusLoading)
 
-	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
+	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity, nil)
 	if err != nil {
 		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)

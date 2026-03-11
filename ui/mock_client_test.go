@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"finam-terminal/api"
 	"finam-terminal/models"
 	"time"
 
@@ -12,7 +13,7 @@ type mockClient struct {
 	GetAccountsFunc       func() ([]models.AccountInfo, error)
 	GetAccountDetailsFunc func(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotesFunc         func(accountID string, symbols []string) (map[string]*models.Quote, error)
-	PlaceOrderFunc        func(accountID string, symbol string, buySell string, quantity float64) (string, error)
+	PlaceOrderFunc        func(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error)
 	ClosePositionFunc     func(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
 	SearchSecuritiesFunc  func(query string) ([]models.SecurityInfo, error)
@@ -45,9 +46,9 @@ func (m *mockClient) GetQuotes(accountID string, symbols []string) (map[string]*
 	return make(map[string]*models.Quote), nil
 }
 
-func (m *mockClient) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
+func (m *mockClient) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error) {
 	if m.PlaceOrderFunc != nil {
-		return m.PlaceOrderFunc(accountID, symbol, buySell, quantity)
+		return m.PlaceOrderFunc(accountID, symbol, buySell, quantity, params)
 	}
 	return "tx-123", nil
 }
