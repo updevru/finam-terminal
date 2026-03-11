@@ -16,7 +16,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Update `MockClient` in `ui/mock_client_test.go` if it exists
   - Acceptance: All code compiles with updated interface
 
-## Phase 2: Enhanced Order Model & Data
+## Phase 2: Enhanced Order Model & Data [checkpoint: 35ac314]
 
 - [x] Task: Extend `models.Order` with detailed fields `07f0927`
   - Add fields: `StopCondition`, `LimitPrice`, `StopPrice`, `Validity`, `ExecutedQty`, `RemainingQty`, `SLQty`, `TPQty`, `SLPrice`, `TPPrice`
