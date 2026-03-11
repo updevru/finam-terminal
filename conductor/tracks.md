@@ -47,3 +47,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/detailed_grpc_logging_20260303/spec.md](./tracks/detailed_grpc_logging_20260303/spec.md)*
 *Plan: [./tracks/detailed_grpc_logging_20260303/plan.md](./tracks/detailed_grpc_logging_20260303/plan.md)*
 *Phases: 7 | Tasks: 19*
+
+
+---
+
+
+- [ ] **Track: Advanced Order Types — Limit, Stop-Loss, Take-Profit, SL+TP**
+
+*Link: [./tracks/stop_loss_take_profit_20260311/](./tracks/stop_loss_take_profit_20260311/)*
+*Spec: [./tracks/stop_loss_take_profit_20260311/spec.md](./tracks/stop_loss_take_profit_20260311/spec.md)*
+*Plan: [./tracks/stop_loss_take_profit_20260311/plan.md](./tracks/stop_loss_take_profit_20260311/plan.md)*
+*Phases: 5 | Tasks: 10*

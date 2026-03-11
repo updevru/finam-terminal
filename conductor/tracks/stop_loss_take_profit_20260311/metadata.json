@@ -1,0 +1,9 @@
+{
+  "id": "stop_loss_take_profit_20260311",
+  "title": "Advanced Order Types: Limit, Stop-Loss, Take-Profit, SL+TP",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-03-11T00:00:00Z",
+  "phases": 5,
+  "total_tasks": 10
+}
