@@ -69,3 +69,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/order_management_20260311/spec.md](./tracks/order_management_20260311/spec.md)*
 *Plan: [./tracks/order_management_20260311/plan.md](./tracks/order_management_20260311/plan.md)*
 *Phases: 6 | Tasks: 12*
+
+
+---
+
+
+- [ ] **Track: Редизайн списка счетов — двухстрочный формат**
+
+*Link: [./tracks/account_list_redesign_20260311/](./tracks/account_list_redesign_20260311/)*
+*Spec: [./tracks/account_list_redesign_20260311/spec.md](./tracks/account_list_redesign_20260311/spec.md)*
+*Plan: [./tracks/account_list_redesign_20260311/plan.md](./tracks/account_list_redesign_20260311/plan.md)*
+*Phases: 4 | Tasks: 9*
