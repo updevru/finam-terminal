@@ -77,8 +77,9 @@ func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, 
 // mockOrdersServiceClient is a manual mock for orders.OrdersServiceClient
 type mockOrdersServiceClient struct {
 	orders.OrdersServiceClient
-	PlaceOrderFunc func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
-	GetOrdersFunc  func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error)
+	PlaceOrderFunc    func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
+	GetOrdersFunc     func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error)
+	CancelOrderFunc   func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error)
 }
 
 func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
@@ -87,6 +88,10 @@ func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Ord
 
 func (m *mockOrdersServiceClient) GetOrders(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
 	return m.GetOrdersFunc(ctx, in, opts...)
+}
+
+func (m *mockOrdersServiceClient) CancelOrder(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error) {
+	return m.CancelOrderFunc(ctx, in, opts...)
 }
 
 func TestPlaceOrder_Success(t *testing.T) {
@@ -958,5 +963,48 @@ func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 	}
 	if txID != "LOT-002" {
 		t.Errorf("Expected OrderId LOT-002, got %s", txID)
+	}
+}
+
+func TestCancelOrder_Success(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		CancelOrderFunc: func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.AccountId != "test-acc" {
+				t.Errorf("Expected AccountId test-acc, got %s", in.AccountId)
+			}
+			if in.OrderId != "order-123" {
+				t.Errorf("Expected OrderId order-123, got %s", in.OrderId)
+			}
+			return &orders.OrderState{
+				OrderId: "order-123",
+				Status:  orders.OrderStatus_ORDER_STATUS_CANCELED,
+			}, nil
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+	}
+
+	err := client.CancelOrder("test-acc", "order-123")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestCancelOrder_Error(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		CancelOrderFunc: func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			return nil, fmt.Errorf("order not found")
+		},
+	}
+
+	client := &Client{
+		ordersClient: mockOrders,
+	}
+
+	err := client.CancelOrder("test-acc", "order-999")
+	if err == nil {
+		t.Fatal("Expected error, got nil")
 	}
 }

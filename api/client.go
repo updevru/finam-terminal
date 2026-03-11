@@ -622,6 +622,26 @@ func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPric
 	return resp.OrderId, nil
 }
 
+// CancelOrder cancels an active order by its ID.
+func (c *Client) CancelOrder(accountID, orderID string) error {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	_, err := c.ordersClient.CancelOrder(ctx, &orders.CancelOrderRequest{
+		AccountId: accountID,
+		OrderId:   orderID,
+	})
+	if err != nil {
+		c.logGRPCError("OrdersService", "CancelOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("OrderId: %s", orderID))
+		return fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	log.Printf("[INFO] Order %s cancelled successfully", orderID)
+	return nil
+}
+
 // ClosePosition closes (fully or partially) an existing position
 func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
 	// Determine direction
