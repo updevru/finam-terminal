@@ -15,6 +15,7 @@ type mockClient struct {
 	GetQuotesFunc         func(accountID string, symbols []string) (map[string]*models.Quote, error)
 	PlaceOrderFunc        func(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error)
 	ClosePositionFunc     func(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
+	PlaceSLTPOrderFunc    func(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error)
 
 	SearchSecuritiesFunc  func(query string) ([]models.SecurityInfo, error)
 	GetSnapshotsFunc      func(accountID string, symbols []string) (map[string]models.Quote, error)
@@ -49,6 +50,13 @@ func (m *mockClient) GetQuotes(accountID string, symbols []string) (map[string]*
 func (m *mockClient) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error) {
 	if m.PlaceOrderFunc != nil {
 		return m.PlaceOrderFunc(accountID, symbol, buySell, quantity, params)
+	}
+	return "tx-123", nil
+}
+
+func (m *mockClient) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error) {
+	if m.PlaceSLTPOrderFunc != nil {
+		return m.PlaceSLTPOrderFunc(accountID, symbol, buySell, slQty, slPrice, tpQty, tpPrice)
 	}
 	return "tx-123", nil
 }

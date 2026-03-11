@@ -547,6 +547,71 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	return resp.OrderId, nil
 }
 
+// PlaceSLTPOrder places a linked stop-loss + take-profit order pair.
+// Quantities are in lots; they are multiplied by the lot size before sending.
+// Either slPrice or tpPrice (or both) must be non-zero.
+func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+	log.Printf("[DEBUG] PlaceSLTPOrder: input='%s', resolved='%s'", symbol, fullSymbol)
+
+	var side tradeapiv1.Side
+	switch strings.ToLower(buySell) {
+	case "buy":
+		side = tradeapiv1.Side_SIDE_BUY
+	case "sell":
+		side = tradeapiv1.Side_SIDE_SELL
+	default:
+		return "", fmt.Errorf("invalid direction: %s", buySell)
+	}
+
+	// Resolve lot size
+	lotSize := c.GetLotSize(symbol)
+	if lotSize <= 0 {
+		lotSize = c.GetLotSize(fullSymbol)
+	}
+
+	req := &orders.SLTPOrder{
+		AccountId:   accountID,
+		Symbol:      fullSymbol,
+		Side:        side,
+		ValidBefore: orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL,
+	}
+
+	if slPrice > 0 {
+		actualSlQty := slQty
+		if lotSize > 0 {
+			actualSlQty = slQty * lotSize
+		}
+		req.QuantitySl = &decimal.Decimal{Value: fmt.Sprintf("%v", actualSlQty)}
+		req.SlPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", slPrice)}
+	}
+
+	if tpPrice > 0 {
+		actualTpQty := tpQty
+		if lotSize > 0 {
+			actualTpQty = tpQty * lotSize
+		}
+		req.QuantityTp = &decimal.Decimal{Value: fmt.Sprintf("%v", actualTpQty)}
+		req.TpPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", tpPrice)}
+	}
+
+	resp, err := c.ordersClient.PlaceSLTPOrder(ctx, req)
+	if err != nil {
+		c.logGRPCError("OrdersService", "PlaceSLTPOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Side: %s", buySell),
+			fmt.Sprintf("SL: qty=%v price=%v", slQty, slPrice),
+			fmt.Sprintf("TP: qty=%v price=%v", tpQty, tpPrice))
+		return "", fmt.Errorf("failed to place SL/TP order: %w", err)
+	}
+
+	return resp.OrderId, nil
+}
+
 // ClosePosition closes (fully or partially) an existing position
 func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
 	// Determine direction

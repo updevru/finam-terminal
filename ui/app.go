@@ -24,6 +24,7 @@ type APIClient interface {
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
 	PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error)
+	PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
 	// Search operations
