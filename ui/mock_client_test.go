@@ -24,6 +24,7 @@ type mockClient struct {
 
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
 	GetActiveOrdersFunc func(accountID string) ([]models.Order, error)
+	CancelOrderFunc     func(accountID, orderID string) error
 }
 
 func (m *mockClient) GetAccounts() ([]models.AccountInfo, error) {
@@ -124,4 +125,11 @@ func (m *mockClient) GetAssetParams(accountID string, symbol string) (*models.As
 
 func (m *mockClient) GetSchedule(symbol string) ([]models.TradingSession, error) {
 	return nil, nil
+}
+
+func (m *mockClient) CancelOrder(accountID, orderID string) error {
+	if m.CancelOrderFunc != nil {
+		return m.CancelOrderFunc(accountID, orderID)
+	}
+	return nil
 }

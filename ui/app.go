@@ -36,6 +36,7 @@ type APIClient interface {
 	// History and Orders
 	GetTradeHistory(accountID string) ([]models.Trade, error)
 	GetActiveOrders(accountID string) ([]models.Order, error)
+	CancelOrder(accountID, orderID string) error
 
 	// Instrument Profile
 	GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error)
