@@ -30,7 +30,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Parse executed quantity from `o.FilledQuantity` or similar field
   - Acceptance: Orders loaded from API have all new fields populated
 
-## Phase 3: Enhanced Orders Table Display
+## Phase 3: Enhanced Orders Table Display [checkpoint: 1056e77]
 
 - [x] Task: Redesign `updateOrdersTable` with richer columns `46b2938`
   - Show columns: Instrument, Side, Type, Status, Qty, Executed, Price/Condition, Validity, Time
