@@ -534,8 +534,8 @@ func TestGetActiveOrders(t *testing.T) {
 	if activeOrders[0].ID != "O1" {
 		t.Errorf("Expected order ID O1, got %s", activeOrders[0].ID)
 	}
-	if activeOrders[0].Status != "New" {
-		t.Errorf("Expected Status New, got %s", activeOrders[0].Status)
+	if activeOrders[0].Status != "Active" {
+		t.Errorf("Expected Status Active, got %s", activeOrders[0].Status)
 	}
 	if activeOrders[0].Side != "Sell" {
 		t.Errorf("Expected Side Sell, got %s", activeOrders[0].Side)

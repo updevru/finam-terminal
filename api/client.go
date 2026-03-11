@@ -922,22 +922,34 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			}
 		}
 
-		status := "Unknown"
+		status := "Active"
 		switch o.Status {
-		case orders.OrderStatus_ORDER_STATUS_UNSPECIFIED:
-			status = "Unspecified"
-		case orders.OrderStatus_ORDER_STATUS_NEW:
-			status = "New"
+		case orders.OrderStatus_ORDER_STATUS_NEW,
+			orders.OrderStatus_ORDER_STATUS_WATCHING,
+			orders.OrderStatus_ORDER_STATUS_WAIT,
+			orders.OrderStatus_ORDER_STATUS_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_PENDING_NEW:
+			status = "Active"
 		case orders.OrderStatus_ORDER_STATUS_PARTIALLY_FILLED:
 			status = "Partial"
 		case orders.OrderStatus_ORDER_STATUS_FILLED:
 			status = "Filled"
 		case orders.OrderStatus_ORDER_STATUS_CANCELED:
 			status = "Cancelled"
-		case orders.OrderStatus_ORDER_STATUS_REJECTED:
+		case orders.OrderStatus_ORDER_STATUS_REJECTED,
+			orders.OrderStatus_ORDER_STATUS_DENIED_BY_BROKER,
+			orders.OrderStatus_ORDER_STATUS_REJECTED_BY_EXCHANGE:
 			status = "Rejected"
 		case orders.OrderStatus_ORDER_STATUS_EXECUTED:
 			status = "Executed"
+		case orders.OrderStatus_ORDER_STATUS_EXPIRED,
+			orders.OrderStatus_ORDER_STATUS_DONE_FOR_DAY:
+			status = "Expired"
+		case orders.OrderStatus_ORDER_STATUS_SUSPENDED,
+			orders.OrderStatus_ORDER_STATUS_DISABLED:
+			status = "Suspended"
+		case orders.OrderStatus_ORDER_STATUS_FAILED:
+			status = "Failed"
 		}
 
 		order := models.Order{

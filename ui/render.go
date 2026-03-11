@@ -276,7 +276,7 @@ func updateOrdersTable(app *App) {
 		}
 
 		// Dim non-cancellable orders
-		isCancellable := o.Status == "New" || o.Status == "Partial"
+		isCancellable := o.Status == "Active" || o.Status == "New" || o.Status == "Partial"
 		fgColor := tcell.ColorWhite
 		if !isCancellable {
 			fgColor = tcell.ColorDimGray
