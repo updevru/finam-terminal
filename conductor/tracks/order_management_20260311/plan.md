@@ -4,7 +4,7 @@
 
 Add order cancellation and modification capabilities to the Orders tab, along with enhanced order display showing all relevant fields per order type. The API already provides `CancelOrder`; modification is implemented as cancel + re-place. The Orders tab will become a full management panel with keyboard shortcuts and confirmation dialogs.
 
-## Phase 1: API Layer — CancelOrder
+## Phase 1: API Layer — CancelOrder [checkpoint: a6336b8]
 
 - [x] Task: Add `CancelOrder` method to `api/client.go` `6d031c0`
   - Implement `CancelOrder(accountID, orderID string) error` using `ordersClient.CancelOrder`
