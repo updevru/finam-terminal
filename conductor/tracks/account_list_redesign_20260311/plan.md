@@ -13,9 +13,9 @@
 
 ## Phase 2: Two-Row Account Rendering
 
-- [ ] Task: Write tests for two-row account rendering logic
+- [x] Task: Write tests for two-row account rendering logic `724f927`
   - Acceptance: Tests verify correct row mapping (account index → table row), cell content, and colors
-- [ ] Task: Refactor `updateAccountList` to render 2 rows per account
+- [~] Task: Refactor `updateAccountList` to render 2 rows per account
   - Acceptance: Each account renders as ID row + Equity/PnL row, no Type column, colors correct
 - [ ] Task: Handle error accounts in two-row format
   - Acceptance: LoadError accounts show ID + "[error]" on second row in red
