@@ -40,7 +40,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Color-code: cancellable orders in normal colors, non-cancellable (filled/cancelled) dimmed
   - Acceptance: All order types display correctly with full details
 
-- [ ] Task: Update status bar for Orders tab context
+- [x] Task: Update status bar for Orders tab context `d0486b4`
   - When Orders tab is focused, show: `X Cancel  E Modify  R Refresh`
   - Only show Cancel/Modify when a cancellable order is selected
   - Acceptance: Status bar updates dynamically based on active tab and selection
