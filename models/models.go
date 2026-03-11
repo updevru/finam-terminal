@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// Order type constants for the order modal
+const (
+	OrderTypeMarket = "Market"
+	OrderTypeLimit  = "Limit"
+	OrderTypeStop   = "Stop-Loss"
+	OrderTypeSLTP   = "SL + TP"
+)
+
 // AccountInfo represents account information from Finam API
 type AccountInfo struct {
 	ID            string
