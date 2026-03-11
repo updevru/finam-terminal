@@ -6,9 +6,9 @@
 
 ## Phase 1: Number Formatting Utility
 
-- [ ] Task: Write tests for thousand-separator number formatting
+- [x] Task: Write tests for thousand-separator number formatting `1795a7c`
   - Acceptance: Tests cover positive, negative, zero, large numbers, invalid input
-- [ ] Task: Implement `formatNumber` utility with space as thousand separator
+- [~] Task: Implement `formatNumber` utility with space as thousand separator
   - Acceptance: All formatting tests pass
 
 ## Phase 2: Two-Row Account Rendering
