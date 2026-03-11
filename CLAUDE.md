@@ -151,9 +151,21 @@ go build -o finam-trade.exe main.go
     *   **File:** `api/client.go` (`InstrumentCache`, `GetInstrumentName`, `UpdateInstrumentCache`)
     *   **Usage:** Centralized O(1) cache mapping ticker symbols to human-readable names. Populated during asset loading and search operations.
 
-11.  **gRPC Error Logging**
+11.  **Place Order (Market, Limit, Stop, Take-Profit)**
+    *   **Service:** `OrdersServiceClient`
+    *   **Method:** `PlaceOrder`
+    *   **File:** `api/client.go` (`PlaceOrder`)
+    *   **Usage:** Places market, limit, stop-loss, and take-profit orders. Accepts optional `*OrderParams` to specify order type and prices. Quantity is in lots (auto-multiplied by lot size). Stop condition is auto-selected based on direction and order type.
+
+12.  **Place SL/TP Linked Order**
+    *   **Service:** `OrdersServiceClient`
+    *   **Method:** `PlaceSLTPOrder`
+    *   **File:** `api/client.go` (`PlaceSLTPOrder`)
+    *   **Usage:** Places a linked stop-loss + take-profit order pair where one cancels the other. Supports placing with only SL, only TP, or both. Quantities are in lots. Defaults to GTC (Good Till Cancel) validity.
+
+13.  **gRPC Error Logging**
     *   **File:** `api/client.go` (`logGRPCError`)
-    *   **Usage:** Unified helper used by all 16 gRPC calls to log errors in a structured format: `[ERROR] Service.Method failed | Param: value | gRPC code: <code> | Message: <msg> | Endpoint: <addr>`. Never logs secrets (tokens).
+    *   **Usage:** Unified helper used by all gRPC calls to log errors in a structured format: `[ERROR] Service.Method failed | Param: value | gRPC code: <code> | Message: <msg> | Endpoint: <addr>`. Never logs secrets (tokens).
 
 # Conductor Context
 
