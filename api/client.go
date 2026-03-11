@@ -924,6 +924,8 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 
 		status := "Active"
 		switch o.Status {
+		case orders.OrderStatus_ORDER_STATUS_UNSPECIFIED:
+			status = "Active"
 		case orders.OrderStatus_ORDER_STATUS_NEW,
 			orders.OrderStatus_ORDER_STATUS_WATCHING,
 			orders.OrderStatus_ORDER_STATUS_WAIT,
@@ -940,7 +942,9 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			orders.OrderStatus_ORDER_STATUS_DENIED_BY_BROKER,
 			orders.OrderStatus_ORDER_STATUS_REJECTED_BY_EXCHANGE:
 			status = "Rejected"
-		case orders.OrderStatus_ORDER_STATUS_EXECUTED:
+		case orders.OrderStatus_ORDER_STATUS_EXECUTED,
+			orders.OrderStatus_ORDER_STATUS_SL_EXECUTED,
+			orders.OrderStatus_ORDER_STATUS_TP_EXECUTED:
 			status = "Executed"
 		case orders.OrderStatus_ORDER_STATUS_EXPIRED,
 			orders.OrderStatus_ORDER_STATUS_DONE_FOR_DAY:
@@ -950,6 +954,14 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			status = "Suspended"
 		case orders.OrderStatus_ORDER_STATUS_FAILED:
 			status = "Failed"
+		case orders.OrderStatus_ORDER_STATUS_LINK_WAIT,
+			orders.OrderStatus_ORDER_STATUS_SL_GUARD_TIME,
+			orders.OrderStatus_ORDER_STATUS_SL_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_TP_GUARD_TIME,
+			orders.OrderStatus_ORDER_STATUS_TP_CORRECTION,
+			orders.OrderStatus_ORDER_STATUS_TP_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_TP_CORR_GUARD_TIME:
+			status = "Active"
 		}
 
 		order := models.Order{
