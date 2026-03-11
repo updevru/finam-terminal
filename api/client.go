@@ -524,11 +524,21 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		case "Stop-Loss":
 			req.Type = orders.OrderType_ORDER_TYPE_STOP
 			req.StopPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.StopPrice)}
-			// Auto-select stop condition based on direction
+			// SL: sell when price drops (LAST_DOWN), buy when price rises (LAST_UP)
 			if side == tradeapiv1.Side_SIDE_SELL {
 				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
 			} else {
 				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
+			}
+			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
+		case "Take-Profit":
+			req.Type = orders.OrderType_ORDER_TYPE_STOP
+			req.StopPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.StopPrice)}
+			// TP: sell when price rises (LAST_UP), buy when price drops (LAST_DOWN)
+			if side == tradeapiv1.Side_SIDE_SELL {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
+			} else {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
 			}
 			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
 		}

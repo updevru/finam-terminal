@@ -239,6 +239,31 @@ func TestOrderModal_StopValidation(t *testing.T) {
 	}
 }
 
+func TestOrderModal_TakeProfitValidation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetQuantity(1)
+
+	// Switch to Take-Profit
+	modal.currentOrderType = models.OrderTypeTakeProfit
+	modal.rebuildPriceFields()
+
+	// Should fail without TP price
+	if modal.Validate() {
+		t.Error("Expected validation to fail without TP price")
+	}
+
+	// Set TP price
+	if modal.tpPriceField != nil {
+		modal.tpPriceField.SetText("270")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with TP price set")
+	}
+}
+
 func TestOrderModal_SLTPValidation(t *testing.T) {
 	app := tview.NewApplication()
 	modal := NewOrderModal(app, nil, nil)

@@ -237,6 +237,12 @@ func (a *App) SubmitOrder(sub OrderSubmission) error {
 			sub.Quantity, sub.SLPrice,
 			sub.Quantity, sub.TPPrice,
 		)
+	case models.OrderTypeTakeProfit:
+		params := &api.OrderParams{
+			OrderType: sub.OrderType,
+			StopPrice: sub.TPPrice, // TP price is sent as stop price with opposite condition
+		}
+		id, err = a.client.PlaceOrder(accountID, sub.Instrument, sub.Direction, sub.Quantity, params)
 	default:
 		var params *api.OrderParams
 		if sub.OrderType != "" && sub.OrderType != models.OrderTypeMarket {

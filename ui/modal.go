@@ -54,6 +54,7 @@ var orderTypeOptions = []string{
 	models.OrderTypeMarket,
 	models.OrderTypeLimit,
 	models.OrderTypeStop,
+	models.OrderTypeTakeProfit,
 	models.OrderTypeSLTP,
 }
 
@@ -223,6 +224,15 @@ func (m *OrderModal) rebuildPriceFields() {
 		m.Form.AddFormItem(m.stopPriceField)
 		m.moveLastFormItemTo(insertIdx)
 
+	case models.OrderTypeTakeProfit:
+		m.tpPriceField = tview.NewInputField().
+			SetLabel("TP Price:   ").
+			SetFieldWidth(15).
+			SetAcceptanceFunc(priceAcceptFunc).
+			SetChangedFunc(changedFunc)
+		m.Form.AddFormItem(m.tpPriceField)
+		m.moveLastFormItemTo(insertIdx)
+
 	case models.OrderTypeSLTP:
 		m.slPriceField = tview.NewInputField().
 			SetLabel("SL Price:   ").
@@ -353,6 +363,10 @@ func (m *OrderModal) Validate() bool {
 		if m.getPriceFieldValue(m.stopPriceField) <= 0 {
 			return false
 		}
+	case models.OrderTypeTakeProfit:
+		if m.getPriceFieldValue(m.tpPriceField) <= 0 {
+			return false
+		}
 	case models.OrderTypeSLTP:
 		sl := m.getPriceFieldValue(m.slPriceField)
 		tp := m.getPriceFieldValue(m.tpPriceField)
@@ -377,6 +391,8 @@ func (m *OrderModal) buildSubmission() OrderSubmission {
 		sub.LimitPrice = m.getPriceFieldValue(m.limitPriceField)
 	case models.OrderTypeStop:
 		sub.StopPrice = m.getPriceFieldValue(m.stopPriceField)
+	case models.OrderTypeTakeProfit:
+		sub.TPPrice = m.getPriceFieldValue(m.tpPriceField)
 	case models.OrderTypeSLTP:
 		sub.SLPrice = m.getPriceFieldValue(m.slPriceField)
 		sub.TPPrice = m.getPriceFieldValue(m.tpPriceField)

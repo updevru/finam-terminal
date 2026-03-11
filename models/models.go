@@ -8,10 +8,11 @@ import (
 
 // Order type constants for the order modal
 const (
-	OrderTypeMarket = "Market"
-	OrderTypeLimit  = "Limit"
-	OrderTypeStop   = "Stop-Loss"
-	OrderTypeSLTP   = "SL + TP"
+	OrderTypeMarket     = "Market"
+	OrderTypeLimit      = "Limit"
+	OrderTypeStop       = "Stop-Loss"
+	OrderTypeTakeProfit = "Take-Profit"
+	OrderTypeSLTP       = "SL + TP"
 )
 
 // AccountInfo represents account information from Finam API
