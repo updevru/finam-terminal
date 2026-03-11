@@ -4,7 +4,7 @@
 
 Переделка таблицы счетов с трёхстолбцового формата на двухстрочный: ID на первой строке, Equity + PnL на второй. Убирается столбец Type, добавляется цветная индикация UnrealizedPnL.
 
-## Phase 1: Number Formatting Utility
+## Phase 1: Number Formatting Utility [checkpoint: bb98200]
 
 - [x] Task: Write tests for thousand-separator number formatting `1795a7c`
   - Acceptance: Tests cover positive, negative, zero, large numbers, invalid input
