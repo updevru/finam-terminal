@@ -53,7 +53,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - On No: return to orders table
   - Acceptance: Modal appears, handles Yes/No, order gets cancelled
 
-- [ ] Task: Wire cancel to keyboard shortcut
+- [x] Task: Wire cancel to keyboard shortcut `99c0637`
   - `X` or `Del` on Orders tab triggers cancel flow
   - Only for orders with status "New" or "Partial"
   - Show error if order is not cancellable
