@@ -204,11 +204,18 @@ func (m *OrderModal) rebuildPriceFields() {
 
 	insertIdx := 4 // After orderType dropdown
 
+	// Pre-fill price fields with current market price
+	defaultPrice := ""
+	if m.price > 0 {
+		defaultPrice = strconv.FormatFloat(m.price, 'f', -1, 64)
+	}
+
 	switch m.currentOrderType {
 	case models.OrderTypeLimit:
 		m.limitPriceField = tview.NewInputField().
 			SetLabel("Limit Price:").
 			SetFieldWidth(15).
+			SetText(defaultPrice).
 			SetAcceptanceFunc(priceAcceptFunc).
 			SetChangedFunc(changedFunc)
 		m.Form.AddFormItem(m.limitPriceField)
@@ -219,6 +226,7 @@ func (m *OrderModal) rebuildPriceFields() {
 		m.stopPriceField = tview.NewInputField().
 			SetLabel("Stop Price: ").
 			SetFieldWidth(15).
+			SetText(defaultPrice).
 			SetAcceptanceFunc(priceAcceptFunc).
 			SetChangedFunc(changedFunc)
 		m.Form.AddFormItem(m.stopPriceField)
@@ -228,6 +236,7 @@ func (m *OrderModal) rebuildPriceFields() {
 		m.tpPriceField = tview.NewInputField().
 			SetLabel("TP Price:   ").
 			SetFieldWidth(15).
+			SetText(defaultPrice).
 			SetAcceptanceFunc(priceAcceptFunc).
 			SetChangedFunc(changedFunc)
 		m.Form.AddFormItem(m.tpPriceField)
@@ -237,6 +246,7 @@ func (m *OrderModal) rebuildPriceFields() {
 		m.slPriceField = tview.NewInputField().
 			SetLabel("SL Price:   ").
 			SetFieldWidth(15).
+			SetText(defaultPrice).
 			SetAcceptanceFunc(priceAcceptFunc).
 			SetChangedFunc(changedFunc)
 		m.Form.AddFormItem(m.slPriceField)
@@ -245,6 +255,7 @@ func (m *OrderModal) rebuildPriceFields() {
 		m.tpPriceField = tview.NewInputField().
 			SetLabel("TP Price:   ").
 			SetFieldWidth(15).
+			SetText(defaultPrice).
 			SetAcceptanceFunc(priceAcceptFunc).
 			SetChangedFunc(changedFunc)
 		m.Form.AddFormItem(m.tpPriceField)
