@@ -112,8 +112,8 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	a.statusBar = createStatusBar()
 
 	// Initialize OrderModal
-	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
-		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
+	a.orderModal = NewOrderModal(a.app, func(sub OrderSubmission) {
+		if err := a.SubmitOrder(sub); err != nil {
 			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
@@ -187,6 +187,7 @@ func (a *App) IsSearchModalOpen() bool {
 func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.SetInstrument(ticker)
 	a.orderModal.SetQuantity(0)
+	a.orderModal.ResetOrderType()
 	lotSize := a.client.GetLotSize(ticker)
 	a.orderModal.SetLotSize(lotSize)
 	a.orderModal.SetPrice(0) // Price unknown from search context
@@ -213,8 +214,8 @@ func (a *App) IsCloseModalOpen() bool {
 	return name == "close_modal"
 }
 
-// SubmitOrder submits a new order
-func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error {
+// SubmitOrder submits a new order based on the order submission from the modal
+func (a *App) SubmitOrder(sub OrderSubmission) error {
 	a.dataMutex.RLock()
 	if a.selectedIdx >= len(a.accounts) {
 		a.dataMutex.RUnlock()
@@ -226,7 +227,28 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	// Show loading status
 	a.SetStatus("Placing order...", StatusLoading)
 
-	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity, nil)
+	var id string
+	var err error
+
+	switch sub.OrderType {
+	case models.OrderTypeSLTP:
+		id, err = a.client.PlaceSLTPOrder(
+			accountID, sub.Instrument, sub.Direction,
+			sub.Quantity, sub.SLPrice,
+			sub.Quantity, sub.TPPrice,
+		)
+	default:
+		var params *api.OrderParams
+		if sub.OrderType != "" && sub.OrderType != models.OrderTypeMarket {
+			params = &api.OrderParams{
+				OrderType:  sub.OrderType,
+				LimitPrice: sub.LimitPrice,
+				StopPrice:  sub.StopPrice,
+			}
+		}
+		id, err = a.client.PlaceOrder(accountID, sub.Instrument, sub.Direction, sub.Quantity, params)
+	}
+
 	if err != nil {
 		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)
@@ -333,7 +355,7 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.orderModal.Layout, 16, 1, true). // Height 16 (form + info + footer)
+			AddItem(a.orderModal.Layout, 20, 1, true). // Height 20 (form + price fields + info + footer)
 			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
 		AddItem(nil, 0, 1, false)
 
@@ -403,6 +425,7 @@ func (a *App) OpenOrderModal() {
 
 	a.orderModal.SetInstrument(symbol)
 	a.orderModal.SetQuantity(0)
+	a.orderModal.ResetOrderType()
 	a.orderModal.SetDisplayName(displayName)
 
 	// Set lot size and price for the selected instrument

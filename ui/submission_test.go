@@ -27,7 +27,12 @@ func TestSubmitOrder_Success(t *testing.T) {
 	app.selectedIdx = 0
 
 	// Act
-	err := app.SubmitOrder("SBER", 10, "Buy")
+	err := app.SubmitOrder(OrderSubmission{
+		Instrument: "SBER",
+		Quantity:   10,
+		Direction:  "Buy",
+		OrderType:  models.OrderTypeMarket,
+	})
 
 	// Assert
 	if err != nil {
@@ -46,7 +51,12 @@ func TestSubmitOrder_Error(t *testing.T) {
 	app.selectedIdx = 0
 
 	// Act
-	err := app.SubmitOrder("SBER", 10, "Buy")
+	err := app.SubmitOrder(OrderSubmission{
+		Instrument: "SBER",
+		Quantity:   10,
+		Direction:  "Buy",
+		OrderType:  models.OrderTypeMarket,
+	})
 
 	// Assert
 	if err == nil {
