@@ -58,3 +58,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/stop_loss_take_profit_20260311/spec.md](./tracks/stop_loss_take_profit_20260311/spec.md)*
 *Plan: [./tracks/stop_loss_take_profit_20260311/plan.md](./tracks/stop_loss_take_profit_20260311/plan.md)*
 *Phases: 5 | Tasks: 10*
+
+
+---
+
+
+- [ ] **Track: Order Management — Cancel, Modify, and Enhanced Display**
+
+*Link: [./tracks/order_management_20260311/](./tracks/order_management_20260311/)*
+*Spec: [./tracks/order_management_20260311/spec.md](./tracks/order_management_20260311/spec.md)*
+*Plan: [./tracks/order_management_20260311/plan.md](./tracks/order_management_20260311/plan.md)*
+*Phases: 6 | Tasks: 12*
