@@ -52,7 +52,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Advanced Order Types — Limit, Stop-Loss, Take-Profit, SL+TP**
+- [x] **Track: Advanced Order Types — Limit, Stop-Loss, Take-Profit, SL+TP** ✅ Completed
 
 *Link: [./tracks/stop_loss_take_profit_20260311/](./tracks/stop_loss_take_profit_20260311/)*
 *Spec: [./tracks/stop_loss_take_profit_20260311/spec.md](./tracks/stop_loss_take_profit_20260311/spec.md)*

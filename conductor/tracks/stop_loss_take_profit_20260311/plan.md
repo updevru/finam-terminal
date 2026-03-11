@@ -84,7 +84,7 @@ Extend the trading terminal with limit, stop-loss, take-profit, and linked SL+TP
 
 ## Phase 5: Testing & Polish
 
-- [ ] Task: Manual end-to-end verification *(requires live API token — user to test)*
+- [x] Task: Manual end-to-end verification *(user verified)*
   - Test market order (regression — still works)
   - Test limit order placement
   - Test stop-loss order placement
