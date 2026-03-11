@@ -32,7 +32,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
 
 ## Phase 3: Enhanced Orders Table Display
 
-- [ ] Task: Redesign `updateOrdersTable` with richer columns
+- [x] Task: Redesign `updateOrdersTable` with richer columns `46b2938`
   - Show columns: Instrument, Side, Type, Status, Qty, Executed, Price/Condition, Validity, Time
   - For Stop orders: show "SL: 100.50" or "TP: 150.00" with condition
   - For SL/TP linked: show "SL:100.50 / TP:150.00" with separate quantities
