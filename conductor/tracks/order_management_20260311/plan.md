@@ -6,7 +6,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
 
 ## Phase 1: API Layer — CancelOrder
 
-- [ ] Task: Add `CancelOrder` method to `api/client.go`
+- [x] Task: Add `CancelOrder` method to `api/client.go` `6d031c0`
   - Implement `CancelOrder(accountID, orderID string) error` using `ordersClient.CancelOrder`
   - Use structured error logging via `logGRPCError`
   - Acceptance: Method compiles, handles gRPC errors, returns nil on success
