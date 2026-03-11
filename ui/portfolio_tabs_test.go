@@ -52,10 +52,10 @@ func TestOrdersTable_LotBasedQuantity(t *testing.T) {
 
 	updateOrdersTable(app)
 
-	// Header column 4 should be "Qty (Lots)"
+	// Header column 4 should be "Qty"
 	headerCell := app.portfolioView.TabbedView.OrdersTable.GetCell(0, 4)
-	if headerCell.Text != "Qty (Lots)" {
-		t.Errorf("Expected orders header 'Qty (Lots)', got '%s'", headerCell.Text)
+	if headerCell.Text != "Qty" {
+		t.Errorf("Expected orders header 'Qty', got '%s'", headerCell.Text)
 	}
 
 	// Quantity should be lots: 50 shares / 10 lot size = 5 lots
@@ -182,5 +182,60 @@ func TestOrdersTable_InstrumentHeader(t *testing.T) {
 	nameCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 0)
 	if nameCell.Text != "Газпром" {
 		t.Errorf("Expected instrument name 'Газпром', got '%s'", nameCell.Text)
+	}
+}
+
+func TestOrdersTable_EnhancedColumns(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(ticker string) float64 { return 10 }
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+
+	app.activeOrders["acc1"] = []models.Order{
+		{
+			ID: "STOP-1", Symbol: "SBER@TQBR", Name: "Сбербанк", Side: "Sell",
+			Type: "Stop", Status: "New", Quantity: "100",
+			StopPrice: "240.00", StopCondition: "Last Down", Validity: "GTC",
+			ExecutedQty: "0", RemainingQty: "100",
+		},
+		{
+			ID: "SLTP-1", Symbol: "GAZP@TQBR", Name: "Газпром", Side: "Sell",
+			Type: "SL/TP", Status: "New", Quantity: "",
+			SLPrice: "170.00", TPPrice: "200.00", SLQty: "10", TPQty: "10", Validity: "GTC",
+		},
+	}
+
+	updateOrdersTable(app)
+
+	// Verify header includes new columns
+	expectedHeaders := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Validity", "Time"}
+	for i, expected := range expectedHeaders {
+		cell := app.portfolioView.TabbedView.OrdersTable.GetCell(0, i)
+		if cell.Text != expected {
+			t.Errorf("Header[%d]: expected '%s', got '%s'", i, expected, cell.Text)
+		}
+	}
+
+	// Row 1: Stop order — Price/Condition should show "SL: 240.00 ↓"
+	priceCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 6)
+	if priceCell.Text != "SL: 240.00 ↓" {
+		t.Errorf("Stop order Price/Condition: expected 'SL: 240.00 ↓', got '%s'", priceCell.Text)
+	}
+
+	// Validity column
+	validityCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 7)
+	if validityCell.Text != "GTC" {
+		t.Errorf("Stop order Validity: expected 'GTC', got '%s'", validityCell.Text)
+	}
+
+	// Executed column
+	execCell := app.portfolioView.TabbedView.OrdersTable.GetCell(1, 5)
+	if execCell.Text != "0" {
+		t.Errorf("Stop order Executed: expected '0', got '%s'", execCell.Text)
+	}
+
+	// Row 2: SL/TP order — Price/Condition should show combined SL/TP
+	sltpPriceCell := app.portfolioView.TabbedView.OrdersTable.GetCell(2, 6)
+	if sltpPriceCell.Text != "SL:170.00 / TP:200.00" {
+		t.Errorf("SL/TP order Price/Condition: expected 'SL:170.00 / TP:200.00', got '%s'", sltpPriceCell.Text)
 	}
 }

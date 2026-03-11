@@ -2,7 +2,10 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"finam-terminal/models"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -238,7 +241,7 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"Instrument", "Side", "Type", "Status", "Qty (Lots)", "Price", "Time"}
+	headers := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Validity", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -272,12 +275,23 @@ func updateOrdersTable(app *App) {
 			rowBg = tcell.ColorDarkGray
 		}
 
-		sideColor := tcell.ColorWhite
+		// Dim non-cancellable orders
+		isCancellable := o.Status == "New" || o.Status == "Partial"
+		fgColor := tcell.ColorWhite
+		if !isCancellable {
+			fgColor = tcell.ColorDimGray
+		}
+
+		sideColor := fgColor
 		switch o.Side {
 		case "Buy":
-			sideColor = tcell.ColorGreen
+			if isCancellable {
+				sideColor = tcell.ColorGreen
+			}
 		case "Sell":
-			sideColor = tcell.ColorRed
+			if isCancellable {
+				sideColor = tcell.ColorRed
+			}
 		}
 
 		timeStr := o.CreationTime.Format("01-02 15:04")
@@ -287,27 +301,49 @@ func updateOrdersTable(app *App) {
 			orderDisplayName = o.Symbol
 		}
 
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(orderDisplayName).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		// Convert quantity to lots
+		// Build Price/Condition display
+		priceCondition := formatOrderPriceCondition(o)
+
+		// Convert quantity to lots for display
 		var lotSize float64
 		if app.client != nil {
 			lotSize = app.client.GetLotSize(o.Symbol)
 		}
 		displayQty := displayLots(o.Quantity, lotSize)
 
+		// Executed quantity in lots
+		executedDisplay := displayLots(o.ExecutedQty, lotSize)
+		if executedDisplay == "N/A" {
+			executedDisplay = ""
+		}
+
+		nameColor := tcell.ColorLightYellow
+		if !isCancellable {
+			nameColor = tcell.ColorDimGray
+		}
+		statusColor := tcell.ColorLightCyan
+		if !isCancellable {
+			statusColor = tcell.ColorDimGray
+		}
+
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(orderDisplayName).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(nameColor)).SetAlign(tview.AlignLeft))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Status).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightCyan)).SetAlign(tview.AlignRight))
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(statusColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(displayQty).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(o.Price).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(executedDisplay).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(priceCondition).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 7, tview.NewTableCell(o.Validity).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 8, tview.NewTableCell(timeStr).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 	}
 
 	if len(orders) == 0 {
@@ -315,6 +351,38 @@ func updateOrdersTable(app *App) {
 			SetSelectable(false).
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorGray))
+	}
+}
+
+// formatOrderPriceCondition builds a display string for the Price/Condition column.
+func formatOrderPriceCondition(o models.Order) string {
+	switch o.Type {
+	case "SL/TP":
+		var parts []string
+		if o.SLPrice != "" && o.SLPrice != "N/A" && o.SLPrice != "0" {
+			parts = append(parts, "SL:"+o.SLPrice)
+		}
+		if o.TPPrice != "" && o.TPPrice != "N/A" && o.TPPrice != "0" {
+			parts = append(parts, "TP:"+o.TPPrice)
+		}
+		if len(parts) > 0 {
+			return strings.Join(parts, " / ")
+		}
+		return o.Price
+	case "Stop":
+		arrow := ""
+		if o.StopCondition == "Last Down" {
+			arrow = " ↓"
+		} else if o.StopCondition == "Last Up" {
+			arrow = " ↑"
+		}
+		return "SL: " + o.StopPrice + arrow
+	case "Stop-Limit":
+		return "Stop: " + o.StopPrice + " Lim: " + o.LimitPrice
+	case "Limit":
+		return o.LimitPrice
+	default:
+		return o.Price
 	}
 }
 
