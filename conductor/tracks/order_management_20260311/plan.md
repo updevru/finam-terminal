@@ -11,7 +11,7 @@ Add order cancellation and modification capabilities to the Orders tab, along wi
   - Use structured error logging via `logGRPCError`
   - Acceptance: Method compiles, handles gRPC errors, returns nil on success
 
-- [ ] Task: Add `CancelOrder` to `APIClient` interface
+- [x] Task: Add `CancelOrder` to `APIClient` interface `f2d0f36`
   - Update `APIClient` interface in `ui/app.go`
   - Update `MockClient` in `ui/mock_client_test.go` if it exists
   - Acceptance: All code compiles with updated interface
