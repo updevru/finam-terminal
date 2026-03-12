@@ -187,7 +187,8 @@ func createAccountTable() *tview.Table {
 		SetSelectable(true, false)
 	table.SetBorder(true).SetTitle(" Accounts ")
 	table.SetBackgroundColor(tcell.ColorBlack)
-	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
+	// Use same highlight as our custom two-row selection so tview doesn't override with a different color
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkSlateGray).Foreground(tcell.ColorWhite))
 	return table
 }
 
