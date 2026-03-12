@@ -26,7 +26,7 @@
   - Acceptance: Tests verify `accountIdxToRow` and `rowToAccountIdx` conversions
 - [x] Task: Update Up/Down navigation to skip by 2 rows `b777043`
   - Acceptance: Arrow keys navigate between accounts, not individual rows
-- [~] Task: Update selection highlight to cover both rows of selected account
+- [x] Task: Update selection highlight to cover both rows of selected account `96e08de`
   - Acceptance: Both rows of selected account are visually highlighted
 
 ## Phase 4: Testing & Polish
