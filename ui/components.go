@@ -116,16 +116,15 @@ func (tv *TabbedView) SetTab(tab TabType) {
 	tv.UpdateHeader()
 }
 
-// UpdateAccounts populates the account table using two-row-per-account layout
+// UpdateAccounts populates the account table with multi-line rows
 func (pv *PortfolioView) UpdateAccounts(accounts []models.AccountInfo) {
 	pv.AccountTable.Clear()
 
 	for i, acc := range accounts {
-		idRow := i * 2
-		dataRow := idRow + 1
-
-		pv.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-		pv.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(acc.Equity).SetTextColor(tcell.ColorWhite))
+		text := acc.ID + "\n" + acc.Equity
+		pv.AccountTable.SetCell(i, 0, tview.NewTableCell(text).
+			SetTextColor(tcell.ColorWhite).
+			SetExpansion(1))
 	}
 }
 
@@ -187,8 +186,7 @@ func createAccountTable() *tview.Table {
 		SetSelectable(true, false)
 	table.SetBorder(true).SetTitle(" Accounts ")
 	table.SetBackgroundColor(tcell.ColorBlack)
-	// Use same highlight as our custom two-row selection so tview doesn't override with a different color
-	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkSlateGray).Foreground(tcell.ColorWhite))
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
 	return table
 }
 

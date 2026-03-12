@@ -2,9 +2,8 @@ package ui
 
 import (
 	"finam-terminal/models"
+	"strings"
 	"testing"
-
-	"github.com/gdamore/tcell/v2"
 )
 
 // createTestAppWithAccounts creates a minimal App with the given accounts for render testing.
@@ -13,105 +12,29 @@ func createTestAppWithAccounts(accounts []models.AccountInfo) *App {
 	return app
 }
 
-func TestUpdateAccountList_TwoRowPerAccount(t *testing.T) {
+func TestUpdateAccountList_OneRowPerAccount(t *testing.T) {
 	accounts := []models.AccountInfo{
 		{ID: "12345678", Equity: "1234567.89", UnrealizedPnL: "15000.00"},
 		{ID: "87654321", Equity: "543210.00", UnrealizedPnL: "-2100.50"},
 	}
 	app := createTestAppWithAccounts(accounts)
-
 	updateAccountList(app)
 
-	// No header row anymore; 2 accounts × 2 rows = 4 rows total
-	expectedRows := 4
-	got := app.portfolioView.AccountTable.GetRowCount()
-	if got != expectedRows {
-		t.Errorf("Expected %d rows, got %d", expectedRows, got)
+	// 2 accounts = 2 rows (one multi-line row each)
+	if app.portfolioView.AccountTable.GetRowCount() != 2 {
+		t.Errorf("Expected 2 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 
-	// Account 1, row 0: ID
-	cell := app.portfolioView.AccountTable.GetCell(0, 0)
-	if cell.Text != "12345678" {
-		t.Errorf("Row 0 col 0: expected '12345678', got %q", cell.Text)
+	// Account 1: text contains ID on first line
+	cell0 := app.portfolioView.AccountTable.GetCell(0, 0)
+	if !strings.HasPrefix(cell0.Text, "12345678\n") {
+		t.Errorf("Row 0: expected text starting with '12345678\\n', got %q", cell0.Text)
 	}
 
-	// Account 1, row 1: Equity + PnL
-	equityCell := app.portfolioView.AccountTable.GetCell(1, 0)
-	if equityCell.Text == "" {
-		t.Error("Row 1 col 0: expected equity text, got empty")
-	}
-	pnlCell := app.portfolioView.AccountTable.GetCell(1, 1)
-	if pnlCell.Text == "" {
-		t.Error("Row 1 col 1: expected PnL text, got empty")
-	}
-
-	// Account 2, row 2: ID
-	cell2 := app.portfolioView.AccountTable.GetCell(2, 0)
-	if cell2.Text != "87654321" {
-		t.Errorf("Row 2 col 0: expected '87654321', got %q", cell2.Text)
-	}
-
-	// Account 2, row 3: Equity + PnL
-	equityCell2 := app.portfolioView.AccountTable.GetCell(3, 0)
-	if equityCell2.Text == "" {
-		t.Error("Row 3 col 0: expected equity text, got empty")
-	}
-}
-
-func TestUpdateAccountList_PnLColors(t *testing.T) {
-	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "500.00"},
-		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "-300.00"},
-		{ID: "ACC3", Equity: "3000.00", UnrealizedPnL: "0"},
-	}
-	app := createTestAppWithAccounts(accounts)
-	updateAccountList(app)
-
-	tests := []struct {
-		name          string
-		pnlRow        int
-		pnlCol        int
-		expectedColor tcell.Color
-	}{
-		{"positive PnL green", 1, 1, tcell.ColorGreen},
-		{"negative PnL red", 3, 1, tcell.ColorRed},
-		{"zero PnL gray", 5, 1, tcell.ColorGray},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cell := app.portfolioView.AccountTable.GetCell(tt.pnlRow, tt.pnlCol)
-			fg, _, _ := cell.Style.Decompose()
-			if fg != tt.expectedColor {
-				t.Errorf("Expected color %v, got %v for cell text %q", tt.expectedColor, fg, cell.Text)
-			}
-		})
-	}
-}
-
-func TestUpdateAccountList_PositivePnLHasPlusSign(t *testing.T) {
-	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "500.00"},
-	}
-	app := createTestAppWithAccounts(accounts)
-	updateAccountList(app)
-
-	pnlCell := app.portfolioView.AccountTable.GetCell(1, 1)
-	if len(pnlCell.Text) == 0 || pnlCell.Text[0] != '+' {
-		t.Errorf("Expected positive PnL to start with '+', got %q", pnlCell.Text)
-	}
-}
-
-func TestUpdateAccountList_NegativePnLHasMinusSign(t *testing.T) {
-	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "-300.50"},
-	}
-	app := createTestAppWithAccounts(accounts)
-	updateAccountList(app)
-
-	pnlCell := app.portfolioView.AccountTable.GetCell(1, 1)
-	if len(pnlCell.Text) == 0 || pnlCell.Text[0] != '-' {
-		t.Errorf("Expected negative PnL to start with '-', got %q", pnlCell.Text)
+	// Account 2: text contains ID on first line
+	cell1 := app.portfolioView.AccountTable.GetCell(1, 0)
+	if !strings.HasPrefix(cell1.Text, "87654321\n") {
+		t.Errorf("Row 1: expected text starting with '87654321\\n', got %q", cell1.Text)
 	}
 }
 
@@ -122,10 +45,35 @@ func TestUpdateAccountList_EquityFormatted(t *testing.T) {
 	app := createTestAppWithAccounts(accounts)
 	updateAccountList(app)
 
-	equityCell := app.portfolioView.AccountTable.GetCell(1, 0)
-	expected := "1 234 567.89"
-	if equityCell.Text != expected {
-		t.Errorf("Expected equity %q, got %q", expected, equityCell.Text)
+	cell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if !strings.Contains(cell.Text, "1 234 567.89") {
+		t.Errorf("Expected formatted equity in cell text, got %q", cell.Text)
+	}
+}
+
+func TestUpdateAccountList_PositivePnLHasPlusSign(t *testing.T) {
+	accounts := []models.AccountInfo{
+		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "500.00"},
+	}
+	app := createTestAppWithAccounts(accounts)
+	updateAccountList(app)
+
+	cell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if !strings.Contains(cell.Text, "+500.00") {
+		t.Errorf("Expected '+500.00' in cell text, got %q", cell.Text)
+	}
+}
+
+func TestUpdateAccountList_NegativePnLHasMinusSign(t *testing.T) {
+	accounts := []models.AccountInfo{
+		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "-300.50"},
+	}
+	app := createTestAppWithAccounts(accounts)
+	updateAccountList(app)
+
+	cell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if !strings.Contains(cell.Text, "-300.50") {
+		t.Errorf("Expected '-300.50' in cell text, got %q", cell.Text)
 	}
 }
 
@@ -136,31 +84,9 @@ func TestUpdateAccountList_NoTypeColumn(t *testing.T) {
 	app := createTestAppWithAccounts(accounts)
 	updateAccountList(app)
 
-	// Check that "Type" does not appear in any cell
-	for row := 0; row < app.portfolioView.AccountTable.GetRowCount(); row++ {
-		for col := 0; col < app.portfolioView.AccountTable.GetColumnCount(); col++ {
-			cell := app.portfolioView.AccountTable.GetCell(row, col)
-			if cell != nil && cell.Text == "SomeType" {
-				t.Error("Type column should not be present in two-row account layout")
-			}
-		}
-	}
-}
-
-func TestUpdateAccountList_SelectionCoversCorrectRow(t *testing.T) {
-	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "0"},
-		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "0"},
-	}
-	app := createTestAppWithAccounts(accounts)
-	app.selectedIdx = 1
-	updateAccountList(app)
-
-	// Selected account 1 → should select row 2 (account 1's ID row = row 2)
-	selectedRow, _ := app.portfolioView.AccountTable.GetSelection()
-	expectedRow := 2 // account index 1 * 2 rows per account
-	if selectedRow != expectedRow {
-		t.Errorf("Expected selected row %d, got %d", expectedRow, selectedRow)
+	cell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if strings.Contains(cell.Text, "SomeType") {
+		t.Error("Type should not appear in account cell text")
 	}
 }
 
@@ -172,31 +98,38 @@ func TestUpdateAccountList_ErrorAccount(t *testing.T) {
 	app := createTestAppWithAccounts(accounts)
 	updateAccountList(app)
 
-	// 2 accounts × 2 rows = 4
-	if app.portfolioView.AccountTable.GetRowCount() != 4 {
-		t.Fatalf("Expected 4 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
+	if app.portfolioView.AccountTable.GetRowCount() != 2 {
+		t.Fatalf("Expected 2 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 
-	// Error account row 0: ID
-	idCell := app.portfolioView.AccountTable.GetCell(0, 0)
-	if idCell.Text != "ERR_ACC" {
-		t.Errorf("Expected error account ID 'ERR_ACC', got %q", idCell.Text)
+	// Error account: text has ID + [error]
+	errCell := app.portfolioView.AccountTable.GetCell(0, 0)
+	if !strings.Contains(errCell.Text, "ERR_ACC") {
+		t.Errorf("Expected error cell to contain 'ERR_ACC', got %q", errCell.Text)
+	}
+	if !strings.Contains(errCell.Text, "[error]") {
+		t.Errorf("Expected error cell to contain '[error]', got %q", errCell.Text)
 	}
 
-	// Error account row 1: "[error]" in red
-	errCell := app.portfolioView.AccountTable.GetCell(1, 0)
-	if errCell.Text != "[error]" {
-		t.Errorf("Expected '[error]' text, got %q", errCell.Text)
+	// Normal account renders correctly
+	okCell := app.portfolioView.AccountTable.GetCell(1, 0)
+	if !strings.Contains(okCell.Text, "OK_ACC") {
+		t.Errorf("Expected normal cell to contain 'OK_ACC', got %q", okCell.Text)
 	}
-	fg, _, _ := errCell.Style.Decompose()
-	if fg != tcell.ColorRed {
-		t.Errorf("Expected error text in red, got %v", fg)
-	}
+}
 
-	// Normal account still renders correctly at rows 2-3
-	okIDCell := app.portfolioView.AccountTable.GetCell(2, 0)
-	if okIDCell.Text != "OK_ACC" {
-		t.Errorf("Expected normal account ID 'OK_ACC', got %q", okIDCell.Text)
+func TestUpdateAccountList_SelectionRow(t *testing.T) {
+	accounts := []models.AccountInfo{
+		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "0"},
+		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "0"},
+	}
+	app := createTestAppWithAccounts(accounts)
+	app.selectedIdx = 1
+	updateAccountList(app)
+
+	selectedRow, _ := app.portfolioView.AccountTable.GetSelection()
+	if selectedRow != 1 {
+		t.Errorf("Expected selected row 1, got %d", selectedRow)
 	}
 }
 
@@ -216,39 +149,30 @@ func TestUpdateAccountList_SingleAccount(t *testing.T) {
 	app := createTestAppWithAccounts(accounts)
 	updateAccountList(app)
 
-	if app.portfolioView.AccountTable.GetRowCount() != 2 {
-		t.Errorf("Expected 2 rows for single account, got %d", app.portfolioView.AccountTable.GetRowCount())
+	if app.portfolioView.AccountTable.GetRowCount() != 1 {
+		t.Errorf("Expected 1 row for single account, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 }
 
-func TestUpdateAccountList_SelectedHighlightBothRows(t *testing.T) {
+func TestUpdateAccountList_MultiLineText(t *testing.T) {
 	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "50.00"},
-		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "-10.00"},
+		{ID: "ACC1", Equity: "50000.00", UnrealizedPnL: "1234.56"},
 	}
 	app := createTestAppWithAccounts(accounts)
-	app.selectedIdx = 0
 	updateAccountList(app)
 
-	// Selected account (idx 0) should have highlight background on both rows
-	_, idBg, _ := app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
-	_, dataBg, _ := app.portfolioView.AccountTable.GetCell(1, 0).Style.Decompose()
-
-	if idBg != tcell.ColorDarkSlateGray {
-		t.Errorf("Selected account ID row: expected highlight bg, got %v", idBg)
+	cell := app.portfolioView.AccountTable.GetCell(0, 0)
+	lines := strings.Split(cell.Text, "\n")
+	if len(lines) != 2 {
+		t.Fatalf("Expected 2 lines in cell, got %d: %q", len(lines), cell.Text)
 	}
-	if dataBg != tcell.ColorDarkSlateGray {
-		t.Errorf("Selected account data row: expected highlight bg, got %v", dataBg)
+	if lines[0] != "ACC1" {
+		t.Errorf("Line 1: expected 'ACC1', got %q", lines[0])
 	}
-
-	// Non-selected account (idx 1) should have black background
-	_, nonSelIdBg, _ := app.portfolioView.AccountTable.GetCell(2, 0).Style.Decompose()
-	_, nonSelDataBg, _ := app.portfolioView.AccountTable.GetCell(3, 0).Style.Decompose()
-
-	if nonSelIdBg != tcell.ColorBlack {
-		t.Errorf("Non-selected account ID row: expected black bg, got %v", nonSelIdBg)
+	if !strings.Contains(lines[1], "50 000.00") {
+		t.Errorf("Line 2: expected equity '50 000.00', got %q", lines[1])
 	}
-	if nonSelDataBg != tcell.ColorBlack {
-		t.Errorf("Non-selected account data row: expected black bg, got %v", nonSelDataBg)
+	if !strings.Contains(lines[1], "+1 234.56") {
+		t.Errorf("Line 2: expected PnL '+1 234.56', got %q", lines[1])
 	}
 }

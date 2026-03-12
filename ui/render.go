@@ -11,64 +11,49 @@ import (
 	"github.com/rivo/tview"
 )
 
-// updateAccountList refreshes the account list using two-row-per-account layout.
-// Row 0: Account ID
-// Row 1: Equity (formatted with thousands separator) + UnrealizedPnL (colored)
+// updateAccountList refreshes the account list.
+// Each account occupies one table row with multi-line cell text:
+//
+//	Line 1: Account ID
+//	Line 2: Equity + PnL
+//
+// tview's built-in row selection highlights the entire block.
 func updateAccountList(app *App) {
 	app.portfolioView.AccountTable.Clear()
 
 	for i, acc := range app.accounts {
-		idRow := i * 2
-		dataRow := idRow + 1
-		isSelected := i == app.selectedIdx
-
-		// Determine background for selected vs non-selected
-		idBg := tcell.ColorBlack
-		dataBg := tcell.ColorBlack
-		if isSelected {
-			idBg = tcell.ColorDarkSlateGray
-			dataBg = tcell.ColorDarkSlateGray
-		}
-
 		if acc.LoadError != "" {
-			app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).
-				SetStyle(tcell.StyleDefault.Background(idBg).Foreground(tcell.ColorWhite)))
-			app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell("[error]").
-				SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(tcell.ColorRed)))
+			text := acc.ID + "\n[error]"
+			app.portfolioView.AccountTable.SetCell(i, 0, tview.NewTableCell(text).
+				SetTextColor(tcell.ColorRed).
+				SetExpansion(1))
 			continue
 		}
 
-		// Row 0: Account ID
-		app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).
-			SetStyle(tcell.StyleDefault.Background(idBg).Foreground(tcell.ColorWhite)))
-
-		// Row 1: Equity + PnL
+		// Format equity
 		equity := "—"
 		if val, err := parseFloat(acc.Equity); err == nil {
 			equity = formatNumber(val, 2)
 		}
-		app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(equity).
-			SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(tcell.ColorWhite)))
 
-		// PnL with sign and color
+		// Format PnL with sign
 		pnlText := "0.00"
-		pnlColor := tcell.ColorGray
 		if val, err := parseFloat(acc.UnrealizedPnL); err == nil {
 			if val > 0 {
 				pnlText = "+" + formatNumber(val, 2)
-				pnlColor = tcell.ColorGreen
 			} else if val < 0 {
-				pnlText = formatNumber(val, 2) // already has minus sign
-				pnlColor = tcell.ColorRed
+				pnlText = formatNumber(val, 2)
 			}
 		}
-		app.portfolioView.AccountTable.SetCell(dataRow, 1, tview.NewTableCell(pnlText).
-			SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(pnlColor)))
+
+		text := acc.ID + "\n" + equity + "  " + pnlText
+		app.portfolioView.AccountTable.SetCell(i, 0, tview.NewTableCell(text).
+			SetTextColor(tcell.ColorWhite).
+			SetExpansion(1))
 	}
 
-	// Select the row corresponding to selectedIdx (2 rows per account)
 	if len(app.accounts) > 0 {
-		app.portfolioView.AccountTable.Select(accountIdxToRow(app.selectedIdx), 0)
+		app.portfolioView.AccountTable.Select(app.selectedIdx, 0)
 	}
 }
 

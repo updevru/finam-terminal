@@ -2,8 +2,10 @@ package ui
 
 import (
 	"finam-terminal/models"
-	"github.com/rivo/tview"
+	"strings"
 	"testing"
+
+	"github.com/rivo/tview"
 )
 
 func TestNewPortfolioView(t *testing.T) {
@@ -61,13 +63,13 @@ func TestPortfolioView_UpdateAccounts(t *testing.T) {
 
 	pv.UpdateAccounts(accounts)
 
-	if pv.AccountTable.GetRowCount() != 4 { // 2 accounts × 2 rows
-		t.Errorf("Expected 4 rows in table, got %d", pv.AccountTable.GetRowCount())
+	if pv.AccountTable.GetRowCount() != 2 { // 2 accounts, 1 multi-line row each
+		t.Errorf("Expected 2 rows in table, got %d", pv.AccountTable.GetRowCount())
 	}
 
 	cell := pv.AccountTable.GetCell(0, 0)
-	if cell.Text != "ACC1" {
-		t.Errorf("Expected first account ID to be ACC1, got %s", cell.Text)
+	if !strings.HasPrefix(cell.Text, "ACC1\n") {
+		t.Errorf("Expected first cell to start with 'ACC1\\n', got %s", cell.Text)
 	}
 }
 
