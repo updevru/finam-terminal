@@ -54,7 +54,7 @@ func updateAccountList(app *App) {
 
 	// Select the row corresponding to selectedIdx (2 rows per account)
 	if len(app.accounts) > 0 {
-		app.portfolioView.AccountTable.Select(app.selectedIdx*2, 0)
+		app.portfolioView.AccountTable.Select(accountIdxToRow(app.selectedIdx), 0)
 	}
 }
 
