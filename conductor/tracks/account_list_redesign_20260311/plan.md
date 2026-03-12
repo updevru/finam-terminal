@@ -31,7 +31,7 @@
 
 ## Phase 4: Testing & Polish
 
-- [ ] Task: Integration test — full render cycle with multiple accounts
+- [x] Task: Integration test — full render cycle with multiple accounts `4521528`
   - Acceptance: Render with 0, 1, and 3+ accounts produces correct table structure
-- [ ] Task: Manual verification and visual polish
+- [~] Task: Manual verification and visual polish
   - Acceptance: Layout looks clean within 30-char panel, no overflow issues
