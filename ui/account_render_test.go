@@ -220,3 +220,35 @@ func TestUpdateAccountList_SingleAccount(t *testing.T) {
 		t.Errorf("Expected 2 rows for single account, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 }
+
+func TestUpdateAccountList_SelectedHighlightBothRows(t *testing.T) {
+	accounts := []models.AccountInfo{
+		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "50.00"},
+		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "-10.00"},
+	}
+	app := createTestAppWithAccounts(accounts)
+	app.selectedIdx = 0
+	updateAccountList(app)
+
+	// Selected account (idx 0) should have highlight background on both rows
+	_, idBg, _ := app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
+	_, dataBg, _ := app.portfolioView.AccountTable.GetCell(1, 0).Style.Decompose()
+
+	if idBg != tcell.ColorDarkSlateGray {
+		t.Errorf("Selected account ID row: expected highlight bg, got %v", idBg)
+	}
+	if dataBg != tcell.ColorDarkSlateGray {
+		t.Errorf("Selected account data row: expected highlight bg, got %v", dataBg)
+	}
+
+	// Non-selected account (idx 1) should have black background
+	_, nonSelIdBg, _ := app.portfolioView.AccountTable.GetCell(2, 0).Style.Decompose()
+	_, nonSelDataBg, _ := app.portfolioView.AccountTable.GetCell(3, 0).Style.Decompose()
+
+	if nonSelIdBg != tcell.ColorBlack {
+		t.Errorf("Non-selected account ID row: expected black bg, got %v", nonSelIdBg)
+	}
+	if nonSelDataBg != tcell.ColorBlack {
+		t.Errorf("Non-selected account data row: expected black bg, got %v", nonSelDataBg)
+	}
+}

@@ -20,22 +20,35 @@ func updateAccountList(app *App) {
 	for i, acc := range app.accounts {
 		idRow := i * 2
 		dataRow := idRow + 1
+		isSelected := i == app.selectedIdx
+
+		// Determine background for selected vs non-selected
+		idBg := tcell.ColorBlack
+		dataBg := tcell.ColorBlack
+		if isSelected {
+			idBg = tcell.ColorDarkSlateGray
+			dataBg = tcell.ColorDarkSlateGray
+		}
 
 		if acc.LoadError != "" {
-			app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-			app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell("[error]").SetTextColor(tcell.ColorRed))
+			app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).
+				SetStyle(tcell.StyleDefault.Background(idBg).Foreground(tcell.ColorWhite)))
+			app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell("[error]").
+				SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(tcell.ColorRed)))
 			continue
 		}
 
 		// Row 0: Account ID
-		app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
+		app.portfolioView.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).
+			SetStyle(tcell.StyleDefault.Background(idBg).Foreground(tcell.ColorWhite)))
 
 		// Row 1: Equity + PnL
 		equity := "—"
 		if val, err := parseFloat(acc.Equity); err == nil {
 			equity = formatNumber(val, 2)
 		}
-		app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(equity).SetTextColor(tcell.ColorWhite))
+		app.portfolioView.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(equity).
+			SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(tcell.ColorWhite)))
 
 		// PnL with sign and color
 		pnlText := "0.00"
@@ -49,7 +62,8 @@ func updateAccountList(app *App) {
 				pnlColor = tcell.ColorRed
 			}
 		}
-		app.portfolioView.AccountTable.SetCell(dataRow, 1, tview.NewTableCell(pnlText).SetTextColor(pnlColor))
+		app.portfolioView.AccountTable.SetCell(dataRow, 1, tview.NewTableCell(pnlText).
+			SetStyle(tcell.StyleDefault.Background(dataBg).Foreground(pnlColor)))
 	}
 
 	// Select the row corresponding to selectedIdx (2 rows per account)
