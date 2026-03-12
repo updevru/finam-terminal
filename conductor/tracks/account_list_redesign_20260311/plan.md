@@ -20,7 +20,7 @@
 - [x] Task: Handle error accounts in two-row format `c02152e`
   - Acceptance: LoadError accounts show ID + "[error]" on second row in red
 
-## Phase 3: Navigation & Selection
+## Phase 3: Navigation & Selection [checkpoint: 16b11ec]
 
 - [x] Task: Write tests for account-index-to-row mapping `bfbd253`
   - Acceptance: Tests verify `accountIdxToRow` and `rowToAccountIdx` conversions
