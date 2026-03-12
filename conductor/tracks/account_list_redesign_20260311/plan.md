@@ -11,7 +11,7 @@
 - [x] Task: Implement `formatNumber` utility with space as thousand separator `a564be8`
   - Acceptance: All formatting tests pass
 
-## Phase 2: Two-Row Account Rendering
+## Phase 2: Two-Row Account Rendering [checkpoint: 058da99]
 
 - [x] Task: Write tests for two-row account rendering logic `724f927`
   - Acceptance: Tests verify correct row mapping (account index → table row), cell content, and colors
