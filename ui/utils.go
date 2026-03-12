@@ -63,6 +63,18 @@ func displayLots(rawQty string, lotSize float64) string {
 	return fmt.Sprintf("%v", qty/lotSize)
 }
 
+// accountIdxToRow converts an account index to the first table row for that account.
+// Each account occupies 2 rows.
+func accountIdxToRow(idx int) int {
+	return idx * 2
+}
+
+// rowToAccountIdx converts a table row to the corresponding account index.
+// Both the ID row and the data row map to the same account.
+func rowToAccountIdx(row int) int {
+	return row / 2
+}
+
 // formatNumber formats a float64 with space as thousand separator (Russian format).
 // decimals controls the number of decimal places.
 func formatNumber(val float64, decimals int) string {
