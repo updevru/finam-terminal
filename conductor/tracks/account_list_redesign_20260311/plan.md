@@ -24,9 +24,9 @@
 
 - [x] Task: Write tests for account-index-to-row mapping `bfbd253`
   - Acceptance: Tests verify `accountIdxToRow` and `rowToAccountIdx` conversions
-- [~] Task: Update Up/Down navigation to skip by 2 rows
+- [x] Task: Update Up/Down navigation to skip by 2 rows `b777043`
   - Acceptance: Arrow keys navigate between accounts, not individual rows
-- [ ] Task: Update selection highlight to cover both rows of selected account
+- [~] Task: Update selection highlight to cover both rows of selected account
   - Acceptance: Both rows of selected account are visually highlighted
 
 ## Phase 4: Testing & Polish
