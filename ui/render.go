@@ -322,7 +322,7 @@ func updateOrdersTable(app *App) {
 		}
 
 		// Dim non-cancellable orders
-		isCancellable := o.Status == "Active" || o.Status == "New" || o.Status == "Partial"
+		isCancellable := isOrderCancellable(o.Status)
 		fgColor := tcell.ColorWhite
 		if !isCancellable {
 			fgColor = tcell.ColorDimGray
@@ -340,7 +340,10 @@ func updateOrdersTable(app *App) {
 			}
 		}
 
-		timeStr := o.CreationTime.Format("01-02 15:04")
+		timeStr := "—"
+		if !o.CreationTime.IsZero() {
+			timeStr = o.CreationTime.Format("01-02 15:04")
+		}
 
 		orderDisplayName := o.Name
 		if orderDisplayName == "" {

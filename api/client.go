@@ -468,16 +468,9 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// OrderParams holds parameters for placing an order beyond basic market orders.
-type OrderParams struct {
-	OrderType  string  // models.OrderTypeMarket, OrderTypeLimit, OrderTypeStop
-	LimitPrice float64 // Required for Limit orders
-	StopPrice  float64 // Required for Stop-Loss orders
-}
-
 // PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
 // params is optional — when nil or when OrderType is empty/Market, a market order is placed.
-func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *OrderParams) (string, error) {
+func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *models.OrderParams) (string, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
@@ -505,7 +498,7 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		log.Printf("[DEBUG] PlaceOrder: %v lots * %.0f lot size = %.0f shares", quantity, lotSize, actualQuantity)
 	}
 
-	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", actualQuantity)}
+	qtyDecimal := &decimal.Decimal{Value: strconv.FormatFloat(actualQuantity, 'f', -1, 64)}
 
 	req := &orders.Order{
 		AccountId: accountID,
@@ -518,12 +511,12 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	// Apply order type parameters
 	if params != nil {
 		switch params.OrderType {
-		case "Limit":
+		case models.OrderTypeLimit:
 			req.Type = orders.OrderType_ORDER_TYPE_LIMIT
-			req.LimitPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.LimitPrice)}
-		case "Stop-Loss":
+			req.LimitPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.LimitPrice, 'f', -1, 64)}
+		case models.OrderTypeStop:
 			req.Type = orders.OrderType_ORDER_TYPE_STOP
-			req.StopPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.StopPrice)}
+			req.StopPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.StopPrice, 'f', -1, 64)}
 			// SL: sell when price drops (LAST_DOWN), buy when price rises (LAST_UP)
 			if side == tradeapiv1.Side_SIDE_SELL {
 				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
@@ -531,9 +524,9 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
 			}
 			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
-		case "Take-Profit":
+		case models.OrderTypeTakeProfit:
 			req.Type = orders.OrderType_ORDER_TYPE_STOP
-			req.StopPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", params.StopPrice)}
+			req.StopPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.StopPrice, 'f', -1, 64)}
 			// TP: sell when price rises (LAST_UP), buy when price drops (LAST_DOWN)
 			if side == tradeapiv1.Side_SIDE_SELL {
 				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
@@ -565,7 +558,6 @@ func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPric
 	defer cancel()
 
 	fullSymbol := c.getFullSymbol(symbol, accountID)
-	log.Printf("[DEBUG] PlaceSLTPOrder: input='%s', resolved='%s'", symbol, fullSymbol)
 
 	var side tradeapiv1.Side
 	switch strings.ToLower(buySell) {
@@ -595,8 +587,8 @@ func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPric
 		if lotSize > 0 {
 			actualSlQty = slQty * lotSize
 		}
-		req.QuantitySl = &decimal.Decimal{Value: fmt.Sprintf("%v", actualSlQty)}
-		req.SlPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", slPrice)}
+		req.QuantitySl = &decimal.Decimal{Value: strconv.FormatFloat(actualSlQty, 'f', -1, 64)}
+		req.SlPrice = &decimal.Decimal{Value: strconv.FormatFloat(slPrice, 'f', -1, 64)}
 	}
 
 	if tpPrice > 0 {
@@ -604,8 +596,8 @@ func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPric
 		if lotSize > 0 {
 			actualTpQty = tpQty * lotSize
 		}
-		req.QuantityTp = &decimal.Decimal{Value: fmt.Sprintf("%v", actualTpQty)}
-		req.TpPrice = &decimal.Decimal{Value: fmt.Sprintf("%v", tpPrice)}
+		req.QuantityTp = &decimal.Decimal{Value: strconv.FormatFloat(actualTpQty, 'f', -1, 64)}
+		req.TpPrice = &decimal.Decimal{Value: strconv.FormatFloat(tpPrice, 'f', -1, 64)}
 	}
 
 	resp, err := c.ordersClient.PlaceSLTPOrder(ctx, req)
@@ -1064,8 +1056,16 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			}
 		}
 
-		if o.TransactAt != nil {
+		// Pick the best available timestamp:
+		// - TransactAt: when the order was placed on exchange
+		// - WithdrawAt: when the order was cancelled/executed
+		// - AcceptAt: when the order was accepted by broker (fallback for active Stop/SL/TP)
+		if o.TransactAt != nil && o.TransactAt.GetSeconds() != 0 {
 			order.CreationTime = o.TransactAt.AsTime().Local()
+		} else if o.WithdrawAt != nil && o.WithdrawAt.GetSeconds() != 0 {
+			order.CreationTime = o.WithdrawAt.AsTime().Local()
+		} else if o.AcceptAt != nil && o.AcceptAt.GetSeconds() != 0 {
+			order.CreationTime = o.AcceptAt.AsTime().Local()
 		}
 
 		activeOrders = append(activeOrders, order)

@@ -48,6 +48,7 @@ type OrderModal struct {
 	currentOrderType string
 	lotSize          float64
 	price            float64
+	originalCallback func(OrderSubmission) // saved by SetCallback for restoration on cancel
 }
 
 var orderTypeOptions = []string{
@@ -406,14 +407,25 @@ func (m *OrderModal) SetModifyTitle(name string) {
 	}
 }
 
-// SetCallback replaces the submit callback
+// SetCallback temporarily replaces the submit callback, saving the current one for restoration.
 func (m *OrderModal) SetCallback(cb func(OrderSubmission)) {
+	if m.originalCallback == nil {
+		m.originalCallback = m.callback
+	}
 	m.callback = cb
 }
 
 // GetCallback returns the current callback
 func (m *OrderModal) GetCallback() func(OrderSubmission) {
 	return m.callback
+}
+
+// RestoreCallback restores the original callback saved by SetCallback.
+func (m *OrderModal) RestoreCallback() {
+	if m.originalCallback != nil {
+		m.callback = m.originalCallback
+		m.originalCallback = nil
+	}
 }
 
 func (m *OrderModal) getPriceFieldValue(field *tview.InputField) float64 {

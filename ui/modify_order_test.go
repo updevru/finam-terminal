@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"finam-terminal/api"
 	"finam-terminal/models"
 	"fmt"
 	"testing"
@@ -19,7 +18,8 @@ func TestMapOrderTypeToModal(t *testing.T) {
 		{"Stop", models.OrderTypeStop},
 		{"Take-Profit", models.OrderTypeTakeProfit},
 		{"SL/TP", models.OrderTypeSLTP},
-		{"Unknown", models.OrderTypeMarket}, // fallback
+		{"Unknown", ""},        // unsupported type
+		{"Stop-Limit", ""},     // unsupported type
 	}
 
 	for _, tt := range tests {
@@ -221,7 +221,8 @@ func TestShowModifyOrderModal_TitleShowsModify(t *testing.T) {
 func TestModifyOrderFlow_CancelThenPlace(t *testing.T) {
 	cancelCalled := false
 	placeCalled := false
-	var placedParams *api.OrderParams
+	var placedParams *models.OrderParams
+	done := make(chan struct{})
 
 	mock := &mockClient{
 		GetLotSizeFunc: func(ticker string) float64 { return 1 },
@@ -232,12 +233,13 @@ func TestModifyOrderFlow_CancelThenPlace(t *testing.T) {
 			}
 			return nil
 		},
-		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *api.OrderParams) (string, error) {
+		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *models.OrderParams) (string, error) {
 			placeCalled = true
 			placedParams = params
 			return "NEW-1", nil
 		},
 		GetActiveOrdersFunc: func(accountID string) ([]models.Order, error) {
+			defer func() { close(done) }()
 			return nil, nil
 		},
 	}
@@ -265,6 +267,9 @@ func TestModifyOrderFlow_CancelThenPlace(t *testing.T) {
 	sub := app.orderModal.buildSubmission()
 	app.orderModal.GetCallback()(sub)
 
+	// Wait for the goroutine to complete
+	<-done
+
 	if !cancelCalled {
 		t.Error("Expected CancelOrder to be called")
 	}
@@ -278,13 +283,15 @@ func TestModifyOrderFlow_CancelThenPlace(t *testing.T) {
 
 func TestModifyOrderFlow_CancelFails_NoNewOrder(t *testing.T) {
 	placeCalled := false
+	done := make(chan struct{})
 
 	mock := &mockClient{
 		GetLotSizeFunc: func(ticker string) float64 { return 1 },
 		CancelOrderFunc: func(accountID, orderID string) error {
+			defer func() { close(done) }()
 			return fmt.Errorf("rpc error: code = NotFound desc = Order already executed")
 		},
-		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *api.OrderParams) (string, error) {
+		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *models.OrderParams) (string, error) {
 			placeCalled = true
 			return "NEW-1", nil
 		},
@@ -304,6 +311,9 @@ func TestModifyOrderFlow_CancelFails_NoNewOrder(t *testing.T) {
 	sub := app.orderModal.buildSubmission()
 	app.orderModal.GetCallback()(sub)
 
+	// Wait for the goroutine to complete
+	<-done
+
 	if placeCalled {
 		t.Error("PlaceOrder should NOT be called when cancel fails")
 	}
@@ -311,15 +321,24 @@ func TestModifyOrderFlow_CancelFails_NoNewOrder(t *testing.T) {
 
 func TestModifyOrderFlow_CallbackRestoredAfterModify(t *testing.T) {
 	originalCallbackCalled := false
+	done := make(chan struct{})
+
 	mock := &mockClient{
 		GetLotSizeFunc: func(ticker string) float64 { return 1 },
 		CancelOrderFunc: func(accountID, orderID string) error {
 			return nil
 		},
-		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *api.OrderParams) (string, error) {
+		PlaceOrderFunc: func(accountID, symbol, buySell string, quantity float64, params *models.OrderParams) (string, error) {
 			return "NEW-1", nil
 		},
 		GetActiveOrdersFunc: func(accountID string) ([]models.Order, error) {
+			defer func() {
+				select {
+				case <-done:
+				default:
+					close(done)
+				}
+			}()
 			return nil, nil
 		},
 	}
@@ -327,10 +346,10 @@ func TestModifyOrderFlow_CallbackRestoredAfterModify(t *testing.T) {
 	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
 	setupModalPage(app)
 
-	// Save original callback reference
-	app.orderModal.SetCallback(func(sub OrderSubmission) {
+	// Set a callback that will be saved as original
+	app.orderModal.callback = func(sub OrderSubmission) {
 		originalCallbackCalled = true
-	})
+	}
 
 	app.activeOrders["acc1"] = []models.Order{
 		{ID: "O1", Symbol: "SBER", Side: "Buy", Type: "Market", Status: "Active", Quantity: "10"},
@@ -344,6 +363,9 @@ func TestModifyOrderFlow_CallbackRestoredAfterModify(t *testing.T) {
 	// Invoke the modify callback
 	sub := app.orderModal.buildSubmission()
 	app.orderModal.GetCallback()(sub)
+
+	// Wait for the goroutine to complete
+	<-done
 
 	// Now invoke the callback again — should be the original
 	app.orderModal.GetCallback()(sub)

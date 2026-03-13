@@ -77,9 +77,10 @@ func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, 
 // mockOrdersServiceClient is a manual mock for orders.OrdersServiceClient
 type mockOrdersServiceClient struct {
 	orders.OrdersServiceClient
-	PlaceOrderFunc    func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
-	GetOrdersFunc     func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error)
-	CancelOrderFunc   func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error)
+	PlaceOrderFunc     func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error)
+	PlaceSLTPOrderFunc func(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error)
+	GetOrdersFunc      func(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error)
+	CancelOrderFunc    func(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error)
 }
 
 func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
@@ -88,6 +89,10 @@ func (m *mockOrdersServiceClient) PlaceOrder(ctx context.Context, in *orders.Ord
 
 func (m *mockOrdersServiceClient) GetOrders(ctx context.Context, in *orders.OrdersRequest, opts ...grpc.CallOption) (*orders.OrdersResponse, error) {
 	return m.GetOrdersFunc(ctx, in, opts...)
+}
+
+func (m *mockOrdersServiceClient) PlaceSLTPOrder(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error) {
+	return m.PlaceSLTPOrderFunc(ctx, in, opts...)
 }
 
 func (m *mockOrdersServiceClient) CancelOrder(ctx context.Context, in *orders.CancelOrderRequest, opts ...grpc.CallOption) (*orders.OrderState, error) {
@@ -1130,6 +1135,215 @@ func TestCancelOrder_Error(t *testing.T) {
 	}
 
 	err := client.CancelOrder("test-acc", "order-999")
+	if err == nil {
+		t.Fatal("Expected error, got nil")
+	}
+}
+
+func newTestOrderClient(mock *mockOrdersServiceClient) *Client {
+	return &Client{
+		ordersClient:        mock,
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 1},
+		instrumentNameCache: make(map[string]string),
+	}
+}
+
+func TestPlaceOrder_LimitOrder(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.Type != orders.OrderType_ORDER_TYPE_LIMIT {
+				t.Errorf("Expected LIMIT type, got %v", in.Type)
+			}
+			if in.LimitPrice == nil || in.LimitPrice.Value != "250.5" {
+				t.Errorf("Expected LimitPrice 250.5, got %v", in.LimitPrice)
+			}
+			return &orders.OrderState{OrderId: "LIM-1"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	id, err := client.PlaceOrder("acc1", "SBER", "Buy", 1, &models.OrderParams{
+		OrderType:  models.OrderTypeLimit,
+		LimitPrice: 250.5,
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "LIM-1" {
+		t.Errorf("Expected OrderId LIM-1, got %s", id)
+	}
+}
+
+func TestPlaceOrder_StopLossOrder(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.Type != orders.OrderType_ORDER_TYPE_STOP {
+				t.Errorf("Expected STOP type, got %v", in.Type)
+			}
+			if in.StopPrice == nil || in.StopPrice.Value != "240" {
+				t.Errorf("Expected StopPrice 240, got %v", in.StopPrice)
+			}
+			// Sell SL: should be LAST_DOWN
+			if in.StopCondition != orders.StopCondition_STOP_CONDITION_LAST_DOWN {
+				t.Errorf("Expected LAST_DOWN for sell SL, got %v", in.StopCondition)
+			}
+			if in.ValidBefore != orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL {
+				t.Errorf("Expected GTC, got %v", in.ValidBefore)
+			}
+			return &orders.OrderState{OrderId: "SL-1"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	id, err := client.PlaceOrder("acc1", "SBER", "Sell", 1, &models.OrderParams{
+		OrderType: models.OrderTypeStop,
+		StopPrice: 240,
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "SL-1" {
+		t.Errorf("Expected OrderId SL-1, got %s", id)
+	}
+}
+
+func TestPlaceOrder_StopLossBuy_UsesLastUp(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.StopCondition != orders.StopCondition_STOP_CONDITION_LAST_UP {
+				t.Errorf("Expected LAST_UP for buy SL, got %v", in.StopCondition)
+			}
+			return &orders.OrderState{OrderId: "SL-2"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	_, err := client.PlaceOrder("acc1", "SBER", "Buy", 1, &models.OrderParams{
+		OrderType: models.OrderTypeStop,
+		StopPrice: 260,
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestPlaceOrder_TakeProfitSell_UsesLastUp(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceOrderFunc: func(ctx context.Context, in *orders.Order, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.Type != orders.OrderType_ORDER_TYPE_STOP {
+				t.Errorf("Expected STOP type for TP, got %v", in.Type)
+			}
+			// Sell TP: should be LAST_UP (sell when price rises)
+			if in.StopCondition != orders.StopCondition_STOP_CONDITION_LAST_UP {
+				t.Errorf("Expected LAST_UP for sell TP, got %v", in.StopCondition)
+			}
+			return &orders.OrderState{OrderId: "TP-1"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	_, err := client.PlaceOrder("acc1", "SBER", "Sell", 1, &models.OrderParams{
+		OrderType: models.OrderTypeTakeProfit,
+		StopPrice: 280,
+	})
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestPlaceSLTPOrder_Success(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceSLTPOrderFunc: func(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.AccountId != "acc1" {
+				t.Errorf("Expected AccountId acc1, got %s", in.AccountId)
+			}
+			if in.Side != tradeapiv1.Side_SIDE_SELL {
+				t.Errorf("Expected SELL side, got %v", in.Side)
+			}
+			if in.SlPrice == nil || in.SlPrice.Value != "230" {
+				t.Errorf("Expected SL price 230, got %v", in.SlPrice)
+			}
+			if in.TpPrice == nil || in.TpPrice.Value != "280" {
+				t.Errorf("Expected TP price 280, got %v", in.TpPrice)
+			}
+			if in.QuantitySl == nil || in.QuantitySl.Value != "10" {
+				t.Errorf("Expected SL qty 10, got %v", in.QuantitySl)
+			}
+			if in.QuantityTp == nil || in.QuantityTp.Value != "10" {
+				t.Errorf("Expected TP qty 10, got %v", in.QuantityTp)
+			}
+			if in.ValidBefore != orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL {
+				t.Errorf("Expected GTC, got %v", in.ValidBefore)
+			}
+			return &orders.OrderState{OrderId: "SLTP-1"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	id, err := client.PlaceSLTPOrder("acc1", "SBER", "Sell", 10, 230, 10, 280)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "SLTP-1" {
+		t.Errorf("Expected OrderId SLTP-1, got %s", id)
+	}
+}
+
+func TestPlaceSLTPOrder_OnlySL(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceSLTPOrderFunc: func(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			if in.SlPrice == nil {
+				t.Error("Expected SL price to be set")
+			}
+			if in.TpPrice != nil {
+				t.Error("Expected TP price to be nil when tpPrice=0")
+			}
+			return &orders.OrderState{OrderId: "SL-ONLY"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	id, err := client.PlaceSLTPOrder("acc1", "SBER", "Sell", 5, 230, 5, 0)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if id != "SL-ONLY" {
+		t.Errorf("Expected OrderId SL-ONLY, got %s", id)
+	}
+}
+
+func TestPlaceSLTPOrder_LotMultiplication(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceSLTPOrderFunc: func(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			// 2 lots * 10 lot size = 20 shares
+			if in.QuantitySl.Value != "20" {
+				t.Errorf("Expected SL qty 20 (2 lots * 10), got %s", in.QuantitySl.Value)
+			}
+			if in.QuantityTp.Value != "20" {
+				t.Errorf("Expected TP qty 20 (2 lots * 10), got %s", in.QuantityTp.Value)
+			}
+			return &orders.OrderState{OrderId: "SLTP-LOT"}, nil
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+	client.assetLotCache["SBER"] = 10 // Override lot size for this test
+
+	_, err := client.PlaceSLTPOrder("acc1", "SBER", "Buy", 2, 230, 2, 280)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+}
+
+func TestPlaceSLTPOrder_Error(t *testing.T) {
+	mockOrders := &mockOrdersServiceClient{
+		PlaceSLTPOrderFunc: func(ctx context.Context, in *orders.SLTPOrder, opts ...grpc.CallOption) (*orders.OrderState, error) {
+			return nil, fmt.Errorf("insufficient margin")
+		},
+	}
+	client := newTestOrderClient(mockOrders)
+
+	_, err := client.PlaceSLTPOrder("acc1", "SBER", "Sell", 10, 230, 10, 280)
 	if err == nil {
 		t.Fatal("Expected error, got nil")
 	}

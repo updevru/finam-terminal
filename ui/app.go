@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"finam-terminal/api"
 	"finam-terminal/models"
 
 	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
@@ -23,7 +22,7 @@ type APIClient interface {
 	GetAccounts() ([]models.AccountInfo, error)
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
-	PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *api.OrderParams) (string, error)
+	PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *models.OrderParams) (string, error)
 	PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
@@ -156,6 +155,7 @@ func (a *App) CloseCloseModal() {
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 func (a *App) CloseOrderModal() {
+	a.orderModal.RestoreCallback()
 	a.pages.HidePage("modal")
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
@@ -191,8 +191,28 @@ func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.ResetOrderType()
 	lotSize := a.client.GetLotSize(ticker)
 	a.orderModal.SetLotSize(lotSize)
-	a.orderModal.SetPrice(0) // Price unknown from search context
 	a.orderModal.SetDisplayName(a.client.GetInstrumentName(ticker))
+
+	// Fetch current price via snapshots (same as positions list)
+	a.dataMutex.RLock()
+	accountID := ""
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		accountID = a.accounts[a.selectedIdx].ID
+	}
+	a.dataMutex.RUnlock()
+
+	var price float64
+	if accountID != "" {
+		if snapshots, err := a.client.GetSnapshots(accountID, []string{ticker}); err == nil {
+			if q, ok := snapshots[ticker]; ok {
+				if p, err := parseFloat(q.Last); err == nil {
+					price = p
+				}
+			}
+		}
+	}
+	a.orderModal.SetPrice(price)
+
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -245,15 +265,15 @@ func (a *App) SubmitOrder(sub OrderSubmission) error {
 			sub.Quantity, sub.TPPrice,
 		)
 	case models.OrderTypeTakeProfit:
-		params := &api.OrderParams{
+		params := &models.OrderParams{
 			OrderType: sub.OrderType,
 			StopPrice: sub.TPPrice, // TP price is sent as stop price with opposite condition
 		}
 		id, err = a.client.PlaceOrder(accountID, sub.Instrument, sub.Direction, sub.Quantity, params)
 	default:
-		var params *api.OrderParams
+		var params *models.OrderParams
 		if sub.OrderType != "" && sub.OrderType != models.OrderTypeMarket {
-			params = &api.OrderParams{
+			params = &models.OrderParams{
 				OrderType:  sub.OrderType,
 				LimitPrice: sub.LimitPrice,
 				StopPrice:  sub.StopPrice,
@@ -377,7 +397,7 @@ func (a *App) ShowCancelConfirmation() {
 		return
 	}
 
-	if order.Status != "Active" && order.Status != "New" && order.Status != "Partial" {
+	if !isOrderCancellable(order.Status) {
 		a.SetStatus("Order is not cancellable", StatusError)
 		return
 	}
@@ -418,6 +438,7 @@ func (a *App) ShowCancelConfirmation() {
 }
 
 // mapOrderTypeToModal maps an Order.Type string to the modal's order type constant.
+// Returns empty string if the order type is not supported for modification.
 func mapOrderTypeToModal(orderType string) string {
 	switch orderType {
 	case "Market":
@@ -431,7 +452,7 @@ func mapOrderTypeToModal(orderType string) string {
 	case "SL/TP":
 		return models.OrderTypeSLTP
 	default:
-		return models.OrderTypeMarket
+		return ""
 	}
 }
 
@@ -444,7 +465,7 @@ func (a *App) ShowModifyOrderModal() {
 		return
 	}
 
-	if order.Status != "Active" && order.Status != "New" && order.Status != "Partial" {
+	if !isOrderCancellable(order.Status) {
 		a.SetStatus("Order is not modifiable", StatusError)
 		return
 	}
@@ -455,6 +476,10 @@ func (a *App) ShowModifyOrderModal() {
 
 	// Map order type to modal constant
 	modalType := mapOrderTypeToModal(order.Type)
+	if modalType == "" {
+		a.SetStatus(fmt.Sprintf("Order type %q is not supported for modification", order.Type), StatusError)
+		return
+	}
 
 	// Pre-fill modal
 	a.orderModal.SetInstrument(order.Symbol)
@@ -507,30 +532,36 @@ func (a *App) ShowModifyOrderModal() {
 	}
 	a.orderModal.SetModifyTitle(displayName)
 
-	// Save original callback and set modify callback
-	originalCallback := a.orderModal.GetCallback()
+	// Set modify callback (original is saved internally for restoration)
 	a.orderModal.SetCallback(func(sub OrderSubmission) {
 		// Restore original callback immediately
-		a.orderModal.SetCallback(originalCallback)
+		a.orderModal.RestoreCallback()
 
-		// Cancel old order first
-		a.SetStatus("Cancelling old order...", StatusLoading)
-		cancelErr := a.client.CancelOrder(accountID, order.ID)
-		if cancelErr != nil {
-			msg := extractUserMessage(cancelErr)
-			a.SetStatus(fmt.Sprintf("Cancel failed: %s", msg), StatusError)
-			a.ShowError(fmt.Sprintf("Failed to cancel order: %s", msg))
-			return
-		}
+		// Run cancel + place in a goroutine to avoid blocking the UI
+		go func() {
+			// Cancel old order first
+			a.SetStatus("Cancelling old order...", StatusLoading)
+			cancelErr := a.client.CancelOrder(accountID, order.ID)
+			if cancelErr != nil {
+				msg := extractUserMessage(cancelErr)
+				a.SetStatus(fmt.Sprintf("Cancel failed: %s", msg), StatusError)
+				a.app.QueueUpdateDraw(func() {
+					a.ShowError(fmt.Sprintf("Failed to cancel order: %s", msg))
+				})
+				return
+			}
 
-		// Place new order
-		if err := a.SubmitOrder(sub); err != nil {
-			a.ShowError(fmt.Sprintf("Old order was cancelled but new order failed: %s", extractUserMessage(err)))
-			return
-		}
+			// Place new order
+			if err := a.SubmitOrder(sub); err != nil {
+				a.app.QueueUpdateDraw(func() {
+					a.ShowError(fmt.Sprintf("Old order was cancelled but new order failed: %s", extractUserMessage(err)))
+				})
+				return
+			}
 
-		// Refresh orders
-		a.loadOrdersAsync(accountID)
+			// Refresh orders
+			a.loadOrdersAsync(accountID)
+		}()
 	})
 
 	a.pages.ShowPage("modal")

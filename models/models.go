@@ -15,6 +15,13 @@ const (
 	OrderTypeSLTP       = "SL + TP"
 )
 
+// OrderParams holds parameters for placing an order beyond basic market orders.
+type OrderParams struct {
+	OrderType  string  // OrderTypeMarket, OrderTypeLimit, OrderTypeStop, OrderTypeTakeProfit
+	LimitPrice float64 // Required for Limit orders
+	StopPrice  float64 // Required for Stop-Loss and Take-Profit orders
+}
+
 // AccountInfo represents account information from Finam API
 type AccountInfo struct {
 	ID            string

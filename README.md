@@ -124,10 +124,3 @@ go tool cover -func=coverage.out
     ```bash
     /conductor:implement
     ```
-
-
-Stop loss
-claude --resume 857f7bf9-a054-4822-b6a9-cf9a57729bf0
-
-Account list
-claude --resume bca73864-0678-4a6e-bc7a-a3ab7c3428df

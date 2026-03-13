@@ -113,6 +113,11 @@ func formatNumber(val float64, decimals int) string {
 	return s
 }
 
+// isOrderCancellable returns true if an order with the given status can be cancelled or modified.
+func isOrderCancellable(status string) bool {
+	return status == "Active" || status == "Partial"
+}
+
 // parseFloat parses a string to float64, handling commas as decimal separators
 // and removing whitespace (including NBSP).
 func parseFloat(s string) (float64, error) {
