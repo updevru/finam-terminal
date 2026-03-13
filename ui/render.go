@@ -2,42 +2,91 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
+
+	"finam-terminal/models"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
-// updateAccountList refreshes the account list
+// updateAccountList refreshes the account list using two rows per account.
+// Row 0: Account ID
+// Row 1: Equity (formatted) + PnL (with sign)
+// Both rows of the selected account are highlighted with a background color.
 func updateAccountList(app *App) {
 	app.portfolioView.AccountTable.Clear()
-	headers := []string{"ID", "Type", "Equity"}
-	for i, h := range headers {
-		app.portfolioView.AccountTable.SetCell(0, i, tview.NewTableCell(h).
-			SetTextColor(tcell.ColorYellow).
-			SetSelectable(false))
-	}
 
 	for i, acc := range app.accounts {
+		idRow := accountIdxToRow(i)
+		dataRow := idRow + 1
+		isSelected := i == app.selectedIdx
+
+		bg := tcell.ColorBlack
+		if isSelected {
+			bg = tcell.ColorDarkSlateGray
+		}
+
 		if acc.LoadError != "" {
-			app.portfolioView.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-			app.portfolioView.AccountTable.SetCell(i+1, 1, tview.NewTableCell("[error]").SetTextColor(tcell.ColorRed))
-			app.portfolioView.AccountTable.SetCell(i+1, 2, tview.NewTableCell("—").SetTextColor(tcell.ColorGray))
+			idCell := tview.NewTableCell(acc.ID).
+				SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
+				SetExpansion(1)
+			idCell.Transparent = false
+			app.portfolioView.AccountTable.SetCell(idRow, 0, idCell)
+
+			errCell := tview.NewTableCell("[error]").
+				SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorRed)).
+				SetExpansion(1)
+			errCell.Transparent = false
+			app.portfolioView.AccountTable.SetCell(dataRow, 0, errCell)
 			continue
 		}
 
-		equity := acc.Equity
-		if val, err := parseFloat(equity); err == nil {
-			equity = fmt.Sprintf("%.2f", val)
+		// Row 0: Account ID
+		idCell := tview.NewTableCell(acc.ID).
+			SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
+			SetExpansion(1)
+		idCell.Transparent = false
+		app.portfolioView.AccountTable.SetCell(idRow, 0, idCell)
+
+		// Row 1: Equity + Daily PnL (sum of position DailyPnL)
+		equity := "—"
+		if val, err := parseFloat(acc.Equity); err == nil {
+			equity = formatNumber(val, 2)
 		}
 
-		app.portfolioView.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-		app.portfolioView.AccountTable.SetCell(i+1, 1, tview.NewTableCell(acc.Type).SetTextColor(tcell.ColorWhite))
-		app.portfolioView.AccountTable.SetCell(i+1, 2, tview.NewTableCell(equity).SetTextColor(tcell.ColorWhite))
+		app.dataMutex.RLock()
+		var dailyTotal float64
+		for _, p := range app.positions[acc.ID] {
+			if val, err := parseFloat(p.DailyPnL); err == nil {
+				dailyTotal += val
+			}
+		}
+		app.dataMutex.RUnlock()
+
+		pnlText := "0.00"
+		pnlTag := "gray"
+		if dailyTotal > 0 {
+			pnlText = "+" + formatNumber(dailyTotal, 2)
+			pnlTag = "green"
+		} else if dailyTotal < 0 {
+			pnlText = formatNumber(dailyTotal, 2)
+			pnlTag = "red"
+		}
+
+		dataText := fmt.Sprintf("%s  [%s]%s[-]", equity, pnlTag, pnlText)
+		dataCell := tview.NewTableCell(dataText).
+			SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
+			SetExpansion(1)
+		dataCell.Transparent = false
+		app.portfolioView.AccountTable.SetCell(dataRow, 0, dataCell)
 	}
-	// Select the row corresponding to selectedIdx
-	// Row 0 is header, so row i+1 matches account i
-	app.portfolioView.AccountTable.Select(app.selectedIdx+1, 0)
+
+	// Select the ID row of the active account
+	if len(app.accounts) > 0 {
+		app.portfolioView.AccountTable.Select(accountIdxToRow(app.selectedIdx), 0)
+	}
 }
 
 // updatePositionsTable refreshes the positions table
@@ -238,7 +287,7 @@ func updateHistoryTable(app *App) {
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
 
-	headers := []string{"Instrument", "Side", "Type", "Status", "Qty (Lots)", "Price", "Time"}
+	headers := []string{"Instrument", "Side", "Type", "Status", "Qty", "Executed", "Price/Condition", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -272,42 +321,76 @@ func updateOrdersTable(app *App) {
 			rowBg = tcell.ColorDarkGray
 		}
 
-		sideColor := tcell.ColorWhite
-		switch o.Side {
-		case "Buy":
-			sideColor = tcell.ColorGreen
-		case "Sell":
-			sideColor = tcell.ColorRed
+		// Dim non-cancellable orders
+		isCancellable := isOrderCancellable(o.Status)
+		fgColor := tcell.ColorWhite
+		if !isCancellable {
+			fgColor = tcell.ColorDimGray
 		}
 
-		timeStr := o.CreationTime.Format("01-02 15:04")
+		sideColor := fgColor
+		switch o.Side {
+		case "Buy":
+			if isCancellable {
+				sideColor = tcell.ColorGreen
+			}
+		case "Sell":
+			if isCancellable {
+				sideColor = tcell.ColorRed
+			}
+		}
+
+		timeStr := "—"
+		if !o.CreationTime.IsZero() {
+			timeStr = o.CreationTime.Format("01-02 15:04")
+		}
 
 		orderDisplayName := o.Name
 		if orderDisplayName == "" {
 			orderDisplayName = o.Symbol
 		}
 
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(orderDisplayName).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightYellow)).SetAlign(tview.AlignLeft))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		// Convert quantity to lots
+		// Build Price/Condition display
+		priceCondition := formatOrderPriceCondition(o)
+
+		// Convert quantity to lots for display
 		var lotSize float64
 		if app.client != nil {
 			lotSize = app.client.GetLotSize(o.Symbol)
 		}
 		displayQty := displayLots(o.Quantity, lotSize)
 
+		// Executed quantity in lots
+		executedDisplay := displayLots(o.ExecutedQty, lotSize)
+		if executedDisplay == "N/A" {
+			executedDisplay = ""
+		}
+
+		nameColor := tcell.ColorLightYellow
+		if !isCancellable {
+			nameColor = tcell.ColorDimGray
+		}
+		statusColor := tcell.ColorLightCyan
+		if !isCancellable {
+			statusColor = tcell.ColorDimGray
+		}
+
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 0, tview.NewTableCell(orderDisplayName).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(nameColor)).SetAlign(tview.AlignLeft))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 1, tview.NewTableCell(o.Side).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(sideColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 2, tview.NewTableCell(o.Type).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 3, tview.NewTableCell(o.Status).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightCyan)).SetAlign(tview.AlignRight))
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(statusColor)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 4, tview.NewTableCell(displayQty).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(o.Price).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).
-			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 5, tview.NewTableCell(executedDisplay).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 6, tview.NewTableCell(priceCondition).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.OrdersTable.SetCell(rowNum, 7, tview.NewTableCell(timeStr).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(fgColor)).SetAlign(tview.AlignRight))
 	}
 
 	if len(orders) == 0 {
@@ -316,6 +399,48 @@ func updateOrdersTable(app *App) {
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorGray))
 	}
+}
+
+// formatOrderPriceCondition builds a display string for the Price/Condition column.
+// Non-GTC validity is appended in parentheses, e.g. "SL: 100.50 ↓ (Day)".
+func formatOrderPriceCondition(o models.Order) string {
+	var result string
+	switch o.Type {
+	case "SL/TP":
+		var parts []string
+		if o.SLPrice != "" && o.SLPrice != "N/A" && o.SLPrice != "0" {
+			parts = append(parts, "SL:"+o.SLPrice)
+		}
+		if o.TPPrice != "" && o.TPPrice != "N/A" && o.TPPrice != "0" {
+			parts = append(parts, "TP:"+o.TPPrice)
+		}
+		if len(parts) > 0 {
+			result = strings.Join(parts, " / ")
+		} else {
+			result = o.Price
+		}
+	case "Stop":
+		arrow := ""
+		switch o.StopCondition {
+		case "Last Down":
+			arrow = " ↓"
+		case "Last Up":
+			arrow = " ↑"
+		}
+		result = "SL: " + o.StopPrice + arrow
+	case "Stop-Limit":
+		result = "Stop: " + o.StopPrice + " Lim: " + o.LimitPrice
+	case "Limit":
+		result = o.LimitPrice
+	default:
+		result = o.Price
+	}
+
+	// Append non-GTC validity
+	if o.Validity != "" && o.Validity != "GTC" {
+		result += " (" + o.Validity + ")"
+	}
+	return result
 }
 
 // updateInfoPanel refreshes the info panel
@@ -391,6 +516,11 @@ func updateStatusBar(app *App) {
 		if app.portfolioView.TabbedView.ActiveTab == TabPositions &&
 			app.app.GetFocus() == app.portfolioView.TabbedView.PositionsTable {
 			shortcuts += " | [yellow]A[white] Buy [yellow]C[white] Close"
+		}
+		// Check if TabbedView.OrdersTable is active and focused
+		if app.portfolioView.TabbedView.ActiveTab == TabOrders &&
+			app.app.GetFocus() == app.portfolioView.TabbedView.OrdersTable {
+			shortcuts += " | [yellow]X[white] Cancel [yellow]E[white] Modify [yellow]R[white] Refresh"
 		}
 	}
 

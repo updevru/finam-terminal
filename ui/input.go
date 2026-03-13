@@ -122,6 +122,11 @@ func setupInputHandlers(app *App) {
 					app.OpenProfile()
 					return nil
 				}
+			case tcell.KeyDelete:
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowCancelConfirmation()
+					return nil
+				}
 			}
 			switch event.Rune() {
 			case 'q', 'Q', 'й', 'Й':
@@ -133,6 +138,16 @@ func setupInputHandlers(app *App) {
 			case 'a', 'A', 'ф', 'Ф':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenOrderModal()
+				}
+				return nil
+			case 'x', 'X', 'ч', 'Ч':
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowCancelConfirmation()
+				}
+				return nil
+			case 'e', 'E', 'у', 'У':
+				if table == app.portfolioView.TabbedView.OrdersTable {
+					app.ShowModifyOrderModal()
 				}
 				return nil
 			case 'c', 'C', 'с', 'С':
@@ -181,6 +196,15 @@ func setupInputHandlers(app *App) {
 		if app.IsProfileOpen() {
 			// Alert modal (error dialog) on top — let all events pass through to it
 			if app.IsAlertOpen() {
+				return event
+			}
+			// Cancel confirmation on top of profile
+			if app.IsCancelConfirmOpen() {
+				if event.Key() == tcell.KeyEscape {
+					app.pages.RemovePage("cancel_confirm")
+					app.app.SetFocus(app.profilePanel.ChartView)
+					return nil
+				}
 				return event
 			}
 			// Modals on top of profile: only handle Escape to close them
@@ -240,6 +264,16 @@ func setupInputHandlers(app *App) {
 				return nil
 			}
 			return nil // Consume unhandled keys to prevent them from reaching ChartView
+		}
+
+		// Cancel confirmation modal — pass all events through (Tab, Enter work natively)
+		if app.IsCancelConfirmOpen() {
+			if event.Key() == tcell.KeyEscape {
+				app.pages.RemovePage("cancel_confirm")
+				app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+				return nil
+			}
+			return event
 		}
 
 		// If any modal is open, only handle Escape globally (if needed) or pass to focused widget

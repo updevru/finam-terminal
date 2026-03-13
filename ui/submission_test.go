@@ -9,7 +9,7 @@ import (
 func TestSubmitOrder_Success(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
 	mockClient := &mockClient{
-		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
+		PlaceOrderFunc: func(id string, sym string, side string, qty float64, params *models.OrderParams) (string, error) {
 			if id != "acc1" {
 				return "", fmt.Errorf("wrong account")
 			}
@@ -26,7 +26,12 @@ func TestSubmitOrder_Success(t *testing.T) {
 	app.selectedIdx = 0
 
 	// Act
-	err := app.SubmitOrder("SBER", 10, "Buy")
+	err := app.SubmitOrder(OrderSubmission{
+		Instrument: "SBER",
+		Quantity:   10,
+		Direction:  "Buy",
+		OrderType:  models.OrderTypeMarket,
+	})
 
 	// Assert
 	if err != nil {
@@ -37,7 +42,7 @@ func TestSubmitOrder_Success(t *testing.T) {
 func TestSubmitOrder_Error(t *testing.T) {
 	accounts := []models.AccountInfo{{ID: "acc1"}}
 	mockClient := &mockClient{
-		PlaceOrderFunc: func(id string, sym string, side string, qty float64) (string, error) {
+		PlaceOrderFunc: func(id string, sym string, side string, qty float64, params *models.OrderParams) (string, error) {
 			return "", fmt.Errorf("api error")
 		},
 	}
@@ -45,7 +50,12 @@ func TestSubmitOrder_Error(t *testing.T) {
 	app.selectedIdx = 0
 
 	// Act
-	err := app.SubmitOrder("SBER", 10, "Buy")
+	err := app.SubmitOrder(OrderSubmission{
+		Instrument: "SBER",
+		Quantity:   10,
+		Direction:  "Buy",
+		OrderType:  models.OrderTypeMarket,
+	})
 
 	// Assert
 	if err == nil {

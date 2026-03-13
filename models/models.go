@@ -6,6 +6,22 @@ import (
 	"time"
 )
 
+// Order type constants for the order modal
+const (
+	OrderTypeMarket     = "Market"
+	OrderTypeLimit      = "Limit"
+	OrderTypeStop       = "Stop-Loss"
+	OrderTypeTakeProfit = "Take-Profit"
+	OrderTypeSLTP       = "SL + TP"
+)
+
+// OrderParams holds parameters for placing an order beyond basic market orders.
+type OrderParams struct {
+	OrderType  string  // OrderTypeMarket, OrderTypeLimit, OrderTypeStop, OrderTypeTakeProfit
+	LimitPrice float64 // Required for Limit orders
+	StopPrice  float64 // Required for Stop-Loss and Take-Profit orders
+}
+
 // AccountInfo represents account information from Finam API
 type AccountInfo struct {
 	ID            string
@@ -148,14 +164,24 @@ type InstrumentProfile struct {
 
 // Order represents an active order
 type Order struct {
-	ID           string
-	Symbol       string
-	Name         string
-	Side         string
-	Type         string
-	Status       string
-	Quantity     string
-	Executed     string
-	Price        string
-	CreationTime time.Time
+	ID            string
+	Symbol        string
+	Name          string
+	Side          string
+	Type          string
+	Status        string
+	Quantity      string
+	Executed      string
+	Price         string
+	StopCondition string
+	LimitPrice    string
+	StopPrice     string
+	Validity      string
+	ExecutedQty   string
+	RemainingQty  string
+	SLQty         string
+	TPQty         string
+	SLPrice       string
+	TPPrice       string
+	CreationTime  time.Time
 }

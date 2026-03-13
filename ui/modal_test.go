@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"finam-terminal/models"
 	"testing"
 
 	"github.com/rivo/tview"
@@ -8,7 +9,7 @@ import (
 
 func TestOrderModal_Initialization(t *testing.T) {
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, func(instrument string, quantity float64, buySell string) {}, nil)
+	modal := NewOrderModal(app, func(sub OrderSubmission) {}, nil)
 
 	if modal == nil {
 		t.Fatal("NewOrderModal returned nil")
@@ -156,8 +157,8 @@ func TestOrderModal_QuantityIsInLots(t *testing.T) {
 	// Verify the callback receives lot quantity (not shares)
 	var receivedQty float64
 	app := tview.NewApplication()
-	modal := NewOrderModal(app, func(instrument string, quantity float64, buySell string) {
-		receivedQty = quantity
+	modal := NewOrderModal(app, func(sub OrderSubmission) {
+		receivedQty = sub.Quantity
 	}, nil)
 
 	modal.SetInstrument("SBER")
@@ -171,10 +172,150 @@ func TestOrderModal_QuantityIsInLots(t *testing.T) {
 
 	// Simulate clicking Create
 	if modal.Validate() {
-		modal.callback(modal.GetInstrument(), modal.GetQuantity(), modal.currentDir)
+		modal.callback(modal.buildSubmission())
 	}
 
 	if receivedQty != 5 {
 		t.Errorf("Expected callback to receive 5 (lots), got %v", receivedQty)
+	}
+}
+
+func TestOrderModal_OrderTypeDefault(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	if modal.GetOrderType() != models.OrderTypeMarket {
+		t.Errorf("Expected default order type Market, got %s", modal.GetOrderType())
+	}
+}
+
+func TestOrderModal_LimitValidation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetQuantity(1)
+
+	// Switch to Limit
+	modal.currentOrderType = models.OrderTypeLimit
+	modal.rebuildPriceFields()
+
+	// Should fail without limit price
+	if modal.Validate() {
+		t.Error("Expected validation to fail without limit price")
+	}
+
+	// Set limit price
+	if modal.limitPriceField != nil {
+		modal.limitPriceField.SetText("250.5")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with limit price set")
+	}
+}
+
+func TestOrderModal_StopValidation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetQuantity(1)
+
+	// Switch to Stop-Loss
+	modal.currentOrderType = models.OrderTypeStop
+	modal.rebuildPriceFields()
+
+	// Should fail without stop price
+	if modal.Validate() {
+		t.Error("Expected validation to fail without stop price")
+	}
+
+	// Set stop price
+	if modal.stopPriceField != nil {
+		modal.stopPriceField.SetText("240")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with stop price set")
+	}
+}
+
+func TestOrderModal_TakeProfitValidation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetQuantity(1)
+
+	// Switch to Take-Profit
+	modal.currentOrderType = models.OrderTypeTakeProfit
+	modal.rebuildPriceFields()
+
+	// Should fail without TP price
+	if modal.Validate() {
+		t.Error("Expected validation to fail without TP price")
+	}
+
+	// Set TP price
+	if modal.tpPriceField != nil {
+		modal.tpPriceField.SetText("270")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with TP price set")
+	}
+}
+
+func TestOrderModal_SLTPValidation(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	modal.SetInstrument("SBER")
+	modal.SetQuantity(1)
+
+	// Switch to SL+TP
+	modal.currentOrderType = models.OrderTypeSLTP
+	modal.rebuildPriceFields()
+
+	// Should fail without any price
+	if modal.Validate() {
+		t.Error("Expected validation to fail without SL or TP price")
+	}
+
+	// Set only SL price — should pass
+	if modal.slPriceField != nil {
+		modal.slPriceField.SetText("240")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with only SL price set")
+	}
+
+	// Set only TP price — should also pass
+	modal.slPriceField.SetText("")
+	if modal.tpPriceField != nil {
+		modal.tpPriceField.SetText("270")
+	}
+	if !modal.Validate() {
+		t.Error("Expected validation to pass with only TP price set")
+	}
+}
+
+func TestOrderModal_ResetOrderType(t *testing.T) {
+	app := tview.NewApplication()
+	modal := NewOrderModal(app, nil, nil)
+
+	// Switch to Limit and then reset
+	modal.currentOrderType = models.OrderTypeLimit
+	modal.rebuildPriceFields()
+
+	if modal.limitPriceField == nil {
+		t.Error("Expected limit price field to exist")
+	}
+
+	modal.ResetOrderType()
+
+	if modal.GetOrderType() != models.OrderTypeMarket {
+		t.Errorf("Expected Market after reset, got %s", modal.GetOrderType())
+	}
+	if modal.limitPriceField != nil {
+		t.Error("Expected limit price field to be nil after reset")
 	}
 }

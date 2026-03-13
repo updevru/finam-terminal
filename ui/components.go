@@ -116,21 +116,16 @@ func (tv *TabbedView) SetTab(tab TabType) {
 	tv.UpdateHeader()
 }
 
-// UpdateAccounts populates the account table
+// UpdateAccounts populates the account table with two rows per account
 func (pv *PortfolioView) UpdateAccounts(accounts []models.AccountInfo) {
 	pv.AccountTable.Clear()
 
-	headers := []string{"ID", "Type", "Equity"}
-	for i, h := range headers {
-		pv.AccountTable.SetCell(0, i, tview.NewTableCell(h).
-			SetTextColor(tcell.ColorYellow).
-			SetSelectable(false))
-	}
-
 	for i, acc := range accounts {
-		pv.AccountTable.SetCell(i+1, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
-		pv.AccountTable.SetCell(i+1, 1, tview.NewTableCell(acc.Type).SetTextColor(tcell.ColorWhite))
-		pv.AccountTable.SetCell(i+1, 2, tview.NewTableCell(acc.Equity).SetTextColor(tcell.ColorWhite))
+		idRow := i * 2
+		dataRow := idRow + 1
+
+		pv.AccountTable.SetCell(idRow, 0, tview.NewTableCell(acc.ID).SetTextColor(tcell.ColorWhite))
+		pv.AccountTable.SetCell(dataRow, 0, tview.NewTableCell(acc.Equity).SetTextColor(tcell.ColorWhite))
 	}
 }
 
@@ -189,11 +184,11 @@ func (pv *PortfolioView) UpdatePositions(positions []models.Position) {
 // createAccountTable creates the account table
 func createAccountTable() *tview.Table {
 	table := tview.NewTable().
-		SetFixed(1, 0).
 		SetSelectable(true, false)
 	table.SetBorder(true).SetTitle(" Accounts ")
 	table.SetBackgroundColor(tcell.ColorBlack)
-	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
+	// Match the custom two-row highlight so tview's selection blends seamlessly
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorDarkSlateGray).Foreground(tcell.ColorWhite))
 	return table
 }
 

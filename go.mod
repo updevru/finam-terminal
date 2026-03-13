@@ -5,7 +5,7 @@ go 1.24.0
 toolchain go1.24.3
 
 require (
-	github.com/FinamWeb/finam-trade-api/go v0.0.0-20251213030454-ad57bfb68aaa
+	github.com/FinamWeb/finam-trade-api/go v0.0.0-20260304141016-0a6a1b5d008c
 	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/joho/godotenv v1.5.1
 	github.com/rivo/tview v0.42.0

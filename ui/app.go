@@ -22,7 +22,8 @@ type APIClient interface {
 	GetAccounts() ([]models.AccountInfo, error)
 	GetAccountDetails(accountID string) (*models.AccountInfo, []models.Position, error)
 	GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error)
-	PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error)
+	PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *models.OrderParams) (string, error)
+	PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error)
 	ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error)
 
 	// Search operations
@@ -34,6 +35,7 @@ type APIClient interface {
 	// History and Orders
 	GetTradeHistory(accountID string) ([]models.Trade, error)
 	GetActiveOrders(accountID string) ([]models.Order, error)
+	CancelOrder(accountID, orderID string) error
 
 	// Instrument Profile
 	GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error)
@@ -110,8 +112,8 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 	a.statusBar = createStatusBar()
 
 	// Initialize OrderModal
-	a.orderModal = NewOrderModal(a.app, func(instrument string, quantity float64, buySell string) {
-		if err := a.SubmitOrder(instrument, quantity, buySell); err != nil {
+	a.orderModal = NewOrderModal(a.app, func(sub OrderSubmission) {
+		if err := a.SubmitOrder(sub); err != nil {
 			a.ShowError(extractUserMessage(err))
 		}
 	}, func() {
@@ -153,6 +155,7 @@ func (a *App) CloseCloseModal() {
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
 func (a *App) CloseOrderModal() {
+	a.orderModal.RestoreCallback()
 	a.pages.HidePage("modal")
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
@@ -185,10 +188,31 @@ func (a *App) IsSearchModalOpen() bool {
 func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.SetInstrument(ticker)
 	a.orderModal.SetQuantity(0)
+	a.orderModal.ResetOrderType()
 	lotSize := a.client.GetLotSize(ticker)
 	a.orderModal.SetLotSize(lotSize)
-	a.orderModal.SetPrice(0) // Price unknown from search context
 	a.orderModal.SetDisplayName(a.client.GetInstrumentName(ticker))
+
+	// Fetch current price via snapshots (same as positions list)
+	a.dataMutex.RLock()
+	accountID := ""
+	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
+		accountID = a.accounts[a.selectedIdx].ID
+	}
+	a.dataMutex.RUnlock()
+
+	var price float64
+	if accountID != "" {
+		if snapshots, err := a.client.GetSnapshots(accountID, []string{ticker}); err == nil {
+			if q, ok := snapshots[ticker]; ok {
+				if p, err := parseFloat(q.Last); err == nil {
+					price = p
+				}
+			}
+		}
+	}
+	a.orderModal.SetPrice(price)
+
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
 }
@@ -211,8 +235,14 @@ func (a *App) IsCloseModalOpen() bool {
 	return name == "close_modal"
 }
 
-// SubmitOrder submits a new order
-func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error {
+// IsCancelConfirmOpen returns true if the cancel confirmation modal is currently open
+func (a *App) IsCancelConfirmOpen() bool {
+	name, _ := a.pages.GetFrontPage()
+	return name == "cancel_confirm"
+}
+
+// SubmitOrder submits a new order based on the order submission from the modal
+func (a *App) SubmitOrder(sub OrderSubmission) error {
 	a.dataMutex.RLock()
 	if a.selectedIdx >= len(a.accounts) {
 		a.dataMutex.RUnlock()
@@ -224,7 +254,34 @@ func (a *App) SubmitOrder(symbol string, quantity float64, buySell string) error
 	// Show loading status
 	a.SetStatus("Placing order...", StatusLoading)
 
-	id, err := a.client.PlaceOrder(accountID, symbol, buySell, quantity)
+	var id string
+	var err error
+
+	switch sub.OrderType {
+	case models.OrderTypeSLTP:
+		id, err = a.client.PlaceSLTPOrder(
+			accountID, sub.Instrument, sub.Direction,
+			sub.Quantity, sub.SLPrice,
+			sub.Quantity, sub.TPPrice,
+		)
+	case models.OrderTypeTakeProfit:
+		params := &models.OrderParams{
+			OrderType: sub.OrderType,
+			StopPrice: sub.TPPrice, // TP price is sent as stop price with opposite condition
+		}
+		id, err = a.client.PlaceOrder(accountID, sub.Instrument, sub.Direction, sub.Quantity, params)
+	default:
+		var params *models.OrderParams
+		if sub.OrderType != "" && sub.OrderType != models.OrderTypeMarket {
+			params = &models.OrderParams{
+				OrderType:  sub.OrderType,
+				LimitPrice: sub.LimitPrice,
+				StopPrice:  sub.StopPrice,
+			}
+		}
+		id, err = a.client.PlaceOrder(accountID, sub.Instrument, sub.Direction, sub.Quantity, params)
+	}
+
 	if err != nil {
 		msg := extractUserMessage(err)
 		a.SetStatus(fmt.Sprintf("Order failed: %v", msg), StatusError)
@@ -289,6 +346,228 @@ func (a *App) SubmitClosePosition(closeQuantity float64) error {
 	return nil
 }
 
+// getSelectedOrder returns the order currently selected in the Orders table.
+func (a *App) getSelectedOrder() (models.Order, error) {
+	row, _ := a.portfolioView.TabbedView.OrdersTable.GetSelection()
+	if row <= 0 {
+		return models.Order{}, fmt.Errorf("no order selected")
+	}
+	idx := row - 1
+
+	a.dataMutex.RLock()
+	defer a.dataMutex.RUnlock()
+
+	if a.selectedIdx < 0 || a.selectedIdx >= len(a.accounts) {
+		return models.Order{}, fmt.Errorf("no account selected")
+	}
+	accountID := a.accounts[a.selectedIdx].ID
+	orders := a.activeOrders[accountID]
+
+	if idx < 0 || idx >= len(orders) {
+		return models.Order{}, fmt.Errorf("invalid order selection")
+	}
+
+	return orders[idx], nil
+}
+
+// cancelOrder cancels an order and refreshes the orders list.
+func (a *App) cancelOrder(accountID, orderID string) error {
+	a.SetStatus("Cancelling order...", StatusLoading)
+
+	err := a.client.CancelOrder(accountID, orderID)
+	if err != nil {
+		msg := extractUserMessage(err)
+		a.SetStatus(fmt.Sprintf("Cancel failed: %s", msg), StatusError)
+		return err
+	}
+
+	a.SetStatus(fmt.Sprintf("Order %s cancelled", orderID), StatusSuccess)
+
+	// Refresh orders
+	a.loadOrdersAsync(accountID)
+
+	return nil
+}
+
+// ShowCancelConfirmation shows a Yes/No confirmation modal for cancelling an order.
+func (a *App) ShowCancelConfirmation() {
+	order, err := a.getSelectedOrder()
+	if err != nil {
+		a.SetStatus("No order selected", StatusError)
+		return
+	}
+
+	if !isOrderCancellable(order.Status) {
+		a.SetStatus("Order is not cancellable", StatusError)
+		return
+	}
+
+	a.dataMutex.RLock()
+	accountID := a.accounts[a.selectedIdx].ID
+	a.dataMutex.RUnlock()
+
+	displayName := order.Name
+	if displayName == "" {
+		displayName = order.Symbol
+	}
+	text := fmt.Sprintf("Cancel %s %s %s @ %s?", order.Type, order.Side, displayName, order.Price)
+
+	modal := tview.NewModal().
+		SetText(text).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			a.pages.RemovePage("cancel_confirm")
+			a.app.SetFocus(a.portfolioView.TabbedView.OrdersTable)
+			if buttonLabel == "Yes" {
+				go func() {
+					if err := a.cancelOrder(accountID, order.ID); err != nil {
+						a.app.QueueUpdateDraw(func() {
+							updateStatusBar(a)
+						})
+					} else {
+						a.app.QueueUpdateDraw(func() {
+							updateOrdersTable(a)
+							updateStatusBar(a)
+						})
+					}
+				}()
+			}
+		})
+
+	a.pages.AddPage("cancel_confirm", modal, false, true)
+}
+
+// mapOrderTypeToModal maps an Order.Type string to the modal's order type constant.
+// Returns empty string if the order type is not supported for modification.
+func mapOrderTypeToModal(orderType string) string {
+	switch orderType {
+	case "Market":
+		return models.OrderTypeMarket
+	case "Limit":
+		return models.OrderTypeLimit
+	case "Stop":
+		return models.OrderTypeStop
+	case "Take-Profit":
+		return models.OrderTypeTakeProfit
+	case "SL/TP":
+		return models.OrderTypeSLTP
+	default:
+		return ""
+	}
+}
+
+// ShowModifyOrderModal opens the order modal pre-filled with the selected order's parameters.
+// On submit, the old order is cancelled and a new one is placed.
+func (a *App) ShowModifyOrderModal() {
+	order, err := a.getSelectedOrder()
+	if err != nil {
+		a.SetStatus("No order selected", StatusError)
+		return
+	}
+
+	if !isOrderCancellable(order.Status) {
+		a.SetStatus("Order is not modifiable", StatusError)
+		return
+	}
+
+	a.dataMutex.RLock()
+	accountID := a.accounts[a.selectedIdx].ID
+	a.dataMutex.RUnlock()
+
+	// Map order type to modal constant
+	modalType := mapOrderTypeToModal(order.Type)
+	if modalType == "" {
+		a.SetStatus(fmt.Sprintf("Order type %q is not supported for modification", order.Type), StatusError)
+		return
+	}
+
+	// Pre-fill modal
+	a.orderModal.SetInstrument(order.Symbol)
+	a.orderModal.SetDirection(order.Side)
+	a.orderModal.SetOrderType(modalType)
+
+	// Set lot size
+	lotSize := a.client.GetLotSize(order.Symbol)
+	a.orderModal.SetLotSize(lotSize)
+
+	// Set quantity (parse from string)
+	if qty, err := parseFloat(order.Quantity); err == nil && qty > 0 {
+		// Convert shares to lots if lot size is known
+		if lotSize > 0 {
+			a.orderModal.SetQuantity(qty / lotSize)
+		} else {
+			a.orderModal.SetQuantity(qty)
+		}
+	}
+
+	// Set prices based on order type
+	switch modalType {
+	case models.OrderTypeLimit:
+		if p, err := parseFloat(order.LimitPrice); err == nil {
+			a.orderModal.SetLimitPrice(p)
+		}
+	case models.OrderTypeStop:
+		if p, err := parseFloat(order.StopPrice); err == nil {
+			a.orderModal.SetStopPrice(p)
+		}
+	case models.OrderTypeTakeProfit:
+		if p, err := parseFloat(order.TPPrice); err == nil {
+			a.orderModal.SetTPPrice(p)
+		} else if p, err := parseFloat(order.StopPrice); err == nil {
+			a.orderModal.SetTPPrice(p)
+		}
+	case models.OrderTypeSLTP:
+		if p, err := parseFloat(order.SLPrice); err == nil {
+			a.orderModal.SetSLPrice(p)
+		}
+		if p, err := parseFloat(order.TPPrice); err == nil {
+			a.orderModal.SetTPPrice(p)
+		}
+	}
+
+	// Set display name and title
+	displayName := order.Name
+	if displayName == "" {
+		displayName = a.client.GetInstrumentName(order.Symbol)
+	}
+	a.orderModal.SetModifyTitle(displayName)
+
+	// Set modify callback (original is saved internally for restoration)
+	a.orderModal.SetCallback(func(sub OrderSubmission) {
+		// Restore original callback immediately
+		a.orderModal.RestoreCallback()
+
+		// Run cancel + place in a goroutine to avoid blocking the UI
+		go func() {
+			// Cancel old order first
+			a.SetStatus("Cancelling old order...", StatusLoading)
+			cancelErr := a.client.CancelOrder(accountID, order.ID)
+			if cancelErr != nil {
+				msg := extractUserMessage(cancelErr)
+				a.SetStatus(fmt.Sprintf("Cancel failed: %s", msg), StatusError)
+				a.app.QueueUpdateDraw(func() {
+					a.ShowError(fmt.Sprintf("Failed to cancel order: %s", msg))
+				})
+				return
+			}
+
+			// Place new order
+			if err := a.SubmitOrder(sub); err != nil {
+				a.app.QueueUpdateDraw(func() {
+					a.ShowError(fmt.Sprintf("Old order was cancelled but new order failed: %s", extractUserMessage(err)))
+				})
+				return
+			}
+
+			// Refresh orders
+			a.loadOrdersAsync(accountID)
+		}()
+	})
+
+	a.pages.ShowPage("modal")
+	a.app.SetFocus(a.orderModal.Form)
+}
+
 // ShowError displays an error modal
 func (a *App) ShowError(msg string) {
 	modal := tview.NewModal().
@@ -331,7 +610,7 @@ func (a *App) Run() error {
 		AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
 			AddItem(nil, 0, 1, false).
-			AddItem(a.orderModal.Layout, 16, 1, true). // Height 16 (form + info + footer)
+			AddItem(a.orderModal.Layout, 20, 1, true). // Height 20 (form + price fields + info + footer)
 			AddItem(nil, 0, 1, false), 50, 1, true).   // Width 50
 		AddItem(nil, 0, 1, false)
 
@@ -401,6 +680,7 @@ func (a *App) OpenOrderModal() {
 
 	a.orderModal.SetInstrument(symbol)
 	a.orderModal.SetQuantity(0)
+	a.orderModal.ResetOrderType()
 	a.orderModal.SetDisplayName(displayName)
 
 	// Set lot size and price for the selected instrument

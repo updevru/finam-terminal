@@ -63,6 +63,61 @@ func displayLots(rawQty string, lotSize float64) string {
 	return fmt.Sprintf("%v", qty/lotSize)
 }
 
+// accountIdxToRow converts an account index to the first table row for that account.
+// Each account occupies 2 rows (ID + data).
+func accountIdxToRow(idx int) int {
+	return idx * 2
+}
+
+// rowToAccountIdx converts a table row to the corresponding account index.
+// Both the ID row and the data row map to the same account.
+func rowToAccountIdx(row int) int {
+	return row / 2
+}
+
+// formatNumber formats a float64 with space as thousand separator (Russian format).
+// decimals controls the number of decimal places.
+func formatNumber(val float64, decimals int) string {
+	negative := val < 0
+	if negative {
+		val = -val
+	}
+
+	formatted := fmt.Sprintf("%.*f", decimals, val)
+
+	// Split into integer and decimal parts
+	parts := strings.SplitN(formatted, ".", 2)
+	intPart := parts[0]
+
+	// Insert space separators from right to left
+	var result []byte
+	for i, j := len(intPart)-1, 0; i >= 0; i, j = i-1, j+1 {
+		if j > 0 && j%3 == 0 {
+			result = append(result, ' ')
+		}
+		result = append(result, intPart[i])
+	}
+	// Reverse
+	for i, j := 0, len(result)-1; i < j; i, j = i+1, j-1 {
+		result[i], result[j] = result[j], result[i]
+	}
+
+	s := string(result)
+	if len(parts) > 1 {
+		s += "." + parts[1]
+	}
+
+	if negative {
+		s = "-" + s
+	}
+	return s
+}
+
+// isOrderCancellable returns true if an order with the given status can be cancelled or modified.
+func isOrderCancellable(status string) bool {
+	return status == "Active" || status == "Partial"
+}
+
 // parseFloat parses a string to float64, handling commas as decimal separators
 // and removing whitespace (including NBSP).
 func parseFloat(s string) (float64, error) {

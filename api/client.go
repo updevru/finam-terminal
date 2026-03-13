@@ -229,6 +229,7 @@ func (c *Client) loadAssetCache() error {
 	defer cancel()
 
 	// Use empty request to get all assets (subject to API limits)
+	//nolint:staticcheck // Assets is the only method available for bulk instrument loading
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
 		c.logGRPCError("AssetsService", "Assets", err)
@@ -469,7 +470,8 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 }
 
 // PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
-func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64) (string, error) {
+// params is optional — when nil or when OrderType is empty/Market, a market order is placed.
+func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, quantity float64, params *models.OrderParams) (string, error) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
@@ -497,7 +499,7 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		log.Printf("[DEBUG] PlaceOrder: %v lots * %.0f lot size = %.0f shares", quantity, lotSize, actualQuantity)
 	}
 
-	qtyDecimal := &decimal.Decimal{Value: fmt.Sprintf("%v", actualQuantity)}
+	qtyDecimal := &decimal.Decimal{Value: strconv.FormatFloat(actualQuantity, 'f', -1, 64)}
 
 	req := &orders.Order{
 		AccountId: accountID,
@@ -505,6 +507,35 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 		Quantity:  qtyDecimal,
 		Side:      side,
 		Type:      orders.OrderType_ORDER_TYPE_MARKET,
+	}
+
+	// Apply order type parameters
+	if params != nil {
+		switch params.OrderType {
+		case models.OrderTypeLimit:
+			req.Type = orders.OrderType_ORDER_TYPE_LIMIT
+			req.LimitPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.LimitPrice, 'f', -1, 64)}
+		case models.OrderTypeStop:
+			req.Type = orders.OrderType_ORDER_TYPE_STOP
+			req.StopPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.StopPrice, 'f', -1, 64)}
+			// SL: sell when price drops (LAST_DOWN), buy when price rises (LAST_UP)
+			if side == tradeapiv1.Side_SIDE_SELL {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
+			} else {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
+			}
+			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
+		case models.OrderTypeTakeProfit:
+			req.Type = orders.OrderType_ORDER_TYPE_STOP
+			req.StopPrice = &decimal.Decimal{Value: strconv.FormatFloat(params.StopPrice, 'f', -1, 64)}
+			// TP: sell when price rises (LAST_UP), buy when price drops (LAST_DOWN)
+			if side == tradeapiv1.Side_SIDE_SELL {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_UP
+			} else {
+				req.StopCondition = orders.StopCondition_STOP_CONDITION_LAST_DOWN
+			}
+			req.ValidBefore = orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL
+		}
 	}
 
 	resp, err := c.ordersClient.PlaceOrder(ctx, req)
@@ -520,6 +551,90 @@ func (c *Client) PlaceOrder(accountID string, symbol string, buySell string, qua
 	return resp.OrderId, nil
 }
 
+// PlaceSLTPOrder places a linked stop-loss + take-profit order pair.
+// Quantities are in lots; they are multiplied by the lot size before sending.
+// Either slPrice or tpPrice (or both) must be non-zero.
+func (c *Client) PlaceSLTPOrder(accountID, symbol, buySell string, slQty, slPrice, tpQty, tpPrice float64) (string, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	var side tradeapiv1.Side
+	switch strings.ToLower(buySell) {
+	case "buy":
+		side = tradeapiv1.Side_SIDE_BUY
+	case "sell":
+		side = tradeapiv1.Side_SIDE_SELL
+	default:
+		return "", fmt.Errorf("invalid direction: %s", buySell)
+	}
+
+	// Resolve lot size
+	lotSize := c.GetLotSize(symbol)
+	if lotSize <= 0 {
+		lotSize = c.GetLotSize(fullSymbol)
+	}
+
+	req := &orders.SLTPOrder{
+		AccountId:   accountID,
+		Symbol:      fullSymbol,
+		Side:        side,
+		ValidBefore: orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL,
+	}
+
+	if slPrice > 0 {
+		actualSlQty := slQty
+		if lotSize > 0 {
+			actualSlQty = slQty * lotSize
+		}
+		req.QuantitySl = &decimal.Decimal{Value: strconv.FormatFloat(actualSlQty, 'f', -1, 64)}
+		req.SlPrice = &decimal.Decimal{Value: strconv.FormatFloat(slPrice, 'f', -1, 64)}
+	}
+
+	if tpPrice > 0 {
+		actualTpQty := tpQty
+		if lotSize > 0 {
+			actualTpQty = tpQty * lotSize
+		}
+		req.QuantityTp = &decimal.Decimal{Value: strconv.FormatFloat(actualTpQty, 'f', -1, 64)}
+		req.TpPrice = &decimal.Decimal{Value: strconv.FormatFloat(tpPrice, 'f', -1, 64)}
+	}
+
+	resp, err := c.ordersClient.PlaceSLTPOrder(ctx, req)
+	if err != nil {
+		c.logGRPCError("OrdersService", "PlaceSLTPOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("Symbol: %s", fullSymbol),
+			fmt.Sprintf("Side: %s", buySell),
+			fmt.Sprintf("SL: qty=%v price=%v", slQty, slPrice),
+			fmt.Sprintf("TP: qty=%v price=%v", tpQty, tpPrice))
+		return "", fmt.Errorf("failed to place SL/TP order: %w", err)
+	}
+
+	return resp.OrderId, nil
+}
+
+// CancelOrder cancels an active order by its ID.
+func (c *Client) CancelOrder(accountID, orderID string) error {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	_, err := c.ordersClient.CancelOrder(ctx, &orders.CancelOrderRequest{
+		AccountId: accountID,
+		OrderId:   orderID,
+	})
+	if err != nil {
+		c.logGRPCError("OrdersService", "CancelOrder", err,
+			fmt.Sprintf("AccountId: %s", accountID),
+			fmt.Sprintf("OrderId: %s", orderID))
+		return fmt.Errorf("failed to cancel order: %w", err)
+	}
+
+	log.Printf("[INFO] Order %s cancelled successfully", orderID)
+	return nil
+}
+
 // ClosePosition closes (fully or partially) an existing position
 func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity string, closeQuantity float64) (string, error) {
 	// Determine direction
@@ -529,7 +644,7 @@ func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity 
 		return "", fmt.Errorf("could not determine close direction for quantity %s", currentQuantity)
 	}
 
-	return c.PlaceOrder(accountID, symbol, dir, closeQuantity)
+	return c.PlaceOrder(accountID, symbol, dir, closeQuantity, nil)
 }
 
 // GetAccounts returns a list of all accounts
@@ -800,22 +915,46 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			}
 		}
 
-		status := "Unknown"
+		status := "Active"
 		switch o.Status {
 		case orders.OrderStatus_ORDER_STATUS_UNSPECIFIED:
-			status = "Unspecified"
-		case orders.OrderStatus_ORDER_STATUS_NEW:
-			status = "New"
+			status = "Active"
+		case orders.OrderStatus_ORDER_STATUS_NEW,
+			orders.OrderStatus_ORDER_STATUS_WATCHING,
+			orders.OrderStatus_ORDER_STATUS_WAIT,
+			orders.OrderStatus_ORDER_STATUS_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_PENDING_NEW:
+			status = "Active"
 		case orders.OrderStatus_ORDER_STATUS_PARTIALLY_FILLED:
 			status = "Partial"
 		case orders.OrderStatus_ORDER_STATUS_FILLED:
 			status = "Filled"
 		case orders.OrderStatus_ORDER_STATUS_CANCELED:
 			status = "Cancelled"
-		case orders.OrderStatus_ORDER_STATUS_REJECTED:
+		case orders.OrderStatus_ORDER_STATUS_REJECTED,
+			orders.OrderStatus_ORDER_STATUS_DENIED_BY_BROKER,
+			orders.OrderStatus_ORDER_STATUS_REJECTED_BY_EXCHANGE:
 			status = "Rejected"
-		case orders.OrderStatus_ORDER_STATUS_EXECUTED:
+		case orders.OrderStatus_ORDER_STATUS_EXECUTED,
+			orders.OrderStatus_ORDER_STATUS_SL_EXECUTED,
+			orders.OrderStatus_ORDER_STATUS_TP_EXECUTED:
 			status = "Executed"
+		case orders.OrderStatus_ORDER_STATUS_EXPIRED,
+			orders.OrderStatus_ORDER_STATUS_DONE_FOR_DAY:
+			status = "Expired"
+		case orders.OrderStatus_ORDER_STATUS_SUSPENDED,
+			orders.OrderStatus_ORDER_STATUS_DISABLED:
+			status = "Suspended"
+		case orders.OrderStatus_ORDER_STATUS_FAILED:
+			status = "Failed"
+		case orders.OrderStatus_ORDER_STATUS_LINK_WAIT,
+			orders.OrderStatus_ORDER_STATUS_SL_GUARD_TIME,
+			orders.OrderStatus_ORDER_STATUS_SL_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_TP_GUARD_TIME,
+			orders.OrderStatus_ORDER_STATUS_TP_CORRECTION,
+			orders.OrderStatus_ORDER_STATUS_TP_FORWARDING,
+			orders.OrderStatus_ORDER_STATUS_TP_CORR_GUARD_TIME:
+			status = "Active"
 		}
 
 		order := models.Order{
@@ -823,6 +962,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 			Status: status,
 			Side:   side,
 		}
+
+		// Populate executed/remaining quantities from OrderState
+		order.ExecutedQty = formatDecimal(o.ExecutedQuantity)
+		order.RemainingQty = formatDecimal(o.RemainingQuantity)
 
 		if o.Order != nil {
 			order.Symbol = o.Order.Symbol
@@ -834,20 +977,96 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 				order.Type = "Limit"
 			case orders.OrderType_ORDER_TYPE_MARKET:
 				order.Type = "Market"
+			case orders.OrderType_ORDER_TYPE_STOP:
+				order.Type = "Stop"
+			case orders.OrderType_ORDER_TYPE_STOP_LIMIT:
+				order.Type = "Stop-Limit"
 			default:
 				order.Type = o.Order.Type.String()
-				// Remove prefix if it's still there after String()
 				order.Type = strings.TrimPrefix(order.Type, "ORDER_TYPE_")
 			}
 			order.Quantity = formatDecimal(o.Order.Quantity)
-			order.Price = formatDecimal(o.Order.LimitPrice)
-			if order.Price == "0" || order.Price == "" {
+
+			// Populate separate price fields
+			order.LimitPrice = formatDecimal(o.Order.LimitPrice)
+			order.StopPrice = formatDecimal(o.Order.StopPrice)
+
+			// Show the most relevant price based on order type
+			switch o.Order.Type {
+			case orders.OrderType_ORDER_TYPE_STOP, orders.OrderType_ORDER_TYPE_STOP_LIMIT:
+				order.Price = formatDecimal(o.Order.StopPrice)
+			case orders.OrderType_ORDER_TYPE_LIMIT:
+				order.Price = formatDecimal(o.Order.LimitPrice)
+			default:
+				order.Price = formatDecimal(o.Order.LimitPrice)
+			}
+			if order.Price == "0" || order.Price == "" || order.Price == "N/A" {
 				order.Price = "Market"
+			}
+
+			// Stop condition
+			switch o.Order.StopCondition {
+			case orders.StopCondition_STOP_CONDITION_LAST_UP:
+				order.StopCondition = "Last Up"
+			case orders.StopCondition_STOP_CONDITION_LAST_DOWN:
+				order.StopCondition = "Last Down"
+			}
+
+			// Validity
+			order.Validity = formatValidBefore(o.Order.ValidBefore)
+		}
+
+		// Check for SL/TP linked orders
+		if o.SltpOrder != nil {
+			order.Type = "SL/TP"
+			symbol := o.SltpOrder.Symbol
+			if symbol != "" {
+				order.Symbol = symbol
+				c.assetMutex.RLock()
+				if name := c.instrumentNameCache[symbol]; name != "" {
+					order.Name = name
+				}
+				c.assetMutex.RUnlock()
+			}
+
+			// Populate SL/TP specific fields
+			order.SLPrice = formatDecimal(o.SltpOrder.SlPrice)
+			order.TPPrice = formatDecimal(o.SltpOrder.TpPrice)
+			order.SLQty = formatDecimal(o.SltpOrder.QuantitySl)
+			order.TPQty = formatDecimal(o.SltpOrder.QuantityTp)
+			order.Validity = formatValidBefore(o.SltpOrder.ValidBefore)
+
+			// Populate side from SL/TP order
+			switch o.SltpOrder.Side {
+			case tradeapiv1.Side_SIDE_BUY:
+				order.Side = "Buy"
+			case tradeapiv1.Side_SIDE_SELL:
+				order.Side = "Sell"
+			}
+
+			// Show SL and TP prices in the combined Price field
+			var priceParts []string
+			if order.SLPrice != "" && order.SLPrice != "N/A" && order.SLPrice != "0" {
+				priceParts = append(priceParts, "SL:"+order.SLPrice)
+			}
+			if order.TPPrice != "" && order.TPPrice != "N/A" && order.TPPrice != "0" {
+				priceParts = append(priceParts, "TP:"+order.TPPrice)
+			}
+			if len(priceParts) > 0 {
+				order.Price = strings.Join(priceParts, " ")
 			}
 		}
 
-		if o.TransactAt != nil {
+		// Pick the best available timestamp:
+		// - TransactAt: when the order was placed on exchange
+		// - WithdrawAt: when the order was cancelled/executed
+		// - AcceptAt: when the order was accepted by broker (fallback for active Stop/SL/TP)
+		if o.TransactAt != nil && o.TransactAt.GetSeconds() != 0 {
 			order.CreationTime = o.TransactAt.AsTime().Local()
+		} else if o.WithdrawAt != nil && o.WithdrawAt.GetSeconds() != 0 {
+			order.CreationTime = o.WithdrawAt.AsTime().Local()
+		} else if o.AcceptAt != nil && o.AcceptAt.GetSeconds() != 0 {
+			order.CreationTime = o.AcceptAt.AsTime().Local()
 		}
 
 		activeOrders = append(activeOrders, order)
@@ -1073,6 +1292,20 @@ func (c *Client) GetSchedule(symbol string) ([]models.TradingSession, error) {
 	}
 
 	return sessions, nil
+}
+
+// formatValidBefore converts a ValidBefore enum to a human-readable string.
+func formatValidBefore(vb orders.ValidBefore) string {
+	switch vb {
+	case orders.ValidBefore_VALID_BEFORE_END_OF_DAY:
+		return "Day"
+	case orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL:
+		return "GTC"
+	case orders.ValidBefore_VALID_BEFORE_GOOD_TILL_DATE:
+		return "GTD"
+	default:
+		return ""
+	}
 }
 
 // parseDecimalFloat parses a google Decimal to float64, returns 0 on failure

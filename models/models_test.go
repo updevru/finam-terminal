@@ -100,6 +100,61 @@ func TestOrderModel(t *testing.T) {
 	}
 }
 
+func TestOrderModel_ExtendedFields(t *testing.T) {
+	o := Order{
+		ID:            "O2",
+		Symbol:        "SBER@TQBR",
+		Name:          "Сбербанк",
+		Side:          "Buy",
+		Type:          "Stop",
+		Status:        "New",
+		Quantity:      "100",
+		Executed:      "0",
+		Price:         "250.00",
+		StopCondition: "Last Down",
+		LimitPrice:    "248.00",
+		StopPrice:     "250.00",
+		Validity:      "GTC",
+		ExecutedQty:   "0",
+		RemainingQty:  "100",
+		SLQty:         "50",
+		TPQty:         "50",
+		SLPrice:       "240.00",
+		TPPrice:       "260.00",
+	}
+
+	if o.StopCondition != "Last Down" {
+		t.Errorf("Expected StopCondition 'Last Down', got '%s'", o.StopCondition)
+	}
+	if o.LimitPrice != "248.00" {
+		t.Errorf("Expected LimitPrice '248.00', got '%s'", o.LimitPrice)
+	}
+	if o.StopPrice != "250.00" {
+		t.Errorf("Expected StopPrice '250.00', got '%s'", o.StopPrice)
+	}
+	if o.Validity != "GTC" {
+		t.Errorf("Expected Validity 'GTC', got '%s'", o.Validity)
+	}
+	if o.ExecutedQty != "0" {
+		t.Errorf("Expected ExecutedQty '0', got '%s'", o.ExecutedQty)
+	}
+	if o.RemainingQty != "100" {
+		t.Errorf("Expected RemainingQty '100', got '%s'", o.RemainingQty)
+	}
+	if o.SLQty != "50" {
+		t.Errorf("Expected SLQty '50', got '%s'", o.SLQty)
+	}
+	if o.TPQty != "50" {
+		t.Errorf("Expected TPQty '50', got '%s'", o.TPQty)
+	}
+	if o.SLPrice != "240.00" {
+		t.Errorf("Expected SLPrice '240.00', got '%s'", o.SLPrice)
+	}
+	if o.TPPrice != "260.00" {
+		t.Errorf("Expected TPPrice '260.00', got '%s'", o.TPPrice)
+	}
+}
+
 func TestPositionLotSize(t *testing.T) {
 	p := Position{
 		Symbol:   "SBER",

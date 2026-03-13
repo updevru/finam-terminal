@@ -1,5 +1,5 @@
-github.com/FinamWeb/finam-trade-api/go v0.0.0-20251213030454-ad57bfb68aaa h1:trdI7/hYIYGFzd0NWkipXiKeVyBZkHjlkEG9H9qMjA0=
-github.com/FinamWeb/finam-trade-api/go v0.0.0-20251213030454-ad57bfb68aaa/go.mod h1:awaRPTzqrbIiDvNmRDi1y3HSS36FBIPCb+Zw6BpcQvw=
+github.com/FinamWeb/finam-trade-api/go v0.0.0-20260304141016-0a6a1b5d008c h1:yn5VzJhE2Y6i6ufVlGUvTILmvNP3yFT243zavuc0gos=
+github.com/FinamWeb/finam-trade-api/go v0.0.0-20260304141016-0a6a1b5d008c/go.mod h1:awaRPTzqrbIiDvNmRDi1y3HSS36FBIPCb+Zw6BpcQvw=
 github.com/gdamore/encoding v1.0.1 h1:YzKZckdBL6jVt2Gc+5p82qhrGiqMdG/eNs6Wy0u3Uhw=
 github.com/gdamore/encoding v1.0.1/go.mod h1:0Z0cMFinngz9kS1QfMjCP8TY7em3bZYeeklsSDPivEo=
 github.com/gdamore/tcell/v2 v2.13.8 h1:Mys/Kl5wfC/GcC5Cx4C2BIQH9dbnhnkPgS9/wF3RlfU=
