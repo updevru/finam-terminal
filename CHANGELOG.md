@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.11.0] - 2026-03-13
+
+### Added
+- **Advanced Order Types**: Order modal now supports Limit, Stop-Loss, Take-Profit, and linked SL/TP pair orders with dynamic price fields and auto-selected stop conditions (`stop_loss_take_profit`).
+- **Order Management**: Cancel active orders (X/Del) and modify orders (E) directly from the Orders tab with confirmation dialogs (`order_management`).
+- **Enhanced Orders Table**: Richer columns showing stop conditions, limit/stop prices, validity, and executed/remaining quantities per order type (`order_management`).
+- **Account List Redesign**: Two-row format per account — ID on first row, Equity + daily P&L (color-coded) on second row (`account_list_redesign`).
+- **Number Formatting**: Thousand-separator formatting with spaces (Russian locale) for all monetary values (`account_list_redesign`).
+- **PlaceSLTPOrder API**: New method for placing linked stop-loss + take-profit order pairs where one cancels the other (`stop_loss_take_profit`).
+- **CancelOrder API**: New method for cancelling active orders via gRPC (`order_management`).
+
+### Changed
+- **Finam Trade API SDK** updated with `PlaceSLTPOrder` support (`stop_loss_take_profit`).
+- **Account List** removed Type column in favor of the two-row Equity/PnL layout (`account_list_redesign`).
+
+### Fixed
+- **Order Status Mapping**: All order statuses including SL/TP-specific ones are now correctly mapped (`order_management`).
+- **Price Auto-Fill**: Order modal pre-fills price fields with current market price from search results (`stop_loss_take_profit`).
+
 ## [v0.10.1] - 2026-03-05
 
 ### Added

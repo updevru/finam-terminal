@@ -24,8 +24,11 @@ The project follows a clean modular structure:
     *   `search.go`: Dedicated search window for finding securities.
     *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart.
     *   `chart.go`: Unicode candlestick chart renderer with smart time labels.
+    *   `input.go`: Keyboard input handlers for all views (navigation, shortcuts, order actions).
+    *   `modal.go`: Order placement modal with dynamic fields for Market/Limit/Stop/TP/SL+TP order types.
+    *   `utils.go`: UI utility functions (number formatting, account ID masking).
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
-*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker.
+*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker. `AccountInfo.DailyPnL` holds the daily P&L value. `Order` includes extended fields for stop/limit prices, conditions, validity, and SL/TP quantities.
 
 ## Getting Started
 
@@ -163,7 +166,13 @@ go build -o finam-trade.exe main.go
     *   **File:** `api/client.go` (`PlaceSLTPOrder`)
     *   **Usage:** Places a linked stop-loss + take-profit order pair where one cancels the other. Supports placing with only SL, only TP, or both. Quantities are in lots. Defaults to GTC (Good Till Cancel) validity.
 
-13.  **gRPC Error Logging**
+14.  **Cancel Order**
+    *   **Service:** `OrdersServiceClient`
+    *   **Method:** `CancelOrder`
+    *   **File:** `api/client.go` (`CancelOrder`)
+    *   **Usage:** Cancels an active order by account ID and order ID. Returns error if order is already executed or not found.
+
+15.  **gRPC Error Logging**
     *   **File:** `api/client.go` (`logGRPCError`)
     *   **Usage:** Unified helper used by all gRPC calls to log errors in a structured format: `[ERROR] Service.Method failed | Param: value | gRPC code: <code> | Message: <msg> | Endpoint: <addr>`. Never logs secrets (tokens).
 
