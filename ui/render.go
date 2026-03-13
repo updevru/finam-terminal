@@ -11,49 +11,81 @@ import (
 	"github.com/rivo/tview"
 )
 
-// updateAccountList refreshes the account list.
-// Each account occupies one table row with multi-line cell text:
-//
-//	Line 1: Account ID
-//	Line 2: Equity + PnL
-//
-// tview's built-in row selection highlights the entire block.
+// updateAccountList refreshes the account list using two rows per account.
+// Row 0: Account ID
+// Row 1: Equity (formatted) + PnL (with sign)
+// Both rows of the selected account are highlighted with a background color.
 func updateAccountList(app *App) {
 	app.portfolioView.AccountTable.Clear()
 
 	for i, acc := range app.accounts {
+		idRow := accountIdxToRow(i)
+		dataRow := idRow + 1
+		isSelected := i == app.selectedIdx
+
+		bg := tcell.ColorBlack
+		if isSelected {
+			bg = tcell.ColorDarkSlateGray
+		}
+
 		if acc.LoadError != "" {
-			text := acc.ID + "\n[error]"
-			app.portfolioView.AccountTable.SetCell(i, 0, tview.NewTableCell(text).
-				SetTextColor(tcell.ColorRed).
-				SetExpansion(1))
+			idCell := tview.NewTableCell(acc.ID).
+				SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
+				SetExpansion(1)
+			idCell.Transparent = false
+			app.portfolioView.AccountTable.SetCell(idRow, 0, idCell)
+
+			errCell := tview.NewTableCell("[error]").
+				SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorRed)).
+				SetExpansion(1)
+			errCell.Transparent = false
+			app.portfolioView.AccountTable.SetCell(dataRow, 0, errCell)
 			continue
 		}
 
-		// Format equity
+		// Row 0: Account ID
+		idCell := tview.NewTableCell(acc.ID).
+			SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
+			SetExpansion(1)
+		idCell.Transparent = false
+		app.portfolioView.AccountTable.SetCell(idRow, 0, idCell)
+
+		// Row 1: Equity + Daily PnL (sum of position DailyPnL)
 		equity := "—"
 		if val, err := parseFloat(acc.Equity); err == nil {
 			equity = formatNumber(val, 2)
 		}
 
-		// Format PnL with sign
-		pnlText := "0.00"
-		if val, err := parseFloat(acc.UnrealizedPnL); err == nil {
-			if val > 0 {
-				pnlText = "+" + formatNumber(val, 2)
-			} else if val < 0 {
-				pnlText = formatNumber(val, 2)
+		app.dataMutex.RLock()
+		var dailyTotal float64
+		for _, p := range app.positions[acc.ID] {
+			if val, err := parseFloat(p.DailyPnL); err == nil {
+				dailyTotal += val
 			}
 		}
+		app.dataMutex.RUnlock()
 
-		text := acc.ID + "\n" + equity + "  " + pnlText
-		app.portfolioView.AccountTable.SetCell(i, 0, tview.NewTableCell(text).
-			SetTextColor(tcell.ColorWhite).
-			SetExpansion(1))
+		pnlText := "0.00"
+		pnlColor := tcell.ColorGray
+		if dailyTotal > 0 {
+			pnlText = "+" + formatNumber(dailyTotal, 2)
+			pnlColor = tcell.ColorGreen
+		} else if dailyTotal < 0 {
+			pnlText = formatNumber(dailyTotal, 2)
+			pnlColor = tcell.ColorRed
+		}
+
+		dataText := equity + "  " + pnlText
+		dataCell := tview.NewTableCell(dataText).
+			SetStyle(tcell.StyleDefault.Background(bg).Foreground(pnlColor)).
+			SetExpansion(1)
+		dataCell.Transparent = false
+		app.portfolioView.AccountTable.SetCell(dataRow, 0, dataCell)
 	}
 
+	// Select the ID row of the active account
 	if len(app.accounts) > 0 {
-		app.portfolioView.AccountTable.Select(app.selectedIdx, 0)
+		app.portfolioView.AccountTable.Select(accountIdxToRow(app.selectedIdx), 0)
 	}
 }
 

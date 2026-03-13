@@ -4,6 +4,8 @@ import (
 	"finam-terminal/models"
 	"strings"
 	"testing"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func TestAccountIntegration_ZeroAccounts(t *testing.T) {
@@ -11,7 +13,7 @@ func TestAccountIntegration_ZeroAccounts(t *testing.T) {
 	updateAccountList(app)
 
 	if app.portfolioView.AccountTable.GetRowCount() != 0 {
-		t.Errorf("Expected 0 rows for 0 accounts, got %d", app.portfolioView.AccountTable.GetRowCount())
+		t.Errorf("Expected 0 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 }
 
@@ -23,28 +25,29 @@ func TestAccountIntegration_SingleAccount(t *testing.T) {
 	app.selectedIdx = 0
 	updateAccountList(app)
 
-	if app.portfolioView.AccountTable.GetRowCount() != 1 {
-		t.Fatalf("Expected 1 row, got %d", app.portfolioView.AccountTable.GetRowCount())
+	if app.portfolioView.AccountTable.GetRowCount() != 2 {
+		t.Fatalf("Expected 2 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 
-	cell := app.portfolioView.AccountTable.GetCell(0, 0)
-	lines := strings.Split(cell.Text, "\n")
-	if len(lines) != 2 {
-		t.Fatalf("Expected 2 lines, got %d: %q", len(lines), cell.Text)
-	}
-	if lines[0] != "ACC_SINGLE" {
-		t.Errorf("Line 1: expected 'ACC_SINGLE', got %q", lines[0])
-	}
-	if !strings.Contains(lines[1], "50 000.00") {
-		t.Errorf("Line 2: expected '50 000.00', got %q", lines[1])
-	}
-	if !strings.Contains(lines[1], "+1 234.56") {
-		t.Errorf("Line 2: expected '+1 234.56', got %q", lines[1])
+	// ID row
+	if app.portfolioView.AccountTable.GetCell(0, 0).Text != "ACC_SINGLE" {
+		t.Errorf("Expected 'ACC_SINGLE', got %q", app.portfolioView.AccountTable.GetCell(0, 0).Text)
 	}
 
-	selectedRow, _ := app.portfolioView.AccountTable.GetSelection()
-	if selectedRow != 0 {
-		t.Errorf("Expected selected row 0, got %d", selectedRow)
+	// Data row: equity + PnL
+	dataText := app.portfolioView.AccountTable.GetCell(1, 0).Text
+	if !strings.Contains(dataText, "50 000.00") {
+		t.Errorf("Expected '50 000.00' in data, got %q", dataText)
+	}
+	if !strings.Contains(dataText, "+1 234.56") {
+		t.Errorf("Expected '+1 234.56' in data, got %q", dataText)
+	}
+
+	// Highlight on both rows
+	_, bg0, _ := app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
+	_, bg1, _ := app.portfolioView.AccountTable.GetCell(1, 0).Style.Decompose()
+	if bg0 != tcell.ColorDarkSlateGray || bg1 != tcell.ColorDarkSlateGray {
+		t.Errorf("Selected account should have highlight bg, got %v / %v", bg0, bg1)
 	}
 }
 
@@ -58,32 +61,32 @@ func TestAccountIntegration_ThreeAccounts(t *testing.T) {
 	app.selectedIdx = 1
 	updateAccountList(app)
 
-	if app.portfolioView.AccountTable.GetRowCount() != 3 {
-		t.Fatalf("Expected 3 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
+	if app.portfolioView.AccountTable.GetRowCount() != 6 {
+		t.Fatalf("Expected 6 rows, got %d", app.portfolioView.AccountTable.GetRowCount())
 	}
 
-	// Account 1: positive PnL
-	cell0 := app.portfolioView.AccountTable.GetCell(0, 0)
-	if !strings.Contains(cell0.Text, "+5 000.00") {
-		t.Errorf("ACC1: expected '+5 000.00' in text, got %q", cell0.Text)
+	// ACC1 (not selected): black bg
+	_, bg0, _ := app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
+	if bg0 != tcell.ColorBlack {
+		t.Errorf("ACC1 bg: expected Black, got %v", bg0)
 	}
 
-	// Account 2: negative PnL
-	cell1 := app.portfolioView.AccountTable.GetCell(1, 0)
-	if !strings.Contains(cell1.Text, "-3 000.00") {
-		t.Errorf("ACC2: expected '-3 000.00' in text, got %q", cell1.Text)
+	// ACC2 (selected): highlight on both rows
+	_, bg2, _ := app.portfolioView.AccountTable.GetCell(2, 0).Style.Decompose()
+	_, bg3, _ := app.portfolioView.AccountTable.GetCell(3, 0).Style.Decompose()
+	if bg2 != tcell.ColorDarkSlateGray || bg3 != tcell.ColorDarkSlateGray {
+		t.Errorf("ACC2 bg: expected DarkSlateGray, got %v / %v", bg2, bg3)
 	}
 
-	// Account 3: error
-	cell2 := app.portfolioView.AccountTable.GetCell(2, 0)
-	if !strings.Contains(cell2.Text, "[error]") {
-		t.Errorf("ACC3: expected '[error]' in text, got %q", cell2.Text)
+	// ACC3 error
+	if app.portfolioView.AccountTable.GetCell(5, 0).Text != "[error]" {
+		t.Errorf("ACC3 data: expected '[error]', got %q", app.portfolioView.AccountTable.GetCell(5, 0).Text)
 	}
 
-	// Selection
+	// Selection on row 2
 	selectedRow, _ := app.portfolioView.AccountTable.GetSelection()
-	if selectedRow != 1 {
-		t.Errorf("Expected selected row 1, got %d", selectedRow)
+	if selectedRow != 2 {
+		t.Errorf("Expected selected row 2, got %d", selectedRow)
 	}
 }
 
@@ -96,15 +99,23 @@ func TestAccountIntegration_SwitchSelection(t *testing.T) {
 
 	app.selectedIdx = 0
 	updateAccountList(app)
-	row, _ := app.portfolioView.AccountTable.GetSelection()
-	if row != 0 {
-		t.Errorf("Expected selected row 0, got %d", row)
+	_, bg0, _ := app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
+	_, bg2, _ := app.portfolioView.AccountTable.GetCell(2, 0).Style.Decompose()
+	if bg0 != tcell.ColorDarkSlateGray {
+		t.Errorf("ACC1 should be highlighted, got %v", bg0)
+	}
+	if bg2 != tcell.ColorBlack {
+		t.Errorf("ACC2 should not be highlighted, got %v", bg2)
 	}
 
 	app.selectedIdx = 1
 	updateAccountList(app)
-	row, _ = app.portfolioView.AccountTable.GetSelection()
-	if row != 1 {
-		t.Errorf("Expected selected row 1 after switch, got %d", row)
+	_, bg0, _ = app.portfolioView.AccountTable.GetCell(0, 0).Style.Decompose()
+	_, bg2, _ = app.portfolioView.AccountTable.GetCell(2, 0).Style.Decompose()
+	if bg0 != tcell.ColorBlack {
+		t.Errorf("ACC1 should not be highlighted after switch, got %v", bg0)
+	}
+	if bg2 != tcell.ColorDarkSlateGray {
+		t.Errorf("ACC2 should be highlighted after switch, got %v", bg2)
 	}
 }
