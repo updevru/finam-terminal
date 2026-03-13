@@ -421,9 +421,10 @@ func formatOrderPriceCondition(o models.Order) string {
 		}
 	case "Stop":
 		arrow := ""
-		if o.StopCondition == "Last Down" {
+		switch o.StopCondition {
+		case "Last Down":
 			arrow = " ↓"
-		} else if o.StopCondition == "Last Up" {
+		case "Last Up":
 			arrow = " ↑"
 		}
 		result = "SL: " + o.StopPrice + arrow

@@ -17,7 +17,6 @@ func TestFormatNumber(t *testing.T) {
 		{"negative medium", -12345.50, 2, "-12 345.50"},
 		{"negative small", -999.99, 2, "-999.99"},
 		{"zero", 0, 2, "0.00"},
-		{"negative zero", -0.0, 2, "0.00"},
 		{"exactly thousand", 1000.00, 2, "1 000.00"},
 		{"exactly million", 1000000.00, 2, "1 000 000.00"},
 		{"no decimals", 1234567.0, 0, "1 234 567"},

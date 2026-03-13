@@ -229,6 +229,7 @@ func (c *Client) loadAssetCache() error {
 	defer cancel()
 
 	// Use empty request to get all assets (subject to API limits)
+	//nolint:staticcheck // Assets is the only method available for bulk instrument loading
 	resp, err := c.assetsClient.Assets(ctx, &assets.AssetsRequest{})
 	if err != nil {
 		c.logGRPCError("AssetsService", "Assets", err)
