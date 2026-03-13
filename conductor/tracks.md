@@ -74,7 +74,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Редизайн списка счетов — двухстрочный формат**
+- [x] **Track: Редизайн списка счетов — двухстрочный формат** ✅ Completed
 
 *Link: [./tracks/account_list_redesign_20260311/](./tracks/account_list_redesign_20260311/)*
 *Spec: [./tracks/account_list_redesign_20260311/spec.md](./tracks/account_list_redesign_20260311/spec.md)*

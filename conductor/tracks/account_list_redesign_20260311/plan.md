@@ -33,5 +33,5 @@
 
 - [x] Task: Integration test — full render cycle with multiple accounts `4521528`
   - Acceptance: Render with 0, 1, and 3+ accounts produces correct table structure
-- [~] Task: Manual verification and visual polish
+- [x] Task: Manual verification and visual polish `1f3816b`
   - Acceptance: Layout looks clean within 30-char panel, no overflow issues
