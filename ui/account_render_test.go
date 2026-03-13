@@ -46,29 +46,31 @@ func TestUpdateAccountList_TwoRowPerAccount(t *testing.T) {
 
 func TestUpdateAccountList_PnLColors(t *testing.T) {
 	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "500.00"},
-		{ID: "ACC2", Equity: "2000.00", UnrealizedPnL: "-300.00"},
-		{ID: "ACC3", Equity: "3000.00", UnrealizedPnL: "0"},
+		{ID: "ACC1", Equity: "1000.00"},
+		{ID: "ACC2", Equity: "2000.00"},
+		{ID: "ACC3", Equity: "3000.00"},
 	}
 	app := createTestAppWithAccounts(accounts)
+	app.positions["ACC1"] = []models.Position{{DailyPnL: "500.00"}}
+	app.positions["ACC2"] = []models.Position{{DailyPnL: "-300.00"}}
+	// ACC3 has no positions → zero PnL
 	updateAccountList(app)
 
 	tests := []struct {
-		name          string
-		dataRow       int
-		expectedColor tcell.Color
+		name    string
+		dataRow int
+		wantTag string
 	}{
-		{"positive PnL green", 1, tcell.ColorGreen},
-		{"negative PnL red", 3, tcell.ColorRed},
-		{"zero PnL gray", 5, tcell.ColorGray},
+		{"positive PnL green", 1, "[green]"},
+		{"negative PnL red", 3, "[red]"},
+		{"zero PnL gray", 5, "[gray]"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cell := app.portfolioView.AccountTable.GetCell(tt.dataRow, 0)
-			fg, _, _ := cell.Style.Decompose()
-			if fg != tt.expectedColor {
-				t.Errorf("Expected color %v, got %v for cell text %q", tt.expectedColor, fg, cell.Text)
+			if !strings.Contains(cell.Text, tt.wantTag) {
+				t.Errorf("Expected %q in cell text, got %q", tt.wantTag, cell.Text)
 			}
 		})
 	}
@@ -76,9 +78,10 @@ func TestUpdateAccountList_PnLColors(t *testing.T) {
 
 func TestUpdateAccountList_PositivePnLHasPlusSign(t *testing.T) {
 	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "500.00"},
+		{ID: "ACC1", Equity: "1000.00"},
 	}
 	app := createTestAppWithAccounts(accounts)
+	app.positions["ACC1"] = []models.Position{{DailyPnL: "500.00"}}
 	updateAccountList(app)
 
 	dataText := app.portfolioView.AccountTable.GetCell(1, 0).Text
@@ -89,9 +92,10 @@ func TestUpdateAccountList_PositivePnLHasPlusSign(t *testing.T) {
 
 func TestUpdateAccountList_NegativePnLHasMinusSign(t *testing.T) {
 	accounts := []models.AccountInfo{
-		{ID: "ACC1", Equity: "1000.00", UnrealizedPnL: "-300.50"},
+		{ID: "ACC1", Equity: "1000.00"},
 	}
 	app := createTestAppWithAccounts(accounts)
+	app.positions["ACC1"] = []models.Position{{DailyPnL: "-300.50"}}
 	updateAccountList(app)
 
 	dataText := app.portfolioView.AccountTable.GetCell(1, 0).Text

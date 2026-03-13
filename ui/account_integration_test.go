@@ -19,9 +19,10 @@ func TestAccountIntegration_ZeroAccounts(t *testing.T) {
 
 func TestAccountIntegration_SingleAccount(t *testing.T) {
 	accounts := []models.AccountInfo{
-		{ID: "ACC_SINGLE", Equity: "50000.00", UnrealizedPnL: "1234.56"},
+		{ID: "ACC_SINGLE", Equity: "50000.00"},
 	}
 	app := createTestAppWithAccounts(accounts)
+	app.positions["ACC_SINGLE"] = []models.Position{{DailyPnL: "1234.56"}}
 	app.selectedIdx = 0
 	updateAccountList(app)
 

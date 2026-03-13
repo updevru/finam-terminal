@@ -66,18 +66,18 @@ func updateAccountList(app *App) {
 		app.dataMutex.RUnlock()
 
 		pnlText := "0.00"
-		pnlColor := tcell.ColorGray
+		pnlTag := "gray"
 		if dailyTotal > 0 {
 			pnlText = "+" + formatNumber(dailyTotal, 2)
-			pnlColor = tcell.ColorGreen
+			pnlTag = "green"
 		} else if dailyTotal < 0 {
 			pnlText = formatNumber(dailyTotal, 2)
-			pnlColor = tcell.ColorRed
+			pnlTag = "red"
 		}
 
-		dataText := equity + "  " + pnlText
+		dataText := fmt.Sprintf("%s  [%s]%s[-]", equity, pnlTag, pnlText)
 		dataCell := tview.NewTableCell(dataText).
-			SetStyle(tcell.StyleDefault.Background(bg).Foreground(pnlColor)).
+			SetStyle(tcell.StyleDefault.Background(bg).Foreground(tcell.ColorWhite)).
 			SetExpansion(1)
 		dataCell.Transparent = false
 		app.portfolioView.AccountTable.SetCell(dataRow, 0, dataCell)
