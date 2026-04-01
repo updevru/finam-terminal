@@ -1188,11 +1188,6 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 		QuoteCurrency: resp.QuoteCurrency,
 	}
 
-	if resp.ExpirationDate != nil {
-		details.ExpirationDate = fmt.Sprintf("%04d-%02d-%02d",
-			resp.ExpirationDate.Year, resp.ExpirationDate.Month, resp.ExpirationDate.Day)
-	}
-
 	// Extract type-specific details (oneof)
 	if fd := resp.GetFutureDetails(); fd != nil {
 		details.ContractSize = formatDecimal(fd.ContractSize)
