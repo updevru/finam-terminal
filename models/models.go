@@ -64,19 +64,20 @@ func (p Position) GetCloseDirection() string {
 
 // Quote represents a market quote
 type Quote struct {
-	Symbol    string
-	Bid       string
-	BidSize   string
-	Ask       string
-	AskSize   string
-	Last      string
-	LastSize  string
-	Volume    string
-	Open      string
-	High      string
-	Low       string
-	Close     string
-	Timestamp time.Time
+	Symbol       string
+	Bid          string
+	BidSize      string
+	Ask          string
+	AskSize      string
+	Last         string
+	LastSize     string
+	Volume       string
+	Open         string
+	High         string
+	Low          string
+	Close        string
+	OpenInterest string
+	Timestamp    time.Time
 }
 
 // AccountSummary contains calculated account statistics
@@ -120,18 +121,22 @@ type Bar struct {
 
 // AssetDetails represents detailed instrument information from GetAsset API
 type AssetDetails struct {
-	Board          string
-	ID             string
-	Ticker         string
-	MIC            string
-	ISIN           string
-	Type           string
-	Name           string
-	Decimals       int32
-	MinStep        int64
-	LotSize        string
-	ExpirationDate string // formatted date string, empty if not applicable
-	QuoteCurrency  string
+	Board            string
+	ID               string
+	Ticker           string
+	MIC              string
+	ISIN             string
+	Type             string
+	Name             string
+	Decimals         int32
+	MinStep          int64
+	LotSize          string
+	ExpirationDate   string // formatted date string, empty if not applicable
+	QuoteCurrency    string
+	ContractSize     string // formatted contract size (futures, options)
+	Strike           string // formatted strike price (options only)
+	BondFaceValue    string // formatted face value (bonds only)
+	BondFaceCurrency string // currency of face value (bonds only)
 }
 
 // AssetParams represents trading parameters for an instrument

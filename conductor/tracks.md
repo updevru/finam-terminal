@@ -80,3 +80,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/account_list_redesign_20260311/spec.md](./tracks/account_list_redesign_20260311/spec.md)*
 *Plan: [./tracks/account_list_redesign_20260311/plan.md](./tracks/account_list_redesign_20260311/plan.md)*
 *Phases: 4 | Tasks: 9*
+
+
+---
+
+
+- [ ] **Track: Extended Instrument Info & Open Interest (Trade API 2.14.0)**
+
+*Link: [./tracks/extend_instrument_info_20260401/](./tracks/extend_instrument_info_20260401/)*
+*Spec: [./tracks/extend_instrument_info_20260401/spec.md](./tracks/extend_instrument_info_20260401/spec.md)*
+*Plan: [./tracks/extend_instrument_info_20260401/plan.md](./tracks/extend_instrument_info_20260401/plan.md)*
+*Phases: 5 | Tasks: 8*

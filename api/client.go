@@ -790,19 +790,20 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 		}
 
 		quotes[fullSymbol] = &models.Quote{
-			Symbol:    fullSymbol,
-			Bid:       formatDecimal(q.Bid),
-			BidSize:   formatDecimal(q.BidSize),
-			Ask:       formatDecimal(q.Ask),
-			AskSize:   formatDecimal(q.AskSize),
-			Last:      formatDecimal(q.Last),
-			LastSize:  formatDecimal(q.LastSize),
-			Volume:    formatDecimal(q.Volume),
-			Open:      formatDecimal(q.Open),
-			High:      formatDecimal(q.High),
-			Low:       formatDecimal(q.Low),
-			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime().Local(),
+			Symbol:       fullSymbol,
+			Bid:          formatDecimal(q.Bid),
+			BidSize:      formatDecimal(q.BidSize),
+			Ask:          formatDecimal(q.Ask),
+			AskSize:      formatDecimal(q.AskSize),
+			Last:         formatDecimal(q.Last),
+			LastSize:     formatDecimal(q.LastSize),
+			Volume:       formatDecimal(q.Volume),
+			Open:         formatDecimal(q.Open),
+			High:         formatDecimal(q.High),
+			Low:          formatDecimal(q.Low),
+			Close:        formatDecimal(q.Close),
+			OpenInterest: formatDecimal(q.OpenInterest),
+			Timestamp:    q.Timestamp.AsTime().Local(),
 		}
 	}
 
@@ -1190,6 +1191,25 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 	if resp.ExpirationDate != nil {
 		details.ExpirationDate = fmt.Sprintf("%04d-%02d-%02d",
 			resp.ExpirationDate.Year, resp.ExpirationDate.Month, resp.ExpirationDate.Day)
+	}
+
+	// Extract type-specific details (oneof)
+	if fd := resp.GetFutureDetails(); fd != nil {
+		details.ContractSize = formatDecimal(fd.ContractSize)
+		if fd.ExpirationDate != nil {
+			details.ExpirationDate = fd.ExpirationDate.AsTime().Local().Format("2006-01-02")
+		}
+	}
+	if od := resp.GetOptionDetails(); od != nil {
+		details.ContractSize = formatDecimal(od.ContractSize)
+		details.Strike = formatDecimal(od.Strike)
+		if od.ExpirationDate != nil {
+			details.ExpirationDate = od.ExpirationDate.AsTime().Local().Format("2006-01-02")
+		}
+	}
+	if bd := resp.GetBondDetails(); bd != nil {
+		details.BondFaceValue = formatDecimal(bd.BondFaceValue)
+		details.BondFaceCurrency = bd.Currency
 	}
 
 	return details, nil

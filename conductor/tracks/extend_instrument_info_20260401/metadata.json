@@ -1,0 +1,9 @@
+{
+  "id": "extend_instrument_info_20260401",
+  "title": "Extended Instrument Info & Open Interest (Trade API 2.14.0)",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-04-01T12:00:00Z",
+  "phases": 5,
+  "total_tasks": 8
+}
