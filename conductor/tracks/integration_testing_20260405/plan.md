@@ -121,7 +121,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 4: Integration Tests — Cache & Token Refresh
 
-- [ ] Task 4.1: Cache behavior tests
+- [x] Task 4.1: Cache behavior tests <!-- f559393 -->
   - New file: `api/client_cache_integration_test.go` (build tag: `//go:build integration`)
   - `TestIntegration_AssetCache_PopulatedOnInit` — MIC, names, securities populated
   - `TestIntegration_AssetCache_LotSizeFetchOnDemand` — cache miss triggers API call
@@ -130,7 +130,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - `TestIntegration_UpdateInstrumentCache` — manual update
   - Acceptance: All 5 tests pass
 
-- [ ] Task 4.2: Token refresh tests
+- [x] Task 4.2: Token refresh tests <!-- f559393 -->
   - New file: `api/client_token_refresh_integration_test.go` (build tag: `//go:build integration`)
   - `TestIntegration_TokenRefresh_BeforeExpiry` — short-lived JWT, verify second Auth call via counter
   - `TestIntegration_TokenRefresh_RetryOnFailure` — mock error then success
