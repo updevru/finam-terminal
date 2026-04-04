@@ -1,8 +1,6 @@
 module finam-terminal
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.26.0
 
 require (
 	github.com/FinamWeb/finam-trade-api/go v0.0.0-20260401112026-402e726d2b7f
