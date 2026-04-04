@@ -32,7 +32,7 @@ type MockOrdersServer struct {
 	// CancelOrderError, if set, is returned by CancelOrder.
 	CancelOrderError error
 
-	mu          sync.Mutex
+	Mu          sync.Mutex
 	nextOrderID int
 }
 
@@ -52,11 +52,11 @@ func (m *MockOrdersServer) PlaceOrder(_ context.Context, req *orders.Order) (*or
 		return nil, m.PlaceOrderError
 	}
 
-	m.mu.Lock()
+	m.Mu.Lock()
 	m.RecordedOrders = append(m.RecordedOrders, req)
 	orderID := m.nextOrderID
 	m.nextOrderID++
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	return &orders.OrderState{
 		OrderId: fmt.Sprintf("ORD%03d", orderID),
@@ -67,11 +67,11 @@ func (m *MockOrdersServer) PlaceOrder(_ context.Context, req *orders.Order) (*or
 
 // PlaceSLTPOrder records the request and returns a new order ID.
 func (m *MockOrdersServer) PlaceSLTPOrder(_ context.Context, req *orders.SLTPOrder) (*orders.OrderState, error) {
-	m.mu.Lock()
+	m.Mu.Lock()
 	m.RecordedSLTPOrders = append(m.RecordedSLTPOrders, req)
 	orderID := m.nextOrderID
 	m.nextOrderID++
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	return &orders.OrderState{
 		OrderId: fmt.Sprintf("ORD%03d", orderID),
@@ -85,9 +85,9 @@ func (m *MockOrdersServer) CancelOrder(_ context.Context, req *orders.CancelOrde
 		return nil, m.CancelOrderError
 	}
 
-	m.mu.Lock()
+	m.Mu.Lock()
 	m.RecordedCancellations = append(m.RecordedCancellations, req)
-	m.mu.Unlock()
+	m.Mu.Unlock()
 
 	return &orders.OrderState{
 		OrderId: req.OrderId,
