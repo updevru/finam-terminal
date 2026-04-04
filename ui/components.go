@@ -4,6 +4,7 @@ import (
 	"finam-terminal/models"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -88,18 +89,18 @@ func NewTabbedView() *TabbedView {
 // UpdateHeader updates the visual representation of tabs
 func (tv *TabbedView) UpdateHeader() {
 	tabs := []string{" Positions ", " History ", " Orders "}
-	headerText := ""
+	var headerText strings.Builder
 	for i, tab := range tabs {
 		if TabType(i) == tv.ActiveTab {
-			headerText += fmt.Sprintf("[black:yellow]%s[-]", tab)
+			headerText.WriteString(fmt.Sprintf("[black:yellow]%s[-]", tab))
 		} else {
-			headerText += fmt.Sprintf("[white:black]%s[-]", tab)
+			headerText.WriteString(fmt.Sprintf("[white:black]%s[-]", tab))
 		}
 		if i < len(tabs)-1 {
-			headerText += " "
+			headerText.WriteString(" ")
 		}
 	}
-	tv.Header.SetText(headerText)
+	tv.Header.SetText(headerText.String())
 }
 
 // SetTab switches the active tab

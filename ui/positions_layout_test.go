@@ -54,7 +54,7 @@ func TestPositionsTable_Expansion(t *testing.T) {
 		t.Fatal("Could not find expansion field")
 	}
 
-	for i := 0; i < colCount; i++ {
+	for i := range colCount {
 		cell := table.GetCell(0, i)
 		val := reflect.ValueOf(cell).Elem()
 		expansionField := val.FieldByName(expansionFieldName)

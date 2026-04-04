@@ -17,22 +17,13 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 	}
 
 	const gutterWidth = 9 // left Y-axis gutter (8 chars + 1 separator)
-	chartWidth := width - gutterWidth
-	if chartWidth < 2 {
-		chartWidth = 2
-	}
+	chartWidth := max(width-gutterWidth, 2)
 
 	// Each candle takes 2 columns (1 char candle + 1 space)
-	maxCandles := chartWidth / 2
-	if maxCandles < 1 {
-		maxCandles = 1
-	}
+	maxCandles := max(chartWidth/2, 1)
 
 	// Reserve 2 rows for X-axis: separator line (└───) + labels row
-	chartHeight := height - 2
-	if chartHeight < 3 {
-		chartHeight = 3
-	}
+	chartHeight := max(height-2, 3)
 
 	// Take only the last N bars that fit
 	visibleBars := bars
@@ -143,13 +134,10 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 func centerText(msg string, width, height int) string {
 	var sb strings.Builder
 	topPad := height / 2
-	for i := 0; i < topPad; i++ {
+	for range topPad {
 		sb.WriteString("\n")
 	}
-	leftPad := (width - len(msg)) / 2
-	if leftPad < 0 {
-		leftPad = 0
-	}
+	leftPad := max((width-len(msg))/2, 0)
 	sb.WriteString(strings.Repeat(" ", leftPad))
 	sb.WriteString(msg)
 	return sb.String()
@@ -188,20 +176,14 @@ func buildXAxisLabels(bars []models.Bar) []xAxisLabel {
 		labelWidth = 8 // "DD.MM.YY"
 	}
 	minSpacing := labelWidth + 3 // label width + minimum gap
-	minBarsBetween := minSpacing / 2
-	if minBarsBetween < 1 {
-		minBarsBetween = 1
-	}
+	minBarsBetween := max(minSpacing/2, 1)
 
 	// Desired ~5-7 labels across the chart
 	desiredLabels := 6
-	interval := n / desiredLabels
-	if interval < minBarsBetween {
-		interval = minBarsBetween
-	}
+	interval := max(n/desiredLabels, minBarsBetween)
 
 	prevDay := -1
-	for i := 0; i < n; i++ {
+	for i := range n {
 		bar := bars[i]
 		isFirst := i == 0
 		isLast := i == n-1

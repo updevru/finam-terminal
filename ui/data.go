@@ -159,9 +159,7 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 		var wg sync.WaitGroup
 
 		// 1. GetAssetInfo
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			details, err := a.client.GetAssetInfo(accountID, symbol)
 			if err != nil {
 				log.Printf("[WARN] GetAssetInfo failed for %s: %v", symbol, err)
@@ -170,12 +168,10 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 			mu.Lock()
 			profile.Details = details
 			mu.Unlock()
-		}()
+		})
 
 		// 2. GetAssetParams
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			params, err := a.client.GetAssetParams(accountID, symbol)
 			if err != nil {
 				log.Printf("[WARN] GetAssetParams failed for %s: %v", symbol, err)
@@ -184,12 +180,10 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 			mu.Lock()
 			profile.Params = params
 			mu.Unlock()
-		}()
+		})
 
 		// 3. GetQuotes
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			quotes, err := a.client.GetQuotes(accountID, []string{symbol})
 			if err != nil {
 				log.Printf("[WARN] GetQuotes failed for %s: %v", symbol, err)
@@ -201,12 +195,10 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 				break
 			}
 			mu.Unlock()
-		}()
+		})
 
 		// 4. GetSchedule
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			sessions, err := a.client.GetSchedule(symbol)
 			if err != nil {
 				log.Printf("[WARN] GetSchedule failed for %s: %v", symbol, err)
@@ -215,12 +207,10 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 			mu.Lock()
 			profile.Schedule = sessions
 			mu.Unlock()
-		}()
+		})
 
 		// 5. GetBars
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			now := time.Now()
 			tf := profileTimeframeEnums[timeframeIdx]
 			from := now.Add(-profileTimeframeDurations[timeframeIdx])
@@ -232,7 +222,7 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 			mu.Lock()
 			profile.Bars = bars
 			mu.Unlock()
-		}()
+		})
 
 		wg.Wait()
 
@@ -274,9 +264,7 @@ func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx 
 		var newBars []models.Bar
 		var mu sync.Mutex
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			quotes, err := a.client.GetQuotes(accountID, []string{symbol})
 			if err != nil {
 				return
@@ -287,11 +275,9 @@ func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx 
 				break
 			}
 			mu.Unlock()
-		}()
+		})
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			now := time.Now()
 			tf := profileTimeframeEnums[timeframeIdx]
 			from := now.Add(-profileTimeframeDurations[timeframeIdx])
@@ -302,7 +288,7 @@ func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx 
 			mu.Lock()
 			newBars = bars
 			mu.Unlock()
-		}()
+		})
 
 		wg.Wait()
 
