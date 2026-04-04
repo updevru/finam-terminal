@@ -91,3 +91,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/extend_instrument_info_20260401/spec.md](./tracks/extend_instrument_info_20260401/spec.md)*
 *Plan: [./tracks/extend_instrument_info_20260401/plan.md](./tracks/extend_instrument_info_20260401/plan.md)*
 *Phases: 5 | Tasks: 8*
+
+
+---
+
+
+- [x] **Track: Обновление Go до 1.26 и внедрение нововведений** ✅ Completed
+
+*Link: [./tracks/go126_upgrade_20260405/](./tracks/go126_upgrade_20260405/)*
+*Spec: [./tracks/go126_upgrade_20260405/spec.md](./tracks/go126_upgrade_20260405/spec.md)*
+*Plan: [./tracks/go126_upgrade_20260405/plan.md](./tracks/go126_upgrade_20260405/plan.md)*
+*Phases: 4 | Tasks: 12*
