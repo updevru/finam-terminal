@@ -5,7 +5,7 @@
 **finam-terminal** is a Go-based Terminal User Interface (TUI) application designed to interact with the Finam Trade API. It demonstrates how to authenticate, retrieve account information, and fetch market data (quotes, positions) using gRPC.
 
 ### Key Technologies
-*   **Language:** Go (v1.24.1)
+*   **Language:** Go (v1.26)
 *   **API Protocol:** gRPC
 *   **TUI Library:** `github.com/rivo/tview`
 *   **Configuration:** `github.com/joho/godotenv`
@@ -33,7 +33,7 @@ The project follows a clean modular structure:
 ## Getting Started
 
 ### Prerequisites
-*   Go 1.24 or higher
+*   Go 1.26 or higher
 *   Finam Trade API Token (obtain from Finam Developer Portal)
 
 ### Installation
