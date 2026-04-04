@@ -18,14 +18,14 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 2: Mock gRPC Server Infrastructure
 
-- [ ] Task 2.1: Create `TestServer` core with bufconn
+- [x] Task 2.1: Create `TestServer` core with bufconn <!-- fed2079 -->
   - New file: `api/testserver/server.go`
   - `TestServer` struct with `*grpc.Server`, `*bufconn.Listener`
   - Methods: `NewTestServer()`, `Start()`, `Stop()`, `Dial(ctx) (*grpc.ClientConn, error)`
   - Expose mock service fields: `Auth`, `Accounts`, `MarketData`, `Assets`, `Orders`
   - Acceptance: Can create server, start, dial, stop without errors
 
-- [ ] Task 2.2: Implement `MockAuthServer`
+- [x] Task 2.2: Implement `MockAuthServer` <!-- fed2079 -->
   - New file: `api/testserver/auth_server.go`
   - Implements `auth.AuthServiceServer` (embeds `UnimplementedAuthServiceServer`)
   - `Auth()`: validates secret against `ValidTokens` map, returns JWT with configurable expiry
@@ -33,21 +33,21 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - Tracks call count for refresh tests
   - Acceptance: Auth and TokenDetails return expected responses
 
-- [ ] Task 2.3: Implement `MockAccountsServer`
+- [x] Task 2.3: Implement `MockAccountsServer` <!-- fed2079 -->
   - New file: `api/testserver/accounts_server.go`
   - Implements `accounts.AccountsServiceServer`
   - `GetAccount()`: returns configurable account with positions
   - `Trades()`: returns configurable trade history
   - Acceptance: Both methods return configured test data
 
-- [ ] Task 2.4: Implement `MockMarketDataServer`
+- [x] Task 2.4: Implement `MockMarketDataServer` <!-- fed2079 -->
   - New file: `api/testserver/marketdata_server.go`
   - Implements `marketdata.MarketDataServiceServer`
   - `LastQuote()`: returns configurable quotes by symbol
   - `Bars()`: returns configurable OHLCV data
   - Acceptance: Both methods return configured test data
 
-- [ ] Task 2.5: Implement `MockAssetsServer`
+- [x] Task 2.5: Implement `MockAssetsServer` <!-- fed2079 -->
   - New file: `api/testserver/assets_server.go`
   - Implements `assets.AssetsServiceServer`
   - `Assets()`: returns bulk asset list (populates cache)
@@ -56,7 +56,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - `Schedule()`: returns trading sessions
   - Acceptance: All 4 methods return configured test data
 
-- [ ] Task 2.6: Implement `MockOrdersServer`
+- [x] Task 2.6: Implement `MockOrdersServer` <!-- fed2079 -->
   - New file: `api/testserver/orders_server.go`
   - Implements `orders.OrdersServiceServer`
   - `PlaceOrder()`: records request, returns order ID
@@ -65,7 +65,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - `GetOrders()`: returns configurable active orders
   - Acceptance: All methods work, requests recorded for assertion
 
-- [ ] Task 2.7: Create test data fixtures
+- [x] Task 2.7: Create test data fixtures <!-- fed2079 -->
   - New file: `api/testserver/testdata.go`
   - `MakeJWT(expiry time.Time) string` — generates valid JWT for tests
   - `DefaultAssets()` — 5-10 instruments (SBER@TQBR, GAZP@TQBR, etc.)
