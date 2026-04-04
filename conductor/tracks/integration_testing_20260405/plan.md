@@ -142,7 +142,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 5: Integration Tests — Error Handling
 
-- [ ] Task 5.1: Error condition tests
+- [x] Task 5.1: Error condition tests <!-- c6a0179 -->
   - New file: `api/client_errors_integration_test.go` (build tag: `//go:build integration`)
   - `TestIntegration_Error_UnauthenticatedOnMethod` — auth ok, then method returns Unauthenticated
   - `TestIntegration_Error_NotFound` — GetAsset returns NotFound
