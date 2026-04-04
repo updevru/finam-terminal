@@ -10,6 +10,7 @@
 *   **TUI Library:** `github.com/rivo/tview`
 *   **Configuration:** `github.com/joho/godotenv`
 *   **SDK:** `github.com/FinamWeb/finam-trade-api/go`
+*   **Testing:** `google.golang.org/grpc/test/bufconn` (in-process gRPC for integration tests)
 
 ## Architecture
 
@@ -17,6 +18,8 @@ The project follows a clean modular structure:
 
 *   **`main.go`**: The entry point. Handles configuration loading, API client initialization, and starting the UI loop.
 *   **`api/`**: Contains the `Client` struct and methods for interacting with the Finam gRPC services. Encapsulates the complexity of the raw API calls.
+    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients, authenticates, starts token refresh, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS.
+*   **`api/testserver/`**: In-process mock gRPC server for integration testing (see [Testing](#testing) section).
 *   **`ui/`**: Manages the Terminal User Interface.
     *   `app.go`: Main `App` struct, state management, tabbed view (Positions/History/Orders), and lifecycle (Run/Stop).
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
@@ -82,9 +85,66 @@ go build -o finam-trade.exe main.go
 *   **UI Updates:** The TUI is event-driven. Ensure UI updates happen on the main thread or using `app.QueueUpdateDraw` (implied by `tview` usage).
 *   **Configuration:** Always use `config.Load()` to access settings; do not hardcode credentials.
 
+## Testing
+
+The project has two layers of automated tests: **unit tests** and **integration tests**.
+
+### Running Tests
+
+```bash
+# Unit tests only (default, no build tags required)
+go test ./...
+
+# Integration tests (against mock gRPC server via bufconn)
+go test -tags=integration ./api/...
+
+# All tests together
+go test ./... && go test -tags=integration ./api/...
+
+# With race detector (requires CGO_ENABLED=1)
+CGO_ENABLED=1 go test -race ./...
+CGO_ENABLED=1 go test -tags=integration -race ./api/...
+```
+
+A `Makefile` is available with shortcuts: `make test`, `make test-integration`, `make test-all`, `make test-race`, `make coverage`, `make lint`.
+
+### Unit Tests
+
+Unit tests use manual mock structs that implement gRPC service client interfaces (defined in `api/client_test.go`). They test individual methods in isolation without network I/O.
+
+### Integration Tests
+
+Integration tests use build tag `//go:build integration` and are located in `api/client_*_integration_test.go`. They exercise the real `api.Client` lifecycle (connect, authenticate, cache, call methods, close) against an in-process mock gRPC server.
+
+**Mock gRPC Server** (`api/testserver/`):
+*   `server.go` — `TestServer` struct: creates a `grpc.Server` + `bufconn.Listener`, registers all 5 mock services, exposes `Start()`, `Stop()`, `Dial()`.
+*   `auth_server.go` — `MockAuthServer`: validates tokens, generates JWTs with configurable expiry, tracks call count via `AuthCallCount` and notifies via `AuthCalled` channel. Supports `AuthOverride` for per-call error injection.
+*   `accounts_server.go` — `MockAccountsServer`: returns configurable positions and trade history per account ID.
+*   `marketdata_server.go` — `MockMarketDataServer`: returns quotes and bars. Supports `QuoteOverride` for custom behavior.
+*   `assets_server.go` — `MockAssetsServer`: returns bulk assets, per-symbol details, trading parameters, and schedule. Supports error injection via `GetAssetError`, `GetAssetParamsError`, `ScheduleError`.
+*   `orders_server.go` — `MockOrdersServer`: records `PlaceOrder`, `PlaceSLTPOrder`, `CancelOrder` requests for assertion. Returns configurable active orders.
+*   `testdata.go` — Fixture functions: `MakeJWT()`, `DefaultAssets()`, `DefaultAccountPositions()`, `DefaultQuote()`, `DefaultBars()`, `DefaultOrders()`, `DefaultTrades()`, `DefaultAssetInfo()`, `DefaultAssetParams()`, `DefaultSchedule()`.
+
+**Test helper**: `setupTestServer(t)` in `api/client_integration_test.go` creates a `TestServer` + `Client` pair and registers cleanup.
+
+**Integration test files**:
+*   `client_integration_test.go` — Client lifecycle, accounts, market data, search, orders (20 tests).
+*   `client_cache_integration_test.go` — Asset cache population, lot size on-demand fetch, name lookup (5 tests).
+*   `client_token_refresh_integration_test.go` — Auto-refresh before expiry, retry on failure, stop on close (3 tests).
+*   `client_errors_integration_test.go` — Unauthenticated, NotFound, ServerUnavailable, DeadlineExceeded, empty response (5 tests).
+
+### CI Pipeline
+
+The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
+1.  **unit-test** — runs `go test -race -coverprofile` on all packages.
+2.  **integration-test** — runs `go test -tags=integration -race -coverprofile` on `./api/...`.
+3.  **coverage** — merges profiles from both jobs and reports via `go tool cover -func`.
+4.  **lint** — runs `golangci-lint`.
+
 ## Directory Structure
 
 *   `api/`: gRPC client wrapper.
+    *   `testserver/`: Mock gRPC server for integration tests (bufconn-based, all 5 Finam services).
 *   `config/`: Configuration loader.
 *   `models/`: Data types.
 *   `ui/`: TUI implementation (views, controllers).
