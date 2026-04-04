@@ -155,7 +155,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 6: Fill Unit Test Gaps
 
-- [ ] Task 6.1: Add unit tests for untested API methods
+- [x] Task 6.1: Add unit tests for untested API methods <!-- 7ed6de6 -->
   - File: `api/client_test.go` (extend existing)
   - `TestGetBars` — bar parsing with parseDecimalFloat
   - `TestGetAssetInfo` — future/option/bond oneof handling
@@ -166,7 +166,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - Follow existing mock patterns in the file
   - Acceptance: All new tests pass, coverage of `api/client.go` improves
 
-- [ ] Task 6.2: Fix UI mock client completeness
+- [x] Task 6.2: Fix UI mock client completeness <!-- 7ed6de6 -->
   - File: `ui/mock_client_test.go`
   - Add function pointer fields for `GetBars`, `GetAssetInfo`, `GetAssetParams`, `GetSchedule`
   - Update methods to use function pointers (like all other methods)
