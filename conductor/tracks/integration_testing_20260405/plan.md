@@ -176,7 +176,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 7: CI Pipeline Enhancement
 
-- [ ] Task 7.1: Update CI workflow
+- [x] Task 7.1: Update CI workflow <!-- 178f32d -->
   - File: `.github/workflows/ci.yml`
   - Split `test` job into `unit-test` and `integration-test`
   - Update Go version from `1.24` to `1.26`
@@ -186,7 +186,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - Upload coverage artifacts
   - Acceptance: CI pipeline has 4 jobs (unit-test, integration-test, coverage, lint), all green
 
-- [ ] Task 7.2: Add Makefile for local testing convenience
+- [x] Task 7.2: Add Makefile for local testing convenience <!-- 178f32d -->
   - New file: `Makefile`
   - Targets: `test` (unit only), `test-integration`, `test-all`, `test-race`, `coverage`, `lint`
   - Acceptance: `make test` and `make test-integration` work locally
