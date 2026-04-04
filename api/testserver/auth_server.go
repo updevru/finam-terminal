@@ -26,7 +26,15 @@ type MockAuthServer struct {
 	// AuthCallCount tracks the number of Auth calls (for refresh tests).
 	AuthCallCount atomic.Int64
 
+	// AuthCalled is sent to (non-blocking) on every Auth call, for synchronization in tests.
+	AuthCalled chan struct{}
+
+	// AuthOverride, if set, is called instead of default Auth behavior.
+	// Allows dynamic per-call error injection (e.g., fail first then succeed).
+	AuthOverride func(ctx context.Context, req *auth.AuthRequest) (*auth.AuthResponse, error)
+
 	// AuthError, if set, is returned by Auth instead of the normal response.
+	// Ignored when AuthOverride is set.
 	AuthError error
 }
 
@@ -36,12 +44,23 @@ func NewMockAuthServer() *MockAuthServer {
 		ValidTokens: map[string]bool{"test-api-token": true},
 		AccountIDs:  []string{"ACC001", "ACC002"},
 		TokenExpiry: 1 * time.Hour,
+		AuthCalled:  make(chan struct{}, 100),
 	}
 }
 
 // Auth validates the secret and returns a JWT.
-func (m *MockAuthServer) Auth(_ context.Context, req *auth.AuthRequest) (*auth.AuthResponse, error) {
+func (m *MockAuthServer) Auth(ctx context.Context, req *auth.AuthRequest) (*auth.AuthResponse, error) {
 	m.AuthCallCount.Add(1)
+
+	// Non-blocking notification
+	select {
+	case m.AuthCalled <- struct{}{}:
+	default:
+	}
+
+	if m.AuthOverride != nil {
+		return m.AuthOverride(ctx, req)
+	}
 
 	if m.AuthError != nil {
 		return nil, m.AuthError

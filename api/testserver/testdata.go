@@ -160,9 +160,15 @@ func DefaultTrades(accountID string) []*tradeapiv1.AccountTrade {
 
 // DefaultAssetInfo returns a GetAssetResponse for the given symbol.
 func DefaultAssetInfo(symbol string) *assets.GetAssetResponse {
+	ticker := symbolTicker(symbol)
+	mic := "TQBR"
+	if i := len(ticker); i < len(symbol) {
+		mic = symbol[i+1:] // extract MIC from ticker@MIC
+	}
 	return &assets.GetAssetResponse{
-		Ticker:   symbolTicker(symbol),
-		Mic:      "TQBR",
+		Ticker:   ticker,
+		Board:    mic,
+		Mic:      mic,
 		Name:     "Test Asset " + symbol,
 		LotSize:  &decimal.Decimal{Value: "10"},
 		Decimals: 2,
