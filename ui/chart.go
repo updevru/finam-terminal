@@ -58,7 +58,7 @@ func RenderCandlestickChart(bars []models.Bar, width, height int) string {
 	// Build the chart grid row by row
 	var sb strings.Builder
 
-	for row := 0; row < chartHeight; row++ {
+	for row := range chartHeight {
 		// Price at this row (top = maxPrice, bottom = minPrice)
 		rowPriceHigh := maxPrice - (float64(row)/float64(chartHeight))*priceRange
 		rowPriceLow := maxPrice - (float64(row+1)/float64(chartHeight))*priceRange
