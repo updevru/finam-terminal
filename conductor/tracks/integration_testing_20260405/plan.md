@@ -80,7 +80,7 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
 
 ## Phase 3: Integration Tests — Core API Methods
 
-- [ ] Task 3.1: Test setup helper and client lifecycle
+- [x] Task 3.1: Test setup helper and client lifecycle <!-- 1a73d38 -->
   - New file: `api/client_integration_test.go` (build tag: `//go:build integration`)
   - `setupTestServer(t) (*Client, *testserver.TestServer)` helper
   - `TestIntegration_ClientLifecycle` — connect, auth, cache, close
@@ -88,25 +88,25 @@ Build a mock gRPC server via `bufconn` implementing all 5 Finam services, write 
   - `TestIntegration_Auth_JWTParsing` — expiry parsed from mock JWT
   - Acceptance: All 3 tests pass with `-tags=integration`
 
-- [ ] Task 3.2: Account and position tests
+- [x] Task 3.2: Account and position tests <!-- 1a73d38 -->
   - `TestIntegration_GetAccounts` — multiple accounts, some with load errors
   - `TestIntegration_GetAccountDetails` — positions with zero-qty filtering, MIC resolution, name enrichment
   - Acceptance: Account data matches mock server configuration
 
-- [ ] Task 3.3: Market data tests
+- [x] Task 3.3: Market data tests <!-- 1a73d38 -->
   - `TestIntegration_GetQuotes` — multiple symbols, found/not-found mix
   - `TestIntegration_GetSnapshots` — keyed by ticker (not full symbol)
   - `TestIntegration_GetBars` — OHLCV parsing from proto
   - Acceptance: Quote and bar data matches mock responses
 
-- [ ] Task 3.4: Search and asset info tests
+- [x] Task 3.4: Search and asset info tests <!-- 1a73d38 -->
   - `TestIntegration_SearchSecurities` — cache-based partial match by ticker and name
   - `TestIntegration_GetAssetInfo` — basic + future/option/bond oneof details
   - `TestIntegration_GetAssetParams` — longable/shortable/margin formatting
   - `TestIntegration_GetSchedule` — session intervals
   - Acceptance: All 4 tests pass, verify data transformations
 
-- [ ] Task 3.5: Trade history and order management tests
+- [x] Task 3.5: Trade history and order management tests <!-- 1a73d38 -->
   - `TestIntegration_GetTradeHistory` — side mapping, timestamp conversion
   - `TestIntegration_GetActiveOrders` — status mapping, SL/TP fields
   - `TestIntegration_PlaceOrder_Market` — lot size multiplication verified via recorded request
