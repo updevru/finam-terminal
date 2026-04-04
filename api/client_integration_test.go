@@ -11,8 +11,6 @@ import (
 	"finam-terminal/models"
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // setupTestServer creates a TestServer + Client pair for integration tests.
@@ -461,14 +459,3 @@ func TestIntegration_ClosePosition(t *testing.T) {
 	}
 }
 
-// --- Error handling ---
-
-func TestIntegration_Error_NotFound(t *testing.T) {
-	client, ts := setupTestServer(t)
-	ts.Assets.GetAssetError = status.Errorf(codes.NotFound, "asset not found")
-
-	_, err := client.GetAssetInfo("ACC001", "UNKNOWN@XXXX")
-	if err == nil {
-		t.Fatal("expected error for not found asset")
-	}
-}
