@@ -1,0 +1,9 @@
+{
+  "id": "app_version_display_20260406",
+  "title": "Отображение реальной версии программы в UI",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-04-06T00:00:00Z",
+  "phases": 4,
+  "total_tasks": 8
+}

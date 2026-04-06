@@ -113,3 +113,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/integration_testing_20260405/spec.md](./tracks/integration_testing_20260405/spec.md)*
 *Plan: [./tracks/integration_testing_20260405/plan.md](./tracks/integration_testing_20260405/plan.md)*
 *Phases: 7 | Tasks: 16*
+
+
+---
+
+
+- [ ] **Track: Отображение реальной версии программы в UI**
+
+*Link: [./tracks/app_version_display_20260406/](./tracks/app_version_display_20260406/)*
+*Spec: [./tracks/app_version_display_20260406/spec.md](./tracks/app_version_display_20260406/spec.md)*
+*Plan: [./tracks/app_version_display_20260406/plan.md](./tracks/app_version_display_20260406/plan.md)*
+*Phases: 4 | Tasks: 8*
