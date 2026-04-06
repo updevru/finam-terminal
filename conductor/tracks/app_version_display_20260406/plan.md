@@ -40,7 +40,7 @@
   - Acceptance:
     - Команда сборки передаёт `-ldflags "-X finam-terminal/version.Version=${{ github.ref_name }} -X finam-terminal/version.Commit=${{ github.sha }} -X finam-terminal/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"`
     - YAML валиден (актуально проверить через `yamllint` или `gh workflow view`)
-- [ ] Task: Manual verification — собрать бинарь локально через `make build` и через `go build`, запустить, проверить заголовок
+- [x] Task: Manual verification — собрать бинарь локально через `make build` и через `go build`, запустить, проверить заголовок (bd54d3d)
   - Acceptance:
     - `make build` → бинарь показывает версию из `git describe` (например `v1.2.3-5-gabc1234`)
     - `go build main.go` → бинарь показывает `dev (sha)` или `dev`
