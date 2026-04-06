@@ -25,7 +25,7 @@
     - `ui/app.go` не содержит `appVersion`
     - `ui/components.go:createHeader()` использует `version.String()` (формат: `" Finam Terminal " + prefix + version.String() + " "`, где `prefix == "v"` если `Version` не начинается с `v` и не равен `dev`, иначе пусто — избегаем двойного `v`)
     - `go build ./...` компилируется
-- [ ] Task: Запустить полный набор тестов и убедиться, что UI-тесты не сломались
+- [x] Task: Запустить полный набор тестов и убедиться, что UI-тесты не сломались (e36e4c5)
   - Acceptance:
     - `go test ./...` зелёный
     - `go test -tags=integration ./api/...` зелёный
