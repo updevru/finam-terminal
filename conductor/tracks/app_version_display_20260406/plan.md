@@ -4,7 +4,7 @@
 Создание выделенного пакета `version` с пакетными переменными, инжектируемыми через ldflags, замена хардкода `appVersion = "1.0.0"` в UI на динамическое значение, обновление CI/CD release workflow и Makefile для передачи git-тега в бинарь, добавление fallback-логики через `runtime/debug.ReadBuildInfo()` для dev-сборок без явной инжекции.
 
 ## Phase 1: Пакет `version` (TDD)
-- [ ] Task: Написать failing-тесты для пакета `version` (`version/version_test.go`)
+- [x] Task: Написать failing-тесты для пакета `version` (`version/version_test.go`) (e3c79fc)
   - Acceptance: Тесты покрывают:
     - Дефолтные значения переменных (`Version == "dev"`, `Commit == "unknown"`, `BuildDate == "unknown"`)
     - `String()` для случая инжектированной версии (например, после `Version = "v1.2.3"`)
