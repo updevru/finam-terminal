@@ -12,7 +12,7 @@
     - `Info()` возвращает корректные три значения
     - Таблично-управляемые тесты (table-driven) для разных комбинаций входов
   - Запустить `go test ./version/...` — должны падать (red phase)
-- [ ] Task: Создать `version/version.go` — package-level vars, `String()`, `Info()`, fallback через `runtime/debug.ReadBuildInfo`
+- [x] Task: Создать `version/version.go` — package-level vars, `String()`, `Info()`, fallback через `runtime/debug.ReadBuildInfo` (b00918f)
   - Acceptance:
     - Все тесты из предыдущей задачи зелёные
     - `go vet ./version/...` без предупреждений
