@@ -118,7 +118,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Отображение реальной версии программы в UI**
+- [x] **Track: Отображение реальной версии программы в UI** ✅ Completed
 
 *Link: [./tracks/app_version_display_20260406/](./tracks/app_version_display_20260406/)*
 *Spec: [./tracks/app_version_display_20260406/spec.md](./tracks/app_version_display_20260406/spec.md)*
