@@ -20,7 +20,7 @@
     - Документация (godoc) на экспортированных идентификаторах
 
 ## Phase 2: Интеграция в UI
-- [ ] Task: Удалить `appVersion` из `ui/app.go`, импортировать `finam-terminal/version` в `ui/components.go`, заменить рендер заголовка
+- [x] Task: Удалить `appVersion` из `ui/app.go`, импортировать `finam-terminal/version` в `ui/components.go`, заменить рендер заголовка (ac11d1c)
   - Acceptance:
     - `ui/app.go` не содержит `appVersion`
     - `ui/components.go:createHeader()` использует `version.String()` (формат: `" Finam Terminal " + prefix + version.String() + " "`, где `prefix == "v"` если `Version` не начинается с `v` и не равен `dev`, иначе пусто — избегаем двойного `v`)
