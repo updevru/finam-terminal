@@ -31,7 +31,7 @@
     - `go test -tags=integration ./api/...` зелёный
 
 ## Phase 3: Build tooling
-- [ ] Task: Обновить `Makefile` — добавить цель `build` с инжекцией версии из git
+- [x] Task: Обновить `Makefile` — добавить цель `build` с инжекцией версии из git (a0ed128)
   - Acceptance:
     - Новая цель `build` использует `git describe --tags --always --dirty` для `Version`, `git rev-parse HEAD` для `Commit`, `date -u +%Y-%m-%dT%H:%M:%SZ` для `BuildDate`
     - Команда: `go build -ldflags "-X finam-terminal/version.Version=$(VERSION) -X finam-terminal/version.Commit=$(COMMIT) -X finam-terminal/version.BuildDate=$(BUILD_DATE)" -o finam-terminal main.go`
