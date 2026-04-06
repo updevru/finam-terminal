@@ -32,6 +32,7 @@ The project follows a clean modular structure:
     *   `utils.go`: UI utility functions (number formatting, account ID masking).
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
 *   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker. `AccountInfo.DailyPnL` holds the daily P&L value. `Order` includes extended fields for stop/limit prices, conditions, validity, and SL/TP quantities.
+*   **`version/`**: Build-time version metadata. Exposes `Version`, `Commit`, and `BuildDate` as **package-level vars** (not consts — the linker can only override vars via `-ldflags -X`). `String()` returns the display string used by the UI header: a release tag verbatim (`v1.2.3`), or a dev build with VCS info (`dev (a1b2c3d)` or `dev (a1b2c3d, dirty)`), falling back through `runtime/debug.ReadBuildInfo()` when no commit is injected. `Info()` returns the raw tuple for diagnostics.
 
 ## Getting Started
 
@@ -77,6 +78,30 @@ go run main.go -account 0
 go build -o finam-trade.exe main.go
 ./finam-trade.exe
 ```
+
+**Build with version metadata (recommended for local distribution):**
+```bash
+make build
+```
+The `build` target injects `git describe --tags --always --dirty` as `Version`, `git rev-parse HEAD` as `Commit`, and the current UTC time as `BuildDate` via `-ldflags -X` against the `version` package. The resulting binary shows the resolved version in the TUI header.
+
+If you skip `make` and use a plain `go build .` (note the `.`, not `main.go` — `main.go` does not embed `vcs.*` settings), the binary still falls back to `runtime/debug.ReadBuildInfo()` and renders `dev (<short-sha>)` (or with `, dirty` when the working tree has changes).
+
+### Releasing a New Version
+
+To cut a release, just push a `vX.Y.Z` git tag — `.github/workflows/release.yml` is triggered on `push: tags: 'v*'` and will:
+
+1. Build the binary for each `(GOOS, GOARCH)` matrix entry with `-ldflags "-X finam-terminal/version.Version=${{ github.ref_name }} -X finam-terminal/version.Commit=${{ github.sha }} -X finam-terminal/version.BuildDate=<UTC>"` so each artifact reports the tag in the UI header.
+2. Upload the artifacts and create a GitHub Release with auto-generated notes.
+3. Build and push the Docker image, tagged via `docker/metadata-action`.
+
+**Steps:**
+```bash
+git tag v1.2.3
+git push origin v1.2.3
+```
+
+That's it — no manual constant bumps anywhere in source.
 
 ## Development Conventions
 
