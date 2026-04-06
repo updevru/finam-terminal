@@ -14,6 +14,8 @@ Finam Terminal — это терминальный интерфейс (TUI) дл
 
 </div>
 
+> 📖 **Руководство пользователя:** [docs/user_manual/index.md](docs/user_manual/index.md)
+
 ## Установка
 
 ### Готовые бинарные файлы
