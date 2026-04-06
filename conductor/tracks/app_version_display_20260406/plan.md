@@ -36,7 +36,7 @@
     - Новая цель `build` использует `git describe --tags --always --dirty` для `Version`, `git rev-parse HEAD` для `Commit`, `date -u +%Y-%m-%dT%H:%M:%SZ` для `BuildDate`
     - Команда: `go build -ldflags "-X finam-terminal/version.Version=$(VERSION) -X finam-terminal/version.Commit=$(COMMIT) -X finam-terminal/version.BuildDate=$(BUILD_DATE)" -o finam-terminal main.go`
     - `make build` локально успешно собирает бинарь
-- [ ] Task: Обновить `.github/workflows/release.yml` — добавить ldflags инжекцию в шаг `Build binary`
+- [x] Task: Обновить `.github/workflows/release.yml` — добавить ldflags инжекцию в шаг `Build binary` (6cdc15c)
   - Acceptance:
     - Команда сборки передаёт `-ldflags "-X finam-terminal/version.Version=${{ github.ref_name }} -X finam-terminal/version.Commit=${{ github.sha }} -X finam-terminal/version.BuildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"`
     - YAML валиден (актуально проверить через `yamllint` или `gh workflow view`)
