@@ -2,6 +2,7 @@ package ui
 
 import (
 	"finam-terminal/models"
+	"finam-terminal/version"
 	"fmt"
 	"strconv"
 	"strings"
@@ -193,14 +194,32 @@ func createAccountTable() *tview.Table {
 	return table
 }
 
-// createHeader creates the application header
+// createHeader creates the application header. The version segment is built
+// from the version package, which uses ldflags-injected metadata when
+// available and otherwise falls back to runtime/debug.ReadBuildInfo. We add a
+// "v" prefix only when the version is a numeric tag without one — released
+// tags such as "v1.2.3" and the "dev" sentinel are rendered verbatim to avoid
+// "vv1.2.3" or "vdev".
 func createHeader() *tview.TextView {
 	h := tview.NewTextView().
-		SetText(fmt.Sprintf(" Finam Terminal v%s ", appVersion)).
+		SetText(fmt.Sprintf(" Finam Terminal %s ", headerVersionLabel())).
 		SetTextAlign(tview.AlignCenter)
 	h.SetBackgroundColor(tcell.ColorDarkCyan)
 	h.SetTextColor(tcell.ColorWhite)
 	return h
+}
+
+// headerVersionLabel returns the version string as it should appear in the
+// header. Adds a leading "v" only for bare numeric versions like "1.2.3".
+func headerVersionLabel() string {
+	v := version.String()
+	if v == "" {
+		return ""
+	}
+	if v[0] >= '0' && v[0] <= '9' {
+		return "v" + v
+	}
+	return v
 }
 
 // createAccountList creates the account list panel
