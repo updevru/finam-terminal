@@ -25,7 +25,7 @@ The project follows a clean modular structure:
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
     *   `data.go`: Data fetching logic for trades history and active orders.
     *   `search.go`: Dedicated search window for finding securities.
-    *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart.
+    *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart. Renders instrument-type-specific fields (futures: expiration + contract size; options: + strike; bonds: face value + currency) and open interest in the Quote section for derivatives.
     *   `chart.go`: Unicode candlestick chart renderer with smart time labels.
     *   `input.go`: Keyboard input handlers for all views (navigation, shortcuts, order actions).
     *   `modal.go`: Order placement modal with dynamic fields for Market/Limit/Stop/TP/SL+TP order types.
