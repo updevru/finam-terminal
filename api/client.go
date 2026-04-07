@@ -68,6 +68,19 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
 
+	client, err := newClientFromConn(conn, apiToken)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// newClientFromConn initializes a Client from an existing gRPC connection.
+// It creates service clients, authenticates, starts background token refresh,
+// and loads the asset cache. Used by NewClient and by tests via bufconn.
+func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) {
 	client := &Client{
 		conn:                conn,
 		authClient:          auth.NewAuthServiceClient(conn),
@@ -84,7 +97,6 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 
 	// Authenticate
 	if err := client.authenticate(apiToken); err != nil {
-		_ = conn.Close()
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
@@ -790,19 +802,20 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 		}
 
 		quotes[fullSymbol] = &models.Quote{
-			Symbol:    fullSymbol,
-			Bid:       formatDecimal(q.Bid),
-			BidSize:   formatDecimal(q.BidSize),
-			Ask:       formatDecimal(q.Ask),
-			AskSize:   formatDecimal(q.AskSize),
-			Last:      formatDecimal(q.Last),
-			LastSize:  formatDecimal(q.LastSize),
-			Volume:    formatDecimal(q.Volume),
-			Open:      formatDecimal(q.Open),
-			High:      formatDecimal(q.High),
-			Low:       formatDecimal(q.Low),
-			Close:     formatDecimal(q.Close),
-			Timestamp: q.Timestamp.AsTime().Local(),
+			Symbol:       fullSymbol,
+			Bid:          formatDecimal(q.Bid),
+			BidSize:      formatDecimal(q.BidSize),
+			Ask:          formatDecimal(q.Ask),
+			AskSize:      formatDecimal(q.AskSize),
+			Last:         formatDecimal(q.Last),
+			LastSize:     formatDecimal(q.LastSize),
+			Volume:       formatDecimal(q.Volume),
+			Open:         formatDecimal(q.Open),
+			High:         formatDecimal(q.High),
+			Low:          formatDecimal(q.Low),
+			Close:        formatDecimal(q.Close),
+			OpenInterest: formatDecimal(q.OpenInterest),
+			Timestamp:    q.Timestamp.AsTime().Local(),
 		}
 	}
 
@@ -1187,9 +1200,23 @@ func (c *Client) GetAssetInfo(accountID string, symbol string) (*models.AssetDet
 		QuoteCurrency: resp.QuoteCurrency,
 	}
 
-	if resp.ExpirationDate != nil {
-		details.ExpirationDate = fmt.Sprintf("%04d-%02d-%02d",
-			resp.ExpirationDate.Year, resp.ExpirationDate.Month, resp.ExpirationDate.Day)
+	// Extract type-specific details (oneof)
+	if fd := resp.GetFutureDetails(); fd != nil {
+		details.ContractSize = formatDecimal(fd.ContractSize)
+		if fd.ExpirationDate != nil {
+			details.ExpirationDate = fd.ExpirationDate.AsTime().Local().Format("2006-01-02")
+		}
+	}
+	if od := resp.GetOptionDetails(); od != nil {
+		details.ContractSize = formatDecimal(od.ContractSize)
+		details.Strike = formatDecimal(od.Strike)
+		if od.ExpirationDate != nil {
+			details.ExpirationDate = od.ExpirationDate.AsTime().Local().Format("2006-01-02")
+		}
+	}
+	if bd := resp.GetBondDetails(); bd != nil {
+		details.BondFaceValue = formatDecimal(bd.BondFaceValue)
+		details.BondFaceCurrency = bd.Currency
 	}
 
 	return details, nil

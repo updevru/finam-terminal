@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	appVersion    = "1.0.0"
 	refreshPeriod = 5 * time.Second
 )
 

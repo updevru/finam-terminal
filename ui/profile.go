@@ -126,6 +126,29 @@ func (p *ProfilePanel) renderInfoPanel() {
 			writeField(&sb, "Expiry", d.ExpirationDate)
 		}
 		sb.WriteString("\n")
+
+		// Instrument-type-specific section
+		if d.ContractSize != "" && d.Strike != "" {
+			// Options
+			sb.WriteString("[cyan::b]─── Options ───[-:-:-]\n")
+			writeField(&sb, "Contract", d.ContractSize)
+			writeField(&sb, "Strike", d.Strike)
+			sb.WriteString("\n")
+		} else if d.ContractSize != "" {
+			// Futures
+			sb.WriteString("[cyan::b]─── Futures ───[-:-:-]\n")
+			writeField(&sb, "Contract", d.ContractSize)
+			sb.WriteString("\n")
+		} else if d.BondFaceValue != "" {
+			// Bonds
+			sb.WriteString("[cyan::b]─── Bond ───[-:-:-]\n")
+			faceVal := d.BondFaceValue
+			if d.BondFaceCurrency != "" {
+				faceVal += " " + d.BondFaceCurrency
+			}
+			writeField(&sb, "Face Value", faceVal)
+			sb.WriteString("\n")
+		}
 	}
 
 	// Quote section
@@ -139,6 +162,9 @@ func (p *ProfilePanel) renderInfoPanel() {
 		writeField(&sb, "High", q.High)
 		writeField(&sb, "Low", q.Low)
 		writeField(&sb, "Close", q.Close)
+		if q.OpenInterest != "" && q.OpenInterest != "0" {
+			writeField(&sb, "Open Int.", q.OpenInterest)
+		}
 		sb.WriteString("\n")
 	}
 

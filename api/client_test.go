@@ -15,6 +15,7 @@ import (
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 	"google.golang.org/genproto/googleapis/type/decimal"
+	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -23,17 +24,24 @@ import (
 type mockMarketDataServiceClient struct {
 	marketdata.MarketDataServiceClient
 	LastQuoteFunc func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error)
+	BarsFunc      func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error)
 }
 
 func (m *mockMarketDataServiceClient) LastQuote(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
 	return m.LastQuoteFunc(ctx, in, opts...)
 }
 
+func (m *mockMarketDataServiceClient) Bars(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error) {
+	return m.BarsFunc(ctx, in, opts...)
+}
+
 // mockAssetsServiceClient is a manual mock for assets.AssetsServiceClient
 type mockAssetsServiceClient struct {
 	assets.AssetsServiceClient
-	AssetsFunc   func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error)
-	GetAssetFunc func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error)
+	AssetsFunc         func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error)
+	GetAssetFunc       func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error)
+	GetAssetParamsFunc func(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error)
+	ScheduleFunc       func(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error)
 }
 
 func (m *mockAssetsServiceClient) Assets(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
@@ -42,6 +50,14 @@ func (m *mockAssetsServiceClient) Assets(ctx context.Context, in *assets.AssetsR
 
 func (m *mockAssetsServiceClient) GetAsset(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
 	return m.GetAssetFunc(ctx, in, opts...)
+}
+
+func (m *mockAssetsServiceClient) GetAssetParams(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error) {
+	return m.GetAssetParamsFunc(ctx, in, opts...)
+}
+
+func (m *mockAssetsServiceClient) Schedule(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error) {
+	return m.ScheduleFunc(ctx, in, opts...)
 }
 
 // mockAccountsServiceClient is a manual mock for accounts.AccountsServiceClient
@@ -1346,5 +1362,263 @@ func TestPlaceSLTPOrder_Error(t *testing.T) {
 	_, err := client.PlaceSLTPOrder("acc1", "SBER", "Sell", 10, 230, 10, 280)
 	if err == nil {
 		t.Fatal("Expected error, got nil")
+	}
+}
+
+// --- Phase 6: New unit tests for untested methods ---
+
+func TestGetBars(t *testing.T) {
+	mockMD := &mockMarketDataServiceClient{
+		BarsFunc: func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error) {
+			return &marketdata.BarsResponse{
+				Symbol: in.Symbol,
+				Bars: []*marketdata.Bar{
+					{
+						Timestamp: timestamppb.New(time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)),
+						Open:      &decimal.Decimal{Value: "280.50"},
+						High:      &decimal.Decimal{Value: "285.00"},
+						Low:       &decimal.Decimal{Value: "278.00"},
+						Close:     &decimal.Decimal{Value: "283.00"},
+						Volume:    &decimal.Decimal{Value: "15000"},
+					},
+					{
+						Timestamp: timestamppb.New(time.Date(2026, 4, 1, 11, 0, 0, 0, time.UTC)),
+						Open:      &decimal.Decimal{Value: "283.00"},
+						High:      &decimal.Decimal{Value: "286.00"},
+						Low:       &decimal.Decimal{Value: "282.00"},
+						Close:     &decimal.Decimal{Value: "284.50"},
+						Volume:    &decimal.Decimal{Value: "12000"},
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		marketDataClient:    mockMD,
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 10},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	bars, err := client.GetBars("acc1", "SBER", marketdata.TimeFrame_TIME_FRAME_H1, time.Now().AddDate(0, 0, -7), time.Now())
+	if err != nil {
+		t.Fatalf("GetBars error: %v", err)
+	}
+	if len(bars) != 2 {
+		t.Fatalf("expected 2 bars, got %d", len(bars))
+	}
+	if bars[0].Open != 280.50 {
+		t.Errorf("expected Open=280.50, got %v", bars[0].Open)
+	}
+	if bars[0].High != 285.00 {
+		t.Errorf("expected High=285.00, got %v", bars[0].High)
+	}
+	if bars[0].Volume != 15000 {
+		t.Errorf("expected Volume=15000, got %v", bars[0].Volume)
+	}
+	if bars[1].Close != 284.50 {
+		t.Errorf("expected Close=284.50, got %v", bars[1].Close)
+	}
+}
+
+func TestGetAssetInfo(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return &assets.GetAssetResponse{
+				Board:         "TQBR",
+				Ticker:        "SBER",
+				Mic:           "TQBR",
+				Name:          "Сбер Банк",
+				Type:          "stock",
+				Decimals:      2,
+				LotSize:       &decimal.Decimal{Value: "10"},
+				QuoteCurrency: "RUB",
+			}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 10},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	info, err := client.GetAssetInfo("acc1", "SBER@TQBR")
+	if err != nil {
+		t.Fatalf("GetAssetInfo error: %v", err)
+	}
+	if info.Name != "Сбер Банк" {
+		t.Errorf("expected name 'Сбер Банк', got %q", info.Name)
+	}
+	if info.Board != "TQBR" {
+		t.Errorf("expected board TQBR, got %q", info.Board)
+	}
+	if info.LotSize != "10" {
+		t.Errorf("expected lot size '10', got %q", info.LotSize)
+	}
+	if info.Decimals != 2 {
+		t.Errorf("expected decimals 2, got %d", info.Decimals)
+	}
+}
+
+func TestGetAssetParams(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetParamsFunc: func(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error) {
+			return &assets.GetAssetParamsResponse{
+				Symbol:        in.Symbol,
+				Longable:      &assets.Longable{Value: assets.Longable_AVAILABLE},
+				Shortable:     &assets.Shortable{Value: assets.Shortable_NOT_AVAILABLE},
+				LongRiskRate:  &decimal.Decimal{Value: "0.25"},
+				ShortRiskRate: &decimal.Decimal{Value: "0.50"},
+			}, nil
+		},
+		// GetAsset needed for getFullSymbol fallback
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return &assets.GetAssetResponse{Ticker: "SBER", Board: "TQBR", LotSize: &decimal.Decimal{Value: "10"}}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 10},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	params, err := client.GetAssetParams("acc1", "SBER@TQBR")
+	if err != nil {
+		t.Fatalf("GetAssetParams error: %v", err)
+	}
+	if params.Longable != "Available" {
+		t.Errorf("expected Longable 'Available', got %q", params.Longable)
+	}
+	if params.Shortable != "Not Available" {
+		t.Errorf("expected Shortable 'Not Available', got %q", params.Shortable)
+	}
+	if params.LongRiskRate != "0.25" {
+		t.Errorf("expected LongRiskRate '0.25', got %q", params.LongRiskRate)
+	}
+}
+
+func TestGetSchedule(t *testing.T) {
+	start := time.Date(2026, 4, 7, 7, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 4, 7, 15, 40, 0, 0, time.UTC)
+
+	mockAssets := &mockAssetsServiceClient{
+		ScheduleFunc: func(ctx context.Context, in *assets.ScheduleRequest, opts ...grpc.CallOption) (*assets.ScheduleResponse, error) {
+			return &assets.ScheduleResponse{
+				Symbol: in.Symbol,
+				Sessions: []*assets.ScheduleResponse_Sessions{
+					{
+						Type: "main",
+						Interval: &interval.Interval{
+							StartTime: timestamppb.New(start),
+							EndTime:   timestamppb.New(end),
+						},
+					},
+				},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       make(map[string]string),
+		assetLotCache:       make(map[string]float64),
+		instrumentNameCache: make(map[string]string),
+	}
+
+	sessions, err := client.GetSchedule("SBER@TQBR")
+	if err != nil {
+		t.Fatalf("GetSchedule error: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].Type != "main" {
+		t.Errorf("expected type 'main', got %q", sessions[0].Type)
+	}
+	if sessions[0].StartTime.UTC() != start {
+		t.Errorf("expected start %v, got %v", start, sessions[0].StartTime.UTC())
+	}
+	if sessions[0].EndTime.UTC() != end {
+		t.Errorf("expected end %v, got %v", end, sessions[0].EndTime.UTC())
+	}
+}
+
+func TestGetFullSymbol_CacheHit(t *testing.T) {
+	client := &Client{
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	result := client.getFullSymbol("SBER", "acc1")
+	if result != "SBER@TQBR" {
+		t.Errorf("expected SBER@TQBR, got %s", result)
+	}
+}
+
+func TestGetFullSymbol_AlreadyFullSymbol(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return &assets.GetAssetResponse{
+				Ticker:  "SBER",
+				Board:   "TQBR",
+				LotSize: &decimal.Decimal{Value: "10"},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       map[string]string{},
+		assetLotCache:       map[string]float64{},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	// Already contains @, should return as-is (but may trigger lot size fetch)
+	result := client.getFullSymbol("SBER@TQBR", "acc1")
+	if result != "SBER@TQBR" {
+		t.Errorf("expected SBER@TQBR, got %s", result)
+	}
+}
+
+func TestGetFullSymbol_CacheMissFallback(t *testing.T) {
+	mockAssets := &mockAssetsServiceClient{
+		GetAssetFunc: func(ctx context.Context, in *assets.GetAssetRequest, opts ...grpc.CallOption) (*assets.GetAssetResponse, error) {
+			return &assets.GetAssetResponse{
+				Ticker:  "YNDX",
+				Board:   "TQBR",
+				LotSize: &decimal.Decimal{Value: "1"},
+			}, nil
+		},
+	}
+
+	client := &Client{
+		assetsClient:        mockAssets,
+		assetMicCache:       map[string]string{}, // empty cache
+		assetLotCache:       map[string]float64{},
+		instrumentNameCache: make(map[string]string),
+	}
+
+	result := client.getFullSymbol("YNDX", "acc1")
+	if result != "YNDX@TQBR" {
+		t.Errorf("expected YNDX@TQBR, got %s", result)
+	}
+
+	// Should now be cached
+	client.assetMutex.RLock()
+	cached := client.assetMicCache["YNDX"]
+	lot := client.assetLotCache["YNDX"]
+	client.assetMutex.RUnlock()
+
+	if cached != "YNDX@TQBR" {
+		t.Errorf("expected cached YNDX@TQBR, got %s", cached)
+	}
+	if lot != 1 {
+		t.Errorf("expected lot size 1, got %v", lot)
 	}
 }

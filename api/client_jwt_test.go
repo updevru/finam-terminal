@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -55,10 +56,10 @@ func TestGetExpiryFromToken(t *testing.T) {
 
 func TestTokenRefreshLoop(t *testing.T) {
 	// Mock auth client to track calls
-	authCalls := 0
+	var authCalls atomic.Int64
 	mockAuth := &mockAuthServiceClient{
 		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
-			authCalls++
+			authCalls.Add(1)
 			// Create a token that expires very soon (e.g., in 2 seconds)
 			expTime := time.Now().Add(2 * time.Second).Unix()
 			payloadJson := fmt.Sprintf(`{"exp":%d}`, expTime)
@@ -90,7 +91,7 @@ func TestTokenRefreshLoop(t *testing.T) {
 
 	time.Sleep(1100 * time.Millisecond)
 
-	if authCalls == 0 {
+	if authCalls.Load() == 0 {
 		t.Error("Expected at least one call to authenticate in the refresh loop")
 	}
 

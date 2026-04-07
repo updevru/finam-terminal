@@ -40,7 +40,9 @@ jobs:
           GOARCH: ${{ matrix.arch }}
         run: |
           BINARY_NAME="finam-terminal-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}"
-          go build -v -o "dist/$BINARY_NAME" main.go
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          LDFLAGS="-X finam-terminal/version.Version=${{ github.ref_name }} -X finam-terminal/version.Commit=${{ github.sha }} -X finam-terminal/version.BuildDate=${BUILD_DATE}"
+          go build -v -trimpath -ldflags "${LDFLAGS}" -o "dist/$BINARY_NAME" main.go
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
