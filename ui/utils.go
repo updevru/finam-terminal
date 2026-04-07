@@ -38,11 +38,11 @@ func extractUserMessage(err error) string {
 	}
 
 	// Fallback: try to clean up gRPC error
-	if idx := strings.Index(msg, "desc = "); idx != -1 {
-		clean := strings.TrimSpace(msg[idx+7:])
+	if _, after, ok := strings.Cut(msg, "desc = "); ok {
+		clean := strings.TrimSpace(after)
 		// If it looks like the example [171]..., remove the code prefix if possible
-		if bracketIdx := strings.Index(clean, "]"); bracketIdx != -1 {
-			return strings.TrimSpace(clean[bracketIdx+1:])
+		if _, after, ok := strings.Cut(clean, "]"); ok {
+			return strings.TrimSpace(after)
 		}
 		return clean
 	}

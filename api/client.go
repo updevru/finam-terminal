@@ -68,6 +68,19 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
 
+	client, err := newClientFromConn(conn, apiToken)
+	if err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+
+	return client, nil
+}
+
+// newClientFromConn initializes a Client from an existing gRPC connection.
+// It creates service clients, authenticates, starts background token refresh,
+// and loads the asset cache. Used by NewClient and by tests via bufconn.
+func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) {
 	client := &Client{
 		conn:                conn,
 		authClient:          auth.NewAuthServiceClient(conn),
@@ -84,7 +97,6 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 
 	// Authenticate
 	if err := client.authenticate(apiToken); err != nil {
-		_ = conn.Close()
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 

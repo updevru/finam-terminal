@@ -14,6 +14,8 @@ Finam Terminal — это терминальный интерфейс (TUI) дл
 
 </div>
 
+> 📖 **Руководство пользователя:** [docs/user_manual/index.md](docs/user_manual/index.md)
+
 ## Установка
 
 ### Готовые бинарные файлы
@@ -33,16 +35,20 @@ docker run -it --rm ghcr.io/updevru/finam-terminal:latest
 ```
 
 ### Сборка из исходного кода
-Требуется Go 1.24+.
+Требуется Go 1.26+.
 
 ```bash
 # Установка зависимостей
 go mod tidy
 
-# Сборка исполняемого файла
-go build -o finam-terminal.exe main.go
+# Рекомендуемая сборка: версия и метаданные подставляются через -ldflags
+# (git tag, commit SHA, дата сборки попадут в заголовок терминала)
+make build
+./finam-terminal
 
-# Запуск
+# Альтернативный вариант — собрать «как есть».
+# Версия будет показана как dev (<short-sha>) благодаря runtime/debug.ReadBuildInfo.
+go build -o finam-terminal.exe main.go
 ./finam-terminal.exe
 ```
 
@@ -66,7 +72,7 @@ go build -o finam-terminal.exe main.go
 - 📊 Просмотр портфеля, истории и заявок по всем счетам.
 - 🔍 Поиск инструментов по тикеру или названию.
 - 📈 Отображение котировок в реальном времени.
-- 📋 Детальный профиль инструмента с графиком свечей.
+- 📋 Детальный профиль инструмента с графиком свечей: для фьючерсов, опционов и облигаций отображаются специфичные поля (экспирация, размер контракта, страйк, номинал) и open interest.
 - 📝 Размещение заявок: Market, Limit, Stop-Loss, Take-Profit, связанные SL/TP пары.
 - ✏️ Управление заявками: отмена (X/Del) и модификация (E) прямо из терминала.
 
@@ -76,9 +82,11 @@ go build -o finam-terminal.exe main.go
 
 - `main.go` — Точка входа.
 - `api/` — Клиент для взаимодействия с Finam Trade API (gRPC).
+- `api/testserver/` — In-process мок-сервер gRPC (на базе `bufconn`) для интеграционных тестов.
 - `ui/` — Компоненты интерфейса (TUI на базе `tview`).
 - `config/` — Управление конфигурацией.
 - `models/` — Общие структуры данных.
+- `version/` — Метаданные сборки (`Version`, `Commit`, `BuildDate`), подставляемые через `-ldflags` или восстанавливаемые из `runtime/debug.ReadBuildInfo()`. Используются заголовком TUI.
 - `conductor/` — Документация и планы разработки (Conductor Framework).
 
 ### Переменные окружения
@@ -92,25 +100,38 @@ go build -o finam-terminal.exe main.go
 
 ### Тестирование
 
-Запуск всех тестов:
+В проекте два слоя автоматических тестов: **unit-тесты** и **интеграционные тесты**. Интеграционные тесты не требуют сетевого подключения и реального API-токена — они используют in-process мок-сервер gRPC из пакета `api/testserver/` поверх `google.golang.org/grpc/test/bufconn`.
+
 ```bash
+# Только unit-тесты (без build-тегов)
 go test ./...
+
+# Интеграционные тесты против мок-сервера gRPC
+go test -tags=integration ./api/...
+
+# Всё вместе
+go test ./... && go test -tags=integration ./api/...
 ```
 
-Запуск линтера:
+Готовые цели в `Makefile` упрощают локальный цикл разработки:
+
+```bash
+make test              # unit-тесты
+make test-integration  # интеграционные тесты
+make test-all          # unit + интеграционные
+make test-race         # всё с детектором гонок (требует CGO_ENABLED=1)
+make coverage          # объединённый отчёт о покрытии (unit + integration)
+make lint              # golangci-lint run
+```
+
+Линтер можно запускать и напрямую:
 ```bash
 golangci-lint run
 ```
 
-Проверка покрытия кода:
-```bash
-go test -coverprofile=coverage.out ./...
-go tool cover -func=coverage.out
-```
+### Разработка с Conductor
 
-### Разработка с Gemini и Conductor
-
-Этот проект использует **Gemini CLI**, **Claude Code** и расширение [**Conductor**](https://github.com/gemini-cli-extensions/conductor) для планирования и реализации задач.
+Этот проект использует расширение [**Conductor**](https://github.com/gemini-cli-extensions/conductor) для планирования и реализации задач.
 
 - **Conductor** — это фреймворк для управления состоянием проекта и планирования треков (задач) в папке `conductor/`.
 - Все крупные изменения должны сопровождаться обновлением соответствующих спецификаций (`spec.md`) и планов (`plan.md`).

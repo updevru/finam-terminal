@@ -91,3 +91,36 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/extend_instrument_info_20260401/spec.md](./tracks/extend_instrument_info_20260401/spec.md)*
 *Plan: [./tracks/extend_instrument_info_20260401/plan.md](./tracks/extend_instrument_info_20260401/plan.md)*
 *Phases: 5 | Tasks: 8*
+
+
+---
+
+
+- [x] **Track: Обновление Go до 1.26 и внедрение нововведений** ✅ Completed
+
+*Link: [./tracks/go126_upgrade_20260405/](./tracks/go126_upgrade_20260405/)*
+*Spec: [./tracks/go126_upgrade_20260405/spec.md](./tracks/go126_upgrade_20260405/spec.md)*
+*Plan: [./tracks/go126_upgrade_20260405/plan.md](./tracks/go126_upgrade_20260405/plan.md)*
+*Phases: 4 | Tasks: 12*
+
+
+---
+
+
+- [x] **Track: Comprehensive Integration & Unit Testing** ✅ Completed
+
+*Link: [./tracks/integration_testing_20260405/](./tracks/integration_testing_20260405/)*
+*Spec: [./tracks/integration_testing_20260405/spec.md](./tracks/integration_testing_20260405/spec.md)*
+*Plan: [./tracks/integration_testing_20260405/plan.md](./tracks/integration_testing_20260405/plan.md)*
+*Phases: 7 | Tasks: 16*
+
+
+---
+
+
+- [x] **Track: Отображение реальной версии программы в UI** ✅ Completed
+
+*Link: [./tracks/app_version_display_20260406/](./tracks/app_version_display_20260406/)*
+*Spec: [./tracks/app_version_display_20260406/spec.md](./tracks/app_version_display_20260406/spec.md)*
+*Plan: [./tracks/app_version_display_20260406/plan.md](./tracks/app_version_display_20260406/plan.md)*
+*Phases: 4 | Tasks: 8*

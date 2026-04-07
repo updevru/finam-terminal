@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.12.0] - 2026-04-07
+
+### Added
+- **Integration Test Suite**: In-process mock gRPC server (`api/testserver/`) covering all 5 Finam services, plus integration tests for client lifecycle, asset cache, token refresh, and gRPC error paths (`integration_testing`).
+- **CI Coverage & Race**: CI split into unit-test, integration-test, coverage, and lint jobs with `-race` and merged coverage reporting (`integration_testing`).
+- **Extended Instrument Info**: Profile screen renders futures (expiration, contract size), options (+ strike), and bonds (face value, currency); open interest shown in Quote section for derivatives (`extend_instrument_info`).
+- **Real Version Display**: New `version/` package; TUI header shows the actual build version via `-ldflags -X`, with `runtime/debug.ReadBuildInfo()` fallback rendering `dev (<sha>[, dirty])` for local builds (`app_version_display`).
+- **Makefile**: `make build` injects version metadata; `make test`, `test-integration`, `test-all`, `test-race`, `coverage`, `lint` shortcuts (`integration_testing`, `app_version_display`).
+
+### Changed
+- **Go 1.26**: Toolchain bumped to Go 1.26; codebase modernized via `go fix` (`rangeint`, `minmax`, `stringscut`, `any`); dependencies refreshed (`go126_upgrade`).
+- **Finam Trade API SDK** updated to 2.14.0 with new derivative/bond fields and open interest (`extend_instrument_info`).
+- **Release Workflow**: `.github/workflows/release.yml` injects `Version`/`Commit`/`BuildDate` per matrix artifact via ldflags (`app_version_display`).
+
 ## [v0.11.0] - 2026-03-13
 
 ### Added

@@ -24,6 +24,11 @@ type mockClient struct {
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
 	GetActiveOrdersFunc func(accountID string) ([]models.Order, error)
 	CancelOrderFunc     func(accountID, orderID string) error
+
+	GetBarsFunc        func(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error)
+	GetAssetInfoFunc   func(accountID string, symbol string) (*models.AssetDetails, error)
+	GetAssetParamsFunc func(accountID string, symbol string) (*models.AssetParams, error)
+	GetScheduleFunc    func(symbol string) ([]models.TradingSession, error)
 }
 
 func (m *mockClient) GetAccounts() ([]models.AccountInfo, error) {
@@ -111,18 +116,30 @@ func (m *mockClient) GetActiveOrders(accountID string) ([]models.Order, error) {
 }
 
 func (m *mockClient) GetBars(accountID string, symbol string, timeframe marketdata.TimeFrame, from, to time.Time) ([]models.Bar, error) {
+	if m.GetBarsFunc != nil {
+		return m.GetBarsFunc(accountID, symbol, timeframe, from, to)
+	}
 	return nil, nil
 }
 
 func (m *mockClient) GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error) {
+	if m.GetAssetInfoFunc != nil {
+		return m.GetAssetInfoFunc(accountID, symbol)
+	}
 	return nil, nil
 }
 
 func (m *mockClient) GetAssetParams(accountID string, symbol string) (*models.AssetParams, error) {
+	if m.GetAssetParamsFunc != nil {
+		return m.GetAssetParamsFunc(accountID, symbol)
+	}
 	return nil, nil
 }
 
 func (m *mockClient) GetSchedule(symbol string) ([]models.TradingSession, error) {
+	if m.GetScheduleFunc != nil {
+		return m.GetScheduleFunc(symbol)
+	}
 	return nil, nil
 }
 

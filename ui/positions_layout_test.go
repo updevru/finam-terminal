@@ -37,24 +37,23 @@ func TestPositionsTable_Expansion(t *testing.T) {
 	typeOfT := val.Type()
 	expansionFieldName := ""
 
-	for i := 0; i < val.NumField(); i++ {
-		fieldName := typeOfT.Field(i).Name
+	for field := range typeOfT.Fields() {
 		// Look for something that sounds like expansion
-		if fieldName == "expansion" || fieldName == "Expansion" {
-			expansionFieldName = fieldName
+		if field.Name == "expansion" || field.Name == "Expansion" {
+			expansionFieldName = field.Name
 			break
 		}
 	}
 
 	if expansionFieldName == "" {
 		// List all fields for debugging
-		for i := 0; i < val.NumField(); i++ {
-			t.Logf("Field: %s", typeOfT.Field(i).Name)
+		for field := range typeOfT.Fields() {
+			t.Logf("Field: %s", field.Name)
 		}
 		t.Fatal("Could not find expansion field")
 	}
 
-	for i := 0; i < colCount; i++ {
+	for i := range colCount {
 		cell := table.GetCell(0, i)
 		val := reflect.ValueOf(cell).Elem()
 		expansionField := val.FieldByName(expansionFieldName)
