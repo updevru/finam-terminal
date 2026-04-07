@@ -67,6 +67,22 @@ func TestIntegration_TokenRefresh_RetryOnFailure(t *testing.T) {
 	ts := testserver.NewTestServer()
 	// Short expiry so refresh triggers quickly
 	ts.Auth.TokenExpiry = 5 * time.Second
+
+	// Install override BEFORE starting the server so the happens-before
+	// from the server-spawn `go` statement makes it visible to all server
+	// goroutines without a data race on AuthOverride.
+	// Sequence: n==1 initial auth (succeed), n==2 first refresh (fail),
+	// n>=3 retry (succeed).
+	var callNum atomic.Int64
+	ts.Auth.AuthOverride = func(_ context.Context, _ *auth.AuthRequest) (*auth.AuthResponse, error) {
+		n := callNum.Add(1)
+		if n == 2 {
+			return nil, status.Errorf(codes.Unavailable, "temporary failure")
+		}
+		jwt := testserver.MakeJWT(time.Now().Add(5 * time.Second))
+		return &auth.AuthResponse{Token: jwt}, nil
+	}
+
 	ts.Start()
 
 	conn, err := ts.Dial(context.Background())
@@ -82,19 +98,6 @@ func TestIntegration_TokenRefresh_RetryOnFailure(t *testing.T) {
 		_ = client.Close()
 		ts.Stop()
 	})
-
-	// After initial auth succeeds, make subsequent auth calls fail then succeed
-	var callNum atomic.Int64
-	ts.Auth.AuthOverride = func(_ context.Context, req *auth.AuthRequest) (*auth.AuthResponse, error) {
-		n := callNum.Add(1)
-		if n == 1 {
-			// First refresh attempt: fail
-			return nil, status.Errorf(codes.Unavailable, "temporary failure")
-		}
-		// Second attempt: succeed
-		jwt := testserver.MakeJWT(time.Now().Add(1 * time.Hour))
-		return &auth.AuthResponse{Token: jwt}, nil
-	}
 
 	// Wait for at least 3 total auth calls (initial + fail + retry succeed)
 	deadline := time.After(45 * time.Second)

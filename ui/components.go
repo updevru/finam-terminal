@@ -93,9 +93,9 @@ func (tv *TabbedView) UpdateHeader() {
 	var headerText strings.Builder
 	for i, tab := range tabs {
 		if TabType(i) == tv.ActiveTab {
-			headerText.WriteString(fmt.Sprintf("[black:yellow]%s[-]", tab))
+			fmt.Fprintf(&headerText, "[black:yellow]%s[-]", tab)
 		} else {
-			headerText.WriteString(fmt.Sprintf("[white:black]%s[-]", tab))
+			fmt.Fprintf(&headerText, "[white:black]%s[-]", tab)
 		}
 		if i < len(tabs)-1 {
 			headerText.WriteString(" ")
