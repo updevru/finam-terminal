@@ -41,7 +41,10 @@ func (s *SetupApp) setupUI() {
 
 [blue]1. Открыть брокерский счет:[white] https://finam.ru/landings/otkrytie-scheta/
 [blue]2. Открыть демо-счет:[white] https://www.finam.ru/landings/demoschet-bonus/
-[blue]3. Создать токен (после авторизации):[white] https://tradeapi.finam.ru/docs/tokens/
+[blue]3. Создать токен (после авторизации):[white] https://api.finam.ru/tokens/
+
+Новый короткий ключ выглядит как [::b]tapi_sk_...[::-]
+Старые длинные ключи (Legacy) по-прежнему поддерживаются.
 
 Вставьте полученный токен ниже.
 (Нажмите [::b]Ctrl+V[::-] или просто введите его)`, logoText)
@@ -79,7 +82,7 @@ func (s *SetupApp) setupUI() {
 	form := tview.NewFlex().
 		SetDirection(tview.FlexRow).
 		AddItem(nil, 0, 1, false).
-		AddItem(instructions, 20, 1, false).
+		AddItem(instructions, 23, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexColumn).
 			AddItem(nil, 0, 1, false).
 			AddItem(s.inputField, 60, 1, true).
