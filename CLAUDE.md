@@ -18,7 +18,7 @@ The project follows a clean modular structure:
 
 *   **`main.go`**: The entry point. Handles configuration loading, API client initialization, and starting the UI loop.
 *   **`api/`**: Contains the `Client` struct and methods for interacting with the Finam gRPC services. Encapsulates the complexity of the raw API calls.
-    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients, authenticates, starts token refresh, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS.
+    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients, authenticates, starts the JWT renewal stream, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS. Both `Auth` and `SubscribeJwtRenewal` requests carry `SourceAppId` set to the `sourceAppID` constant (`"finam-terminal"`). After the initial `authenticate()` call (needed for the first JWT and account list via `TokenDetails`), `subscribeJwtRenewal` keeps the token fresh by consuming the `SubscribeJwtRenewal` server stream instead of a timer — it reconnects with exponential backoff (1s, capped at 30s) if the stream drops, and stops silently when the client's context is cancelled via `Close()`.
 *   **`api/testserver/`**: In-process mock gRPC server for integration testing (see [Testing](#testing) section).
 *   **`ui/`**: Manages the Terminal User Interface.
     *   `app.go`: Main `App` struct, state management, tabbed view (Positions/History/Orders), and lifecycle (Run/Stop).
@@ -50,7 +50,7 @@ The project follows a clean modular structure:
 
 ### Configuration
 
-The application requires an API token.
+The application requires an API token, obtained from [api.finam.ru/tokens/](https://api.finam.ru/tokens/). New tokens use the short `tapi_sk_...` format; old long tokens are accepted too (Legacy) — `authenticate()` passes whatever the user entered as `Secret` unchanged, so no client-side format handling is needed.
 
 1.  Copy the example configuration:
     ```bash

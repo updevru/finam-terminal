@@ -124,3 +124,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/app_version_display_20260406/spec.md](./tracks/app_version_display_20260406/spec.md)*
 *Plan: [./tracks/app_version_display_20260406/plan.md](./tracks/app_version_display_20260406/plan.md)*
 *Phases: 4 | Tasks: 8*
+
+
+---
+
+
+- [x] **Track: Обновление finam-trade-api SDK и переход на новый формат API-ключей** ✅ Completed
+
+*Link: [./tracks/sdk_update_new_api_keys_20260712/](./tracks/sdk_update_new_api_keys_20260712/)*
+*Spec: [./tracks/sdk_update_new_api_keys_20260712/spec.md](./tracks/sdk_update_new_api_keys_20260712/spec.md)*
+*Plan: [./tracks/sdk_update_new_api_keys_20260712/plan.md](./tracks/sdk_update_new_api_keys_20260712/plan.md)*
+*Phases: 4 | Tasks: 13*

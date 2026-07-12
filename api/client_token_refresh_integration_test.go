@@ -4,24 +4,21 @@ package api
 
 import (
 	"context"
-	"sync/atomic"
 	"testing"
 	"time"
 
 	"finam-terminal/api/testserver"
 
-	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-// setupShortLivedClient creates a client with a very short JWT expiry
-// so the refresh goroutine triggers quickly.
-func setupShortLivedClient(t *testing.T, expiry time.Duration) (*Client, *testserver.TestServer) {
+// setupStreamClient creates a client backed by the mock test server, ready to
+// exercise the SubscribeJwtRenewal streaming token refresh.
+func setupStreamClient(t *testing.T) (*Client, *testserver.TestServer) {
 	t.Helper()
 
 	ts := testserver.NewTestServer()
-	ts.Auth.TokenExpiry = expiry
 	ts.Start()
 
 	conn, err := ts.Dial(context.Background())
@@ -42,81 +39,82 @@ func setupShortLivedClient(t *testing.T, expiry time.Duration) (*Client, *testse
 	return client, ts
 }
 
-func TestIntegration_TokenRefresh_BeforeExpiry(t *testing.T) {
-	// Token expires in 5 seconds; refresh should happen ~3s in (5s - 2min buffer => immediate/1s)
-	client, ts := setupShortLivedClient(t, 5*time.Second)
-	_ = client // keep alive
+// waitForJwtRenewalCall blocks until the mock server observes at least n
+// SubscribeJwtRenewal calls (initial subscribe + any reconnects), or fails
+// the test after deadline.
+func waitForJwtRenewalCall(t *testing.T, ts *testserver.TestServer, n int64, deadline time.Duration) {
+	t.Helper()
 
-	// Initial auth call = 1. Wait for at least one refresh call (= 2+).
-	deadline := time.After(10 * time.Second)
+	timeout := time.After(deadline)
 	for {
-		count := ts.Auth.AuthCallCount.Load()
-		if count >= 2 {
-			break
+		if ts.Auth.JwtRenewalCallCount.Load() >= n {
+			return
 		}
 		select {
-		case <-deadline:
-			t.Fatalf("timed out waiting for refresh; auth calls: %d", count)
-		case <-ts.Auth.AuthCalled:
-			// Got a notification, check count again
+		case <-timeout:
+			t.Fatalf("timed out waiting for %d SubscribeJwtRenewal call(s); got %d", n, ts.Auth.JwtRenewalCallCount.Load())
+		case <-ts.Auth.JwtRenewalCalled:
 		}
 	}
 }
 
-func TestIntegration_TokenRefresh_RetryOnFailure(t *testing.T) {
-	ts := testserver.NewTestServer()
-	// Short expiry so refresh triggers quickly
-	ts.Auth.TokenExpiry = 5 * time.Second
+// currentToken safely reads the client's current in-memory JWT.
+func currentToken(c *Client) string {
+	c.tokenMutex.RLock()
+	defer c.tokenMutex.RUnlock()
+	return c.token
+}
 
-	// Install override BEFORE starting the server so the happens-before
-	// from the server-spawn `go` statement makes it visible to all server
-	// goroutines without a data race on AuthOverride.
-	// Sequence: n==1 initial auth (succeed), n==2 first refresh (fail),
-	// n>=3 retry (succeed).
-	var callNum atomic.Int64
-	ts.Auth.AuthOverride = func(_ context.Context, _ *auth.AuthRequest) (*auth.AuthResponse, error) {
-		n := callNum.Add(1)
-		if n == 2 {
-			return nil, status.Errorf(codes.Unavailable, "temporary failure")
-		}
-		jwt := testserver.MakeJWT(time.Now().Add(5 * time.Second))
-		return &auth.AuthResponse{Token: jwt}, nil
-	}
+func TestIntegration_TokenRefresh_UpdatesFromStream(t *testing.T) {
+	client, ts := setupStreamClient(t)
 
-	ts.Start()
+	// Wait for the client to open the SubscribeJwtRenewal stream.
+	waitForJwtRenewalCall(t, ts, 1, 5*time.Second)
 
-	conn, err := ts.Dial(context.Background())
-	if err != nil {
-		t.Fatalf("failed to dial: %v", err)
-	}
+	initialToken := currentToken(client)
 
-	client, err := newClientFromConn(conn, "test-api-token")
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-	t.Cleanup(func() {
-		_ = client.Close()
-		ts.Stop()
-	})
+	newToken := testserver.MakeJWT(time.Now().Add(1 * time.Hour))
+	ts.Auth.JwtRenewalQueue <- testserver.JwtRenewalItem{Token: newToken}
 
-	// Wait for at least 3 total auth calls (initial + fail + retry succeed)
-	deadline := time.After(45 * time.Second)
-	for {
-		count := ts.Auth.AuthCallCount.Load()
-		if count >= 3 {
-			break
-		}
+	deadline := time.After(5 * time.Second)
+	for currentToken(client) != newToken {
 		select {
 		case <-deadline:
-			t.Fatalf("timed out waiting for retry; auth calls: %d, override calls: %d", count, callNum.Load())
-		case <-ts.Auth.AuthCalled:
+			t.Fatalf("timed out waiting for token to update via stream; initial=%q current=%q want=%q",
+				initialToken, currentToken(client), newToken)
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
+func TestIntegration_TokenRefresh_ReconnectsAfterDrop(t *testing.T) {
+	client, ts := setupStreamClient(t)
+
+	waitForJwtRenewalCall(t, ts, 1, 5*time.Second)
+
+	// Drop the stream — the client must reconnect (open a new stream).
+	ts.Auth.JwtRenewalQueue <- testserver.JwtRenewalItem{Err: status.Errorf(codes.Unavailable, "stream dropped")}
+
+	waitForJwtRenewalCall(t, ts, 2, 10*time.Second)
+
+	// The reconnected stream should still work: push a token and confirm it
+	// reaches the client.
+	newToken := testserver.MakeJWT(time.Now().Add(1 * time.Hour))
+	ts.Auth.JwtRenewalQueue <- testserver.JwtRenewalItem{Token: newToken}
+
+	deadline := time.After(5 * time.Second)
+	for currentToken(client) != newToken {
+		select {
+		case <-deadline:
+			t.Fatalf("timed out waiting for token to update after reconnect; current=%q want=%q",
+				currentToken(client), newToken)
+		case <-time.After(50 * time.Millisecond):
 		}
 	}
 }
 
 func TestIntegration_TokenRefresh_StopsOnClose(t *testing.T) {
 	ts := testserver.NewTestServer()
-	ts.Auth.TokenExpiry = 5 * time.Second
 	ts.Start()
 	defer ts.Stop()
 
@@ -130,19 +128,20 @@ func TestIntegration_TokenRefresh_StopsOnClose(t *testing.T) {
 		t.Fatalf("failed to create client: %v", err)
 	}
 
-	// Close the client — this should stop the refresh goroutine
+	waitForJwtRenewalCall(t, ts, 1, 5*time.Second)
+
+	// Close the client — this should stop the renewal stream/goroutine.
 	if err := client.Close(); err != nil {
 		t.Fatalf("close error: %v", err)
 	}
 
-	// Record count after close
-	countAfterClose := ts.Auth.AuthCallCount.Load()
+	countAfterClose := ts.Auth.JwtRenewalCallCount.Load()
 
-	// Wait a bit and verify no more auth calls happen
+	// Wait a bit and verify no reconnect attempts happen after Close.
 	time.Sleep(3 * time.Second)
-	countLater := ts.Auth.AuthCallCount.Load()
+	countLater := ts.Auth.JwtRenewalCallCount.Load()
 
 	if countLater > countAfterClose {
-		t.Errorf("expected no more auth calls after Close, but count went from %d to %d", countAfterClose, countLater)
+		t.Errorf("expected no more SubscribeJwtRenewal calls after Close, but count went from %d to %d", countAfterClose, countLater)
 	}
 }

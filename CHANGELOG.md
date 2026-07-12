@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Finam Trade API SDK** updated to commit `ee013ef` (2026-07-07), past releases 2.15.0–2.17.0 (`sdk_update_new_api_keys`).
+- **API Key Format**: onboarding, `.env.example`, and `README.md` now point to `https://api.finam.ru/tokens/` and describe the new short `tapi_sk_...` key format; old long tokens remain supported as Legacy (`sdk_update_new_api_keys`).
+- **Token Refresh**: replaced timer-based re-authentication with the `SubscribeJwtRenewal` gRPC stream for automatic JWT renewal, including reconnect with backoff (`sdk_update_new_api_keys`).
+
 ## [v0.12.0] - 2026-04-07
 
 ### Added
