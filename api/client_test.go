@@ -1668,3 +1668,26 @@ func TestGetFullSymbol_CacheMissFallback(t *testing.T) {
 		t.Errorf("expected lot size 1, got %v", lot)
 	}
 }
+
+func TestAuthenticate_SetsSourceAppId(t *testing.T) {
+	var gotSourceAppID string
+	mockAuth := &mockAuthServiceClient{
+		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+			gotSourceAppID = in.SourceAppId
+			return &auth.AuthResponse{Token: "test-token"}, nil
+		},
+	}
+
+	client := &Client{authClient: mockAuth}
+
+	if err := client.authenticate("test-api-token"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if gotSourceAppID == "" {
+		t.Errorf("Expected non-empty SourceAppId, got empty string")
+	}
+	if gotSourceAppID != sourceAppID {
+		t.Errorf("Expected SourceAppId %q, got %q", sourceAppID, gotSourceAppID)
+	}
+}

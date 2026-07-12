@@ -30,6 +30,9 @@ import (
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 )
 
+// sourceAppID identifies this application in Auth and SubscribeJwtRenewal requests.
+const sourceAppID = "finam-terminal"
+
 // Client is a client for the Finam Trade API
 type Client struct {
 	conn             *grpc.ClientConn
@@ -448,7 +451,7 @@ func (c *Client) authenticate(apiToken string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resp, err := c.authClient.Auth(ctx, &auth.AuthRequest{Secret: apiToken})
+	resp, err := c.authClient.Auth(ctx, &auth.AuthRequest{Secret: apiToken, SourceAppId: sourceAppID})
 	if err != nil {
 		c.logGRPCError("AuthService", "Auth", err)
 		return fmt.Errorf("auth request failed: %w", err)
