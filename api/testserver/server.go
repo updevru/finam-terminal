@@ -59,9 +59,11 @@ func (ts *TestServer) Start() {
 	}()
 }
 
-// Stop gracefully stops the server.
+// Stop immediately stops the server, closing all connections and streams.
+// A graceful stop is not used here because tests may hold a long-lived
+// stream open (e.g. SubscribeJwtRenewal) that would otherwise block it.
 func (ts *TestServer) Stop() {
-	ts.server.GracefulStop()
+	ts.server.Stop()
 }
 
 // Dial returns a client connection to the in-process server.

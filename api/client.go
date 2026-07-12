@@ -48,7 +48,6 @@ type Client struct {
 
 	// New fields for auto-refresh
 	apiToken      string
-	lastRefresh   time.Time
 	refreshCancel context.CancelFunc
 
 	// Cache for instrument MIC codes
@@ -103,10 +102,10 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 		return nil, fmt.Errorf("authentication failed: %w", err)
 	}
 
-	// Start background token refresh
+	// Start background token refresh via the SubscribeJwtRenewal stream
 	refreshCtx, cancel := context.WithCancel(context.Background())
 	client.refreshCancel = cancel
-	go client.startTokenRefresh(refreshCtx)
+	go client.subscribeJwtRenewal(refreshCtx)
 
 	// Load asset MIC cache
 	if err := client.loadAssetCache(); err != nil {
@@ -127,57 +126,91 @@ func (c *Client) Close() error {
 	return nil
 }
 
-// startTokenRefresh runs in a goroutine and proactively refreshes the token
-func (c *Client) startTokenRefresh(ctx context.Context) {
-	log.Printf("[INFO] Background token refresh process started")
-	for {
-		duration := c.getRefreshDuration()
-		log.Printf("[DEBUG] Next token refresh in %v", duration)
+// jwtRenewalInitialBackoff and jwtRenewalMaxBackoff bound the exponential
+// backoff used to reconnect the SubscribeJwtRenewal stream after a drop.
+const (
+	jwtRenewalInitialBackoff = 1 * time.Second
+	jwtRenewalMaxBackoff     = 30 * time.Second
+)
 
-		select {
-		case <-ctx.Done():
-			log.Printf("[INFO] Background token refresh process stopped")
+// subscribeJwtRenewal runs in a goroutine and keeps the client's token fresh
+// by consuming the SubscribeJwtRenewal server stream. It reconnects with
+// exponential backoff if the stream drops, and stops silently once ctx is
+// cancelled (e.g. via Close()).
+func (c *Client) subscribeJwtRenewal(ctx context.Context) {
+	log.Printf("[INFO] JWT renewal stream started")
+	backoff := jwtRenewalInitialBackoff
+
+	for {
+		if ctx.Err() != nil {
+			log.Printf("[INFO] JWT renewal stream stopped")
 			return
-		case <-time.After(duration):
-			if err := c.authenticate(c.apiToken); err != nil {
-				log.Printf("[ERROR] Token refresh failed: %v. Retrying in 30s...", err)
-				// Retry after a short delay on failure
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(30 * time.Second):
-					continue
-				}
-			}
-			c.tokenMutex.Lock()
-			c.lastRefresh = time.Now()
-			c.tokenMutex.Unlock()
-			log.Printf("[INFO] Token refreshed successfully")
 		}
+
+		stream, err := c.authClient.SubscribeJwtRenewal(ctx, &auth.SubscribeJwtRenewalRequest{
+			Secret:      c.apiToken,
+			SourceAppId: sourceAppID,
+		})
+		if err != nil {
+			if ctx.Err() != nil {
+				log.Printf("[INFO] JWT renewal stream stopped")
+				return
+			}
+			log.Printf("[ERROR] Failed to open JWT renewal stream: %v. Reconnecting in %v...", err, backoff)
+			if !sleepOrDone(ctx, backoff) {
+				log.Printf("[INFO] JWT renewal stream stopped")
+				return
+			}
+			backoff = nextBackoff(backoff)
+			continue
+		}
+
+		backoff = jwtRenewalInitialBackoff
+		for {
+			resp, recvErr := stream.Recv()
+			if recvErr != nil {
+				if ctx.Err() != nil {
+					log.Printf("[INFO] JWT renewal stream stopped")
+					return
+				}
+				log.Printf("[WARN] JWT renewal stream disconnected: %v. Reconnecting...", recvErr)
+				break
+			}
+
+			c.tokenMutex.Lock()
+			c.token = resp.Token
+			if expiry, expErr := c.getExpiryFromToken(resp.Token); expErr == nil {
+				c.tokenExpiry = expiry
+			}
+			c.tokenMutex.Unlock()
+			log.Printf("[INFO] Token refreshed via JWT renewal stream")
+		}
+
+		if !sleepOrDone(ctx, backoff) {
+			log.Printf("[INFO] JWT renewal stream stopped")
+			return
+		}
+		backoff = nextBackoff(backoff)
 	}
 }
 
-// getRefreshDuration calculates how long to wait before the next refresh
-func (c *Client) getRefreshDuration() time.Duration {
-	c.tokenMutex.RLock()
-	expiry := c.tokenExpiry
-	c.tokenMutex.RUnlock()
-
-	// Refresh 2 minutes before actual expiry
-	refreshAt := expiry.Add(-2 * time.Minute)
-	duration := time.Until(refreshAt)
-
-	// If already past refresh time or expiry is too soon, refresh in 1 second
-	if duration <= 0 {
-		return 1 * time.Second
+// sleepOrDone waits for d, returning false early (without waiting) if ctx is cancelled first.
+func sleepOrDone(ctx context.Context, d time.Duration) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case <-time.After(d):
+		return true
 	}
+}
 
-	// Fallback/Safety: If expiry is very far or missing, default to 10 minutes
-	if duration > 10*time.Hour || expiry.IsZero() {
-		return 10 * time.Minute
+// nextBackoff doubles d, capped at jwtRenewalMaxBackoff.
+func nextBackoff(d time.Duration) time.Duration {
+	d *= 2
+	if d > jwtRenewalMaxBackoff {
+		return jwtRenewalMaxBackoff
 	}
-
-	return duration
+	return d
 }
 
 // getExpiryFromToken extracts the expiration time from a JWT token
