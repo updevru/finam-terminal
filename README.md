@@ -62,7 +62,9 @@ go build -o finam-terminal.exe main.go
 Полезные ссылки:
 - 🏦 **Открыть брокерский счет:** [finam.ru/landings/otkrytie-scheta/](https://finam.ru/landings/otkrytie-scheta/)
 - 🎮 **Открыть демо-счет:** [tradeapi.finam.ru/docs/tokens/](https://tradeapi.finam.ru/docs/tokens/)
-- 🔑 **Создать токен:** [tradeapi.finam.ru/docs/tokens/](https://tradeapi.finam.ru/docs/tokens/)
+- 🔑 **Создать токен:** [api.finam.ru/tokens/](https://api.finam.ru/tokens/)
+
+Новые токены выдаются в коротком формате `tapi_sk_...`. Старые длинные токены помечены как Legacy, но продолжают работать.
 
 Вставьте полученный токен в экран настройки приложения, и он будет сохранен локально (в `~/.finam-cli/.env`).
 
