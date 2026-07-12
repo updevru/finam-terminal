@@ -6,7 +6,7 @@
 ## Phase 1: Обновление SDK
 - [x] Task: Обновить зависимость до `v0.0.0-20260707135128-ee013ef14834` (`go get github.com/FinamWeb/finam-trade-api/go@ee013ef148348c91b6b7d19d5f4008f6c1b2c65b`) и выполнить `go mod tidy` (74d6f7d)
   - Acceptance: `go.mod`/`go.sum` содержат целевую псевдо-версию, `go mod tidy` без изменений после повторного запуска
-- [ ] Task: Базовая верификация после бампа (до изменений auth) — `go build ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint`
+- [x] Task: Базовая верификация после бампа (до изменений auth) — `go build ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint` (verified, no code change)
   - Acceptance: сборка зелёная, все тесты проходят, линтер без новых замечаний; при поломке (маловероятно, изменения аддитивные) — точечно починить
 
 ## Phase 2: Новый формат ключей — онбординг и документация
