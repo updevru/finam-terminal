@@ -78,8 +78,9 @@ func (m *mockAccountsServiceClient) Trades(ctx context.Context, in *accounts.Tra
 // mockAuthServiceClient is a manual mock for auth.AuthServiceClient
 type mockAuthServiceClient struct {
 	auth.AuthServiceClient
-	TokenDetailsFunc func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error)
-	AuthFunc         func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error)
+	TokenDetailsFunc        func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error)
+	AuthFunc                func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error)
+	SubscribeJwtRenewalFunc func(ctx context.Context, in *auth.SubscribeJwtRenewalRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[auth.SubscribeJwtRenewalResponse], error)
 }
 
 func (m *mockAuthServiceClient) TokenDetails(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
@@ -88,6 +89,25 @@ func (m *mockAuthServiceClient) TokenDetails(ctx context.Context, in *auth.Token
 
 func (m *mockAuthServiceClient) Auth(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
 	return m.AuthFunc(ctx, in, opts...)
+}
+
+func (m *mockAuthServiceClient) SubscribeJwtRenewal(ctx context.Context, in *auth.SubscribeJwtRenewalRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[auth.SubscribeJwtRenewalResponse], error) {
+	return m.SubscribeJwtRenewalFunc(ctx, in, opts...)
+}
+
+// fakeJwtRenewalStream is a manual fake for grpc.ServerStreamingClient[auth.SubscribeJwtRenewalResponse].
+type fakeJwtRenewalStream struct {
+	grpc.ClientStream
+	ctx      context.Context
+	recvFunc func() (*auth.SubscribeJwtRenewalResponse, error)
+}
+
+func (f *fakeJwtRenewalStream) Recv() (*auth.SubscribeJwtRenewalResponse, error) {
+	return f.recvFunc()
+}
+
+func (f *fakeJwtRenewalStream) Context() context.Context {
+	return f.ctx
 }
 
 // mockOrdersServiceClient is a manual mock for orders.OrdersServiceClient
