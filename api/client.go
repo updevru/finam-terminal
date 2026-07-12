@@ -671,7 +671,17 @@ func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
 	}
 
 	var accountsList []models.AccountInfo
+	seen := make(map[string]bool, len(resp.AccountIds))
 	for _, accountID := range resp.AccountIds {
+		// TokenDetails may return the same account ID more than once
+		// (e.g. one entry per grant since the Trade API auth redesign).
+		// Skip duplicates so the terminal shows each account only once.
+		if seen[accountID] {
+			log.Printf("[DEBUG] TokenDetails returned duplicate account ID %s, skipping", accountID)
+			continue
+		}
+		seen[accountID] = true
+
 		accountResp, err := c.accountsClient.GetAccount(ctx, &accounts.GetAccountRequest{
 			AccountId: accountID,
 		})
