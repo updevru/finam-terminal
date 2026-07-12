@@ -29,7 +29,7 @@
 - [x] Task: Unit-тесты на устойчивость — реконнект с бэкоффом при обрыве стрима и graceful stop при `Close()` (без ошибок в логах) (49dc634)
   - Acceptance: ветви ошибок и остановки покрыты тестами; `go test ./...` зелёный
 
-## Phase 4: Верификация и финализация
+## Phase 4: Верификация и финализация [checkpoint: 4f60729]
 - [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint` (verified, no code change)
   - Acceptance: нет ошибок и предупреждений, все тесты зелёные, линтер чистый
 - [x] Task: Обновить `CLAUDE.md` — описание auth-потока (стрим `SubscribeJwtRenewal` вместо таймера, `source_app_id`) и версию Trade API/SDK (143ddb2)
