@@ -24,7 +24,7 @@
   - Acceptance: тесты компилируются и падают (реализации ещё нет): проверяют обновление `c.token` из стрима, реконнект после обрыва, остановку по `Close()`
 - [x] Task: Ввести константу `source_app_id` (напр. `"finam-terminal"`) и передавать её в `auth.AuthRequest.SourceAppId` и `auth.SubscribeJwtRenewalRequest.SourceAppId` (0124255; SubscribeJwtRenewalRequest usage lands in next task)
   - Acceptance: оба запроса содержат непустой `SourceAppId`; unit-тест на `authenticate()` подтверждает передачу
-- [ ] Task: (Green) Заменить таймерный `startTokenRefresh` на цикл `SubscribeJwtRenewal` с реконнектом/бэкоффом и остановкой по `ctx`/`Close()`
+- [x] Task: (Green) Заменить таймерный `startTokenRefresh` на цикл `SubscribeJwtRenewal` с реконнектом/бэкоффом и остановкой по `ctx`/`Close()` (be31d6d)
   - Acceptance: обновление токена идёт через стрим; таймерная логика удалена; интеграционные тесты из предыдущей задачи зелёные
 - [ ] Task: Unit-тесты на устойчивость — реконнект с бэкоффом при обрыве стрима и graceful stop при `Close()` (без ошибок в логах)
   - Acceptance: ветви ошибок и остановки покрыты тестами; `go test ./...` зелёный
