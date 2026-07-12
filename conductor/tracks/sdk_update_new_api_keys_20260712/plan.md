@@ -20,7 +20,7 @@
 ## Phase 3: source_app_id и переход на SubscribeJwtRenewal (TDD)
 - [x] Task: Реализовать стриминговый `SubscribeJwtRenewal` в `MockAuthServer` (`api/testserver/`) + фикстуры для управления потоком JWT (15904e8)
   - Acceptance: мок принимает `SubscribeJwtRenewalRequest`, отдаёт поток `SubscribeJwtRenewalResponse{Token}`, есть способ инжектировать очередные токены/ошибки и наблюдать `SourceAppId`
-- [ ] Task: (Red) Переписать `client_token_refresh_integration_test.go` под стримовую модель — тесты определяют ожидаемое поведение и падают
+- [x] Task: (Red) Переписать `client_token_refresh_integration_test.go` под стримовую модель — тесты определяют ожидаемое поведение и падают (d936171)
   - Acceptance: тесты компилируются и падают (реализации ещё нет): проверяют обновление `c.token` из стрима, реконнект после обрыва, остановку по `Close()`
 - [ ] Task: Ввести константу `source_app_id` (напр. `"finam-terminal"`) и передавать её в `auth.AuthRequest.SourceAppId` и `auth.SubscribeJwtRenewalRequest.SourceAppId`
   - Acceptance: оба запроса содержат непустой `SourceAppId`; unit-тест на `authenticate()` подтверждает передачу
