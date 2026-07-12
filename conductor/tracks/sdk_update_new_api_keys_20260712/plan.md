@@ -12,7 +12,7 @@
 ## Phase 2: Новый формат ключей — онбординг и документация
 - [x] Task: Обновить онбординг в `ui/setup.go` — ссылка на портал `https://api.finam.ru/tokens/`, упоминание короткого ключа `tapi_sk_...` и Legacy-статуса старых ключей (686f2ba)
   - Acceptance: тексты/ссылки актуальны; логика ввода и поведенческая валидация (`GetAccounts()`) не изменены
-- [ ] Task: Обновить `.env.example` и `README.md` под новый формат ключей (ссылка `api.finam.ru/tokens`, заметка о `tapi_sk_`/Legacy)
+- [x] Task: Обновить `.env.example` и `README.md` под новый формат ключей (ссылка `api.finam.ru/tokens`, заметка о `tapi_sk_`/Legacy) (930c1fa)
   - Acceptance: оба файла отражают новый формат; переменная `FINAM_API_TOKEN` сохранена
 - [ ] Task: Добавить запись в `CHANGELOG.md` (апдейт SDK + поддержка нового формата ключей + переход на `SubscribeJwtRenewal`)
   - Acceptance: `CHANGELOG.md` содержит новую датированную запись
