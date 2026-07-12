@@ -17,7 +17,7 @@
 - [x] Task: Добавить запись в `CHANGELOG.md` (апдейт SDK + поддержка нового формата ключей + переход на `SubscribeJwtRenewal`) (6d01382)
   - Acceptance: `CHANGELOG.md` содержит новую датированную запись
 
-## Phase 3: source_app_id и переход на SubscribeJwtRenewal (TDD)
+## Phase 3: source_app_id и переход на SubscribeJwtRenewal (TDD) [checkpoint: 002b3c4]
 - [x] Task: Реализовать стриминговый `SubscribeJwtRenewal` в `MockAuthServer` (`api/testserver/`) + фикстуры для управления потоком JWT (15904e8)
   - Acceptance: мок принимает `SubscribeJwtRenewalRequest`, отдаёт поток `SubscribeJwtRenewalResponse{Token}`, есть способ инжектировать очередные токены/ошибки и наблюдать `SourceAppId`
 - [x] Task: (Red) Переписать `client_token_refresh_integration_test.go` под стримовую модель — тесты определяют ожидаемое поведение и падают (d936171)
