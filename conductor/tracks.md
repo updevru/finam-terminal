@@ -129,7 +129,7 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Обновление finam-trade-api SDK и переход на новый формат API-ключей**
+- [x] **Track: Обновление finam-trade-api SDK и переход на новый формат API-ключей** ✅ Completed
 
 *Link: [./tracks/sdk_update_new_api_keys_20260712/](./tracks/sdk_update_new_api_keys_20260712/)*
 *Spec: [./tracks/sdk_update_new_api_keys_20260712/spec.md](./tracks/sdk_update_new_api_keys_20260712/spec.md)*
