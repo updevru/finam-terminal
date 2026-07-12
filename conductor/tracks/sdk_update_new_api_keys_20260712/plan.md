@@ -22,7 +22,7 @@
   - Acceptance: мок принимает `SubscribeJwtRenewalRequest`, отдаёт поток `SubscribeJwtRenewalResponse{Token}`, есть способ инжектировать очередные токены/ошибки и наблюдать `SourceAppId`
 - [x] Task: (Red) Переписать `client_token_refresh_integration_test.go` под стримовую модель — тесты определяют ожидаемое поведение и падают (d936171)
   - Acceptance: тесты компилируются и падают (реализации ещё нет): проверяют обновление `c.token` из стрима, реконнект после обрыва, остановку по `Close()`
-- [ ] Task: Ввести константу `source_app_id` (напр. `"finam-terminal"`) и передавать её в `auth.AuthRequest.SourceAppId` и `auth.SubscribeJwtRenewalRequest.SourceAppId`
+- [x] Task: Ввести константу `source_app_id` (напр. `"finam-terminal"`) и передавать её в `auth.AuthRequest.SourceAppId` и `auth.SubscribeJwtRenewalRequest.SourceAppId` (0124255; SubscribeJwtRenewalRequest usage lands in next task)
   - Acceptance: оба запроса содержат непустой `SourceAppId`; unit-тест на `authenticate()` подтверждает передачу
 - [ ] Task: (Green) Заменить таймерный `startTokenRefresh` на цикл `SubscribeJwtRenewal` с реконнектом/бэкоффом и остановкой по `ctx`/`Close()`
   - Acceptance: обновление токена идёт через стрим; таймерная логика удалена; интеграционные тесты из предыдущей задачи зелёные
