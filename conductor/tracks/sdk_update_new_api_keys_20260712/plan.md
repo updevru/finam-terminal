@@ -14,7 +14,7 @@
   - Acceptance: тексты/ссылки актуальны; логика ввода и поведенческая валидация (`GetAccounts()`) не изменены
 - [x] Task: Обновить `.env.example` и `README.md` под новый формат ключей (ссылка `api.finam.ru/tokens`, заметка о `tapi_sk_`/Legacy) (930c1fa)
   - Acceptance: оба файла отражают новый формат; переменная `FINAM_API_TOKEN` сохранена
-- [ ] Task: Добавить запись в `CHANGELOG.md` (апдейт SDK + поддержка нового формата ключей + переход на `SubscribeJwtRenewal`)
+- [x] Task: Добавить запись в `CHANGELOG.md` (апдейт SDK + поддержка нового формата ключей + переход на `SubscribeJwtRenewal`) (6d01382)
   - Acceptance: `CHANGELOG.md` содержит новую датированную запись
 
 ## Phase 3: source_app_id и переход на SubscribeJwtRenewal (TDD)
