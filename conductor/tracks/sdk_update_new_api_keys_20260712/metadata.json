@@ -1,0 +1,9 @@
+{
+  "id": "sdk_update_new_api_keys_20260712",
+  "title": "Обновление finam-trade-api SDK и переход на новый формат API-ключей",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-07-12T00:00:00Z",
+  "phases": 4,
+  "total_tasks": 13
+}
