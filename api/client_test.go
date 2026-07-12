@@ -320,6 +320,52 @@ func TestGetAccounts(t *testing.T) {
 	}
 }
 
+// TestGetAccounts_DeduplicatesAccountIDs reproduces the account-doubling bug:
+// the Trade API's TokenDetails may return the same account ID more than once,
+// which previously produced identical duplicate accounts in the terminal.
+func TestGetAccounts_DeduplicatesAccountIDs(t *testing.T) {
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return &auth.TokenDetailsResponse{
+				// Same ID returned twice, plus a distinct one.
+				AccountIds: []string{"acc1", "acc1", "acc2"},
+			}, nil
+		},
+	}
+
+	getAccountCalls := make(map[string]int)
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			getAccountCalls[in.AccountId]++
+			return &accounts.GetAccountResponse{
+				AccountId: in.AccountId,
+				Type:      "test-type",
+				Status:    "test-status",
+			}, nil
+		},
+	}
+
+	client := &Client{
+		authClient:     mockAuth,
+		accountsClient: mockAccounts,
+	}
+
+	accs, err := client.GetAccounts()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if len(accs) != 2 {
+		t.Fatalf("Expected 2 unique accounts, got %d: %+v", len(accs), accs)
+	}
+	if accs[0].ID != "acc1" || accs[1].ID != "acc2" {
+		t.Errorf("Expected order [acc1, acc2], got [%s, %s]", accs[0].ID, accs[1].ID)
+	}
+	if getAccountCalls["acc1"] != 1 {
+		t.Errorf("Expected GetAccount to be called once for acc1, got %d", getAccountCalls["acc1"])
+	}
+}
+
 func TestSearchSecurities(t *testing.T) {
 	mockAssets := &mockAssetsServiceClient{
 		AssetsFunc: func(ctx context.Context, in *assets.AssetsRequest, opts ...grpc.CallOption) (*assets.AssetsResponse, error) {
