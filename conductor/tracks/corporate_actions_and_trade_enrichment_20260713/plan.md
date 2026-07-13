@@ -16,7 +16,7 @@
   - Acceptance: связанная строка помечена `↳` с id связанной заявки; при наличии только одной стороны связи рендер не падает
 
 ## Phase 2: Фундамент CorporateActionsService (клиент, модели, мок, методы API)
-- [ ] Task: Проводка `corporateActionsClient` в `Client`/`newClientFromConn` (поле, `NewCorporateActionsServiceClient(conn)`, импорт `.../v1/corporateactions`)
+- [x] Task: Проводка `corporateActionsClient` в `Client`/`newClientFromConn` (поле, `NewCorporateActionsServiceClient(conn)`, импорт `.../v1/corporateactions`) (2c99970)
   - Acceptance: компилируется; клиент инициализируется, в т.ч. в интеграционном пути через bufconn
 - [ ] Task: Новые модели `Dividend`, `Split`, `BondEvent` (+плоские детали купона/амортизации/оферты) и поля `Dividends`/`Splits`/`BondEvents` в `InstrumentProfile`
   - Acceptance: типы добавлены, `go build ./...` зелёный; поля-строки готовы к прямому рендеру
