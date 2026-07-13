@@ -247,6 +247,18 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 				profile.Splits = splits
 				mu.Unlock()
 			})
+		} else if isBondDetails(details) {
+			// For a bond, fetch the coupon/amortization/offer calendar; non-fatal.
+			wg.Go(func() {
+				events, err := a.client.GetBondEvents(symbol)
+				if err != nil {
+					log.Printf("[WARN] GetBondEvents failed for %s: %v", symbol, err)
+					return
+				}
+				mu.Lock()
+				profile.BondEvents = events
+				mu.Unlock()
+			})
 		}
 
 		wg.Wait()

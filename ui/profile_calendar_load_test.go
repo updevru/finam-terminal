@@ -77,6 +77,55 @@ func TestLoadProfileAsync_FuturesSkipsCalendars(t *testing.T) {
 	}
 }
 
+func TestLoadProfileAsync_BondFetchesEvents(t *testing.T) {
+	var bondCalls, divCalls int32
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(string) float64 { return 1 }
+	mock.GetAssetInfoFunc = func(_, _ string) (*models.AssetDetails, error) {
+		return &models.AssetDetails{Name: "ОФЗ 26238", Type: "Bond", BondFaceValue: "1000"}, nil
+	}
+	mock.GetBondEventsFunc = func(string) ([]models.BondEvent, error) {
+		atomic.AddInt32(&bondCalls, 1)
+		return []models.BondEvent{{Date: "2026-01-20", Kind: models.BondEventCoupon, IsFuture: false}}, nil
+	}
+	mock.GetDividendsFunc = func(string) ([]models.Dividend, error) {
+		atomic.AddInt32(&divCalls, 1)
+		return nil, nil
+	}
+
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.profileOpen = true
+	app.profileSymbol = "SU26238@TQOB"
+	app.loadProfileAsync("acc1", "SU26238@TQOB", 2)
+
+	if !waitFor(func() bool { return atomic.LoadInt32(&bondCalls) == 1 }) {
+		t.Error("expected bond events fetched once for a bond")
+	}
+	// A bond must not fetch equity dividends.
+	if atomic.LoadInt32(&divCalls) != 0 {
+		t.Errorf("bond must not fetch dividends, got %d", atomic.LoadInt32(&divCalls))
+	}
+}
+
+func TestLoadProfileAsync_BondEventFailureNonFatal(t *testing.T) {
+	mock := &mockClient{}
+	mock.GetLotSizeFunc = func(string) float64 { return 1 }
+	mock.GetAssetInfoFunc = func(_, _ string) (*models.AssetDetails, error) {
+		return &models.AssetDetails{Name: "ОФЗ 26238", Type: "Bond", BondFaceValue: "1000"}, nil
+	}
+	mock.GetBondEventsFunc = func(string) ([]models.BondEvent, error) {
+		return nil, errors.New("boom")
+	}
+
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.profileOpen = true
+	app.profileSymbol = "SU26238@TQOB"
+
+	// A failing bond-events fetch must not panic the loader goroutine.
+	app.loadProfileAsync("acc1", "SU26238@TQOB", 2)
+	time.Sleep(200 * time.Millisecond)
+}
+
 func TestLoadProfileAsync_DividendFailureNonFatal(t *testing.T) {
 	var splitCalls int32
 	mock := &mockClient{}
