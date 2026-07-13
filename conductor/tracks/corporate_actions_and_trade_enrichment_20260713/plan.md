@@ -48,7 +48,7 @@
 ## Phase 5: Верификация и финализация
 - [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint` (8da401b)
   - Acceptance: нет ошибок и предупреждений, все тесты зелёные, линтер чистый
-- [ ] Task: Обновить документацию — `CLAUDE.md` (новые секции API: CorporateActions `GetDividends`/`GetSplits`/`GetBondEvents`; поля `AccruedInterest`/`Currency` на `Trade`; `TriggeredOrderID` на `Order`; новый мок-сервер), при необходимости `product.md`/`CHANGELOG.md`
+- [x] Task: Обновить документацию — `CLAUDE.md` (новые секции API: CorporateActions `GetDividends`/`GetSplits`/`GetBondEvents`; поля `AccruedInterest`/`Currency` на `Trade`; `TriggeredOrderID` на `Order`; новый мок-сервер), при необходимости `product.md`/`CHANGELOG.md` (075ca7d)
   - Acceptance: документация соответствует реализации
 - [ ] Task: Обновить руководство пользователя `docs/user_manual/` — `history.md` (колонка `НКД`), `orders.md` (маркер `↳` связи родитель→порождённая заявка), `profile.md` (секции календарей: дивиденды/сплиты для акций, купоны/амортизация/оферты для облигаций), при необходимости `index.md` (пункт в «Возможности»)
   - Acceptance: разделы описаны в стиле существующего мануала (таблицы колонок/полей, навигационные футеры); скриншоты в `media/` обновляются опционально при ручном смоуке
