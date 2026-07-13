@@ -8,7 +8,7 @@
   - Acceptance: поля добавлены; `go build ./...` зелёный; существующие тесты не сломаны
 - [x] Task: (Red) Расширить фикстуры `DefaultTrades` (НКД+валюта у облигационной сделки) и `DefaultOrders` (`TriggeredOrderId`) + интеграционные ассерты в history/orders тестах — падают (506ef16)
   - Acceptance: тесты компилируются и падают, фиксируя ожидаемый маппинг (НКД/валюта на `Trade`, `TriggeredOrderID` на `Order`)
-- [ ] Task: (Green) Заполнить `AccruedInterest`/`Currency` в `GetTradeHistory` (nil-safe) и `TriggeredOrderID` в `GetActiveOrders`
+- [x] Task: (Green) Заполнить `AccruedInterest`/`Currency` в `GetTradeHistory` (nil-safe) и `TriggeredOrderID` в `GetActiveOrders` (13d2dae)
   - Acceptance: интеграционные тесты зелёные; для не-облигаций НКД пустой; nil-обёртки не роняют маппинг
 - [ ] Task: Колонка `НКД` в `updateHistoryTable` (формат `"12.34 RUB"`, выравнивание вправо, пусто для не-облигаций) + unit-тест рендера
   - Acceptance: 7 колонок; облигационная строка показывает НКД, акция — пусто; Price/Total не изменены
