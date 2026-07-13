@@ -205,7 +205,7 @@ func updatePositionsTable(app *App) {
 func updateHistoryTable(app *App) {
 	app.portfolioView.TabbedView.HistoryTable.Clear()
 
-	headers := []string{"Instrument", "Side", "Price", "Qty (Lots)", "Total", "Time"}
+	headers := []string{"Instrument", "Side", "Price", "Qty (Lots)", "Total", "НКД", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -271,7 +271,10 @@ func updateHistoryTable(app *App) {
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 4, tview.NewTableCell(t.Total).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightGreen)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(timeStr).
+		// Accrued interest (bonds only) combined with its currency; blank for equities.
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(formatAccruedInterest(t)).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 	}
 
@@ -403,6 +406,19 @@ func updateOrdersTable(app *App) {
 
 // formatOrderPriceCondition builds a display string for the Price/Condition column.
 // Non-GTC validity is appended in parentheses, e.g. "SL: 100.50 ↓ (Day)".
+// formatAccruedInterest renders the combined НКД cell as "<amount> <currency>"
+// (e.g. "12.34 RUB"). Returns an empty string for trades without accrued interest
+// (non-bond instruments), so the column stays blank for them.
+func formatAccruedInterest(t models.Trade) string {
+	if t.AccruedInterest == "" || t.AccruedInterest == "N/A" {
+		return ""
+	}
+	if t.Currency == "" {
+		return t.AccruedInterest
+	}
+	return t.AccruedInterest + " " + t.Currency
+}
+
 func formatOrderPriceCondition(o models.Order) string {
 	var result string
 	switch o.Type {
