@@ -110,12 +110,14 @@ func DefaultOrders(accountID string) []*orders.OrderState {
 		{
 			OrderId: "ORD001",
 			Status:  orders.OrderStatus_ORDER_STATUS_NEW,
+			// This stop order spawned ORD002 (both present in the active set → link is visible on both sides)
+			TriggeredOrderId: "ORD002",
 			Order: &orders.Order{
-				AccountId: accountID,
-				Symbol:    "SBER@TQBR",
-				Side:      tradeapiv1.Side_SIDE_BUY,
-				Type:      orders.OrderType_ORDER_TYPE_LIMIT,
-				Quantity:  &decimal.Decimal{Value: "10"},
+				AccountId:  accountID,
+				Symbol:     "SBER@TQBR",
+				Side:       tradeapiv1.Side_SIDE_BUY,
+				Type:       orders.OrderType_ORDER_TYPE_LIMIT,
+				Quantity:   &decimal.Decimal{Value: "10"},
 				LimitPrice: &decimal.Decimal{Value: "280.00"},
 			},
 		},
@@ -154,6 +156,18 @@ func DefaultTrades(accountID string) []*tradeapiv1.AccountTrade {
 			Size:      &decimal.Decimal{Value: "5"},
 			Price:     &decimal.Decimal{Value: "160.00"},
 			Timestamp: timestamppb.New(t.Add(30 * time.Minute)),
+		},
+		// Bond trade carries accrued interest (2.16.0) and an explicit price currency
+		{
+			TradeId:         "TRD003",
+			AccountId:       accountID,
+			Symbol:          "SU26238@TQOB",
+			Side:            tradeapiv1.Side_SIDE_BUY,
+			Size:            &decimal.Decimal{Value: "3"},
+			Price:           &decimal.Decimal{Value: "650.10"},
+			AccruedInterest: &decimal.Decimal{Value: "12.34"},
+			Currency:        "RUB",
+			Timestamp:       timestamppb.New(t.Add(time.Hour)),
 		},
 	}
 }

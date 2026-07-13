@@ -303,8 +303,8 @@ func TestIntegration_GetTradeHistory(t *testing.T) {
 		t.Fatalf("GetTradeHistory error: %v", err)
 	}
 
-	if len(trades) != 2 {
-		t.Fatalf("expected 2 trades, got %d", len(trades))
+	if len(trades) != 3 {
+		t.Fatalf("expected 3 trades, got %d", len(trades))
 	}
 
 	// Check side mapping
@@ -313,6 +313,19 @@ func TestIntegration_GetTradeHistory(t *testing.T) {
 	}
 	if trades[1].Side != "Sell" {
 		t.Errorf("expected Sell, got %s", trades[1].Side)
+	}
+
+	// Equity trade has no accrued interest → empty
+	if trades[0].AccruedInterest != "" {
+		t.Errorf("expected empty accrued interest for equity, got %q", trades[0].AccruedInterest)
+	}
+
+	// Bond trade carries accrued interest and currency (2.16.0)
+	if trades[2].AccruedInterest != "12.34" {
+		t.Errorf("expected accrued interest 12.34, got %q", trades[2].AccruedInterest)
+	}
+	if trades[2].Currency != "RUB" {
+		t.Errorf("expected currency RUB, got %q", trades[2].Currency)
 	}
 }
 
@@ -331,6 +344,11 @@ func TestIntegration_GetActiveOrders(t *testing.T) {
 	// Check status mapping (NEW -> Active)
 	if activeOrders[0].Status != "Active" {
 		t.Errorf("expected Active status, got %s", activeOrders[0].Status)
+	}
+
+	// Parent order exposes the ID of the order it triggered (2.17.0)
+	if activeOrders[0].TriggeredOrderID != "ORD002" {
+		t.Errorf("expected TriggeredOrderID ORD002, got %q", activeOrders[0].TriggeredOrderID)
 	}
 }
 
@@ -458,4 +476,3 @@ func TestIntegration_ClosePosition(t *testing.T) {
 		t.Error("expected order ID")
 	}
 }
-
