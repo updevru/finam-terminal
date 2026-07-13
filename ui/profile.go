@@ -167,6 +167,9 @@ func (p *ProfilePanel) renderInfoPanel() {
 			}
 			writeField(&sb, "Face Value", faceVal)
 			sb.WriteString("\n")
+
+			// Bond corporate-action calendar (coupons/amortization/offers).
+			p.renderBondEvents(&sb)
 		}
 
 		// Corporate-action calendars: dividends and splits for equities.
@@ -311,6 +314,100 @@ func (p *ProfilePanel) renderSplits(sb *strings.Builder) {
 		sb.WriteString(" [gray]…[-]\n")
 	}
 	sb.WriteString("\n")
+}
+
+// renderBondEvents renders the bond corporate-action calendar, grouped into
+// Coupons / Amortization / Offers sections by Kind. Each section is capped and
+// hinted like the equity calendars.
+func (p *ProfilePanel) renderBondEvents(sb *strings.Builder) {
+	events := p.profile.BondEvents
+	if len(events) == 0 {
+		return
+	}
+	var coupons, amorts, offers []models.BondEvent
+	for _, e := range events {
+		switch e.Kind {
+		case models.BondEventCoupon:
+			coupons = append(coupons, e)
+		case models.BondEventAmortization:
+			amorts = append(amorts, e)
+		case models.BondEventOffer:
+			offers = append(offers, e)
+		}
+	}
+	renderBondSection(sb, "Coupons", coupons, couponRow)
+	renderBondSection(sb, "Amortization", amorts, amortizationRow)
+	renderBondSection(sb, "Offers", offers, offerRow)
+}
+
+// renderBondSection renders one capped bond-event section using the given
+// per-event (date, details) formatter.
+func renderBondSection(sb *strings.Builder, title string, items []models.BondEvent, row func(models.BondEvent) (string, string)) {
+	if len(items) == 0 {
+		return
+	}
+	rows, morePast, moreFuture := capCalendar(items, func(e models.BondEvent) bool { return e.IsFuture })
+	fmt.Fprintf(sb, "[cyan::b]─── %s ───[-:-:-]\n", title)
+	if morePast {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	for _, e := range rows {
+		col1, col2 := row(e)
+		fmt.Fprintf(sb, " [white]%-11s [lightgray]%s\n", col1, col2)
+	}
+	if moreFuture {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	sb.WriteString("\n")
+}
+
+// couponRow: payment date + rate % + record date.
+func couponRow(e models.BondEvent) (string, string) {
+	var details string
+	if e.Percent != "" {
+		details += e.Percent + "%"
+	}
+	if e.RecordDate != "" {
+		if details != "" {
+			details += "  "
+		}
+		details += "rec " + e.RecordDate
+	}
+	return e.Date, details
+}
+
+// amortizationRow: date + percent + new face value.
+func amortizationRow(e models.BondEvent) (string, string) {
+	var details string
+	if e.Percent != "" {
+		details += e.Percent + "%"
+	}
+	if e.NewFaceValue != "" {
+		if details != "" {
+			details += "  "
+		}
+		details += "→ " + e.NewFaceValue
+	}
+	return e.Date, details
+}
+
+// offerRow: date window (Start…End) + type + price.
+func offerRow(e models.BondEvent) (string, string) {
+	window := e.Date
+	if e.Start != "" && e.End != "" {
+		window = e.Start + "…" + e.End
+	}
+	var details string
+	if e.Type != "" {
+		details += e.Type
+	}
+	if e.Price != "" {
+		if details != "" {
+			details += "  "
+		}
+		details += e.Price
+	}
+	return window, details
 }
 
 // renderChart renders the candlestick chart in the ChartView.
