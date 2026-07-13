@@ -20,7 +20,7 @@
   - Acceptance: компилируется; клиент инициализируется, в т.ч. в интеграционном пути через bufconn
 - [x] Task: Новые модели `Dividend`, `Split`, `BondEvent` (+плоские детали купона/амортизации/оферты) и поля `Dividends`/`Splits`/`BondEvents` в `InstrumentProfile` (009d4b1)
   - Acceptance: типы добавлены, `go build ./...` зелёный; поля-строки готовы к прямому рендеру
-- [ ] Task: `MockCorporateActionsServer` (`api/testserver/corporateactions_server.go`) + регистрация в `server.go` + фикстуры `DefaultDividends`/`DefaultSplits`/`DefaultBondEvents` (покрыть все ветки oneof и обёртки-указатели)
+- [x] Task: `MockCorporateActionsServer` (`api/testserver/corporateactions_server.go`) + регистрация в `server.go` + фикстуры `DefaultDividends`/`DefaultSplits`/`DefaultBondEvents` (покрыть все ветки oneof и обёртки-указатели) (240f3fd)
   - Acceptance: мок реализует 6 методов и отдаёт фикстуры; зарегистрирован в `NewTestServer`; сервер стартует
 - [ ] Task: (Red) Интеграционные тесты `client_corporate_actions_integration_test.go` для `GetDividends`/`GetSplits`/`GetBondEvents` — падают
   - Acceptance: тесты компилируются и падают; проверяют объединение past+future, сортировку по дате, флаги `IsFuture`, маппинг oneof (Coupon/Amortization/Offer) и nil-safe обёрток
