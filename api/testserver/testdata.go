@@ -9,11 +9,14 @@ import (
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/corporateactions"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
+	"google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/genproto/googleapis/type/decimal"
 	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // MakeJWT generates a minimal valid JWT with the given expiry time.
@@ -212,6 +215,104 @@ func DefaultSchedule() *assets.ScheduleResponse {
 			},
 		},
 	}
+}
+
+// DefaultDividends returns past and future dividend fixtures. The past set is
+// returned DESC-friendly and the future set ASC-friendly so client-side merging
+// and IsFuture flagging can be asserted.
+func DefaultDividends() (past, future []*corporateactions.Dividend) {
+	past = []*corporateactions.Dividend{
+		{
+			Date:     &date.Date{Year: 2026, Month: 3, Day: 15},
+			Amount:   &decimal.Decimal{Value: "15.5"},
+			Currency: "RUB",
+		},
+	}
+	future = []*corporateactions.Dividend{
+		{
+			Date:     &date.Date{Year: 2026, Month: 9, Day: 15},
+			Amount:   &decimal.Decimal{Value: "20.0"},
+			Currency: "RUB",
+		},
+	}
+	return past, future
+}
+
+// DefaultSplits returns past and future split fixtures. The future split has a
+// nil NewLot wrapper to exercise nil-safe handling of *wrapperspb.Int32Value.
+func DefaultSplits() (past, future []*corporateactions.SplitInfo) {
+	past = []*corporateactions.SplitInfo{
+		{
+			ExecDate:         &date.Date{Year: 2025, Month: 6, Day: 1},
+			OldRatio:         &decimal.Decimal{Value: "1"},
+			NewRatio:         &decimal.Decimal{Value: "10"},
+			NewLot:           wrapperspb.Int32(1),
+			ConvertationType: corporateactions.ConvertationType_ORDINARY,
+		},
+	}
+	future = []*corporateactions.SplitInfo{
+		{
+			ExecDate:         &date.Date{Year: 2026, Month: 8, Day: 1},
+			OldRatio:         &decimal.Decimal{Value: "2"},
+			NewRatio:         &decimal.Decimal{Value: "1"},
+			NewLot:           nil, // exercise nil Int32 wrapper
+			ConvertationType: corporateactions.ConvertationType_TENDER_OFFER,
+		},
+	}
+	return past, future
+}
+
+// DefaultBondEvents returns past and future bond-event fixtures covering all
+// three oneof branches (coupon, amortization, offer) and nil pointer wrappers
+// (the offer has nil Value and nil Currency).
+func DefaultBondEvents() (past, future []*corporateactions.BondEvent) {
+	past = []*corporateactions.BondEvent{
+		{
+			Date:     &date.Date{Year: 2026, Month: 1, Day: 20},
+			Type:     corporateactions.BondEventType_COUPON,
+			Value:    &decimal.Decimal{Value: "34.9"},
+			Currency: wrapperspb.String("RUB"),
+			EventDetails: &corporateactions.BondEvent_CouponDetails{
+				CouponDetails: &corporateactions.CouponEventDetails{
+					RecordDate:   &date.Date{Year: 2026, Month: 1, Day: 18},
+					StartDate:    &date.Date{Year: 2025, Month: 7, Day: 20},
+					FaceValue:    &decimal.Decimal{Value: "1000"},
+					ValuePercent: &decimal.Decimal{Value: "6.98"},
+				},
+			},
+		},
+	}
+	future = []*corporateactions.BondEvent{
+		{
+			Date:     &date.Date{Year: 2026, Month: 10, Day: 20},
+			Type:     corporateactions.BondEventType_AMORTIZATION,
+			Value:    &decimal.Decimal{Value: "200"},
+			Currency: wrapperspb.String("RUB"),
+			EventDetails: &corporateactions.BondEvent_AmortizationDetails{
+				AmortizationDetails: &corporateactions.AmortizationEventDetails{
+					NewFaceValue:        &decimal.Decimal{Value: "800"},
+					InitialFaceValue:    &decimal.Decimal{Value: "1000"},
+					AmortizationPercent: &decimal.Decimal{Value: "20"},
+				},
+			},
+		},
+		{
+			Date:     &date.Date{Year: 2026, Month: 11, Day: 15},
+			Type:     corporateactions.BondEventType_OFFER,
+			Value:    nil, // offer: only price matters
+			Currency: nil, // exercise nil StringValue wrapper
+			EventDetails: &corporateactions.BondEvent_OfferDetails{
+				OfferDetails: &corporateactions.OfferEventDetails{
+					OfferType: wrapperspb.String("PUT"),
+					Price:     &decimal.Decimal{Value: "100"},
+					StartDate: &date.Date{Year: 2026, Month: 11, Day: 10},
+					EndDate:   &date.Date{Year: 2026, Month: 11, Day: 14},
+					Agent:     wrapperspb.String("Sberbank CIB"),
+				},
+			},
+		},
+	}
+	return past, future
 }
 
 func symbolTicker(symbol string) string {
