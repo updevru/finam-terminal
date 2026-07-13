@@ -24,7 +24,7 @@
   - Acceptance: мок реализует 6 методов и отдаёт фикстуры; зарегистрирован в `NewTestServer`; сервер стартует
 - [x] Task: (Red) Интеграционные тесты `client_corporate_actions_integration_test.go` для `GetDividends`/`GetSplits`/`GetBondEvents` — падают (69a70fb)
   - Acceptance: тесты компилируются и падают; проверяют объединение past+future, сортировку по дате, флаги `IsFuture`, маппинг oneof (Coupon/Amortization/Offer) и nil-safe обёрток
-- [ ] Task: (Green) Реализовать `GetDividends`/`GetSplits`/`GetBondEvents` в `api/client.go` (past 12 мес DESC + future ASC, limit 20; `formatDecimal`; `logGRPCError`; nil-safe)
+- [x] Task: (Green) Реализовать `GetDividends`/`GetSplits`/`GetBondEvents` в `api/client.go` (past 12 мес DESC + future ASC, limit 20; `formatDecimal`; `logGRPCError`; nil-safe) (235664c)
   - Acceptance: интеграционные тесты предыдущей задачи зелёные
 - [ ] Task: Добавить 3 метода в интерфейс `ui/app.go APIClient` и реализовать в `ui/mock_client_test.go`
   - Acceptance: интерфейс и тестовый двойник обновлены; `go test ./...` компилируется
