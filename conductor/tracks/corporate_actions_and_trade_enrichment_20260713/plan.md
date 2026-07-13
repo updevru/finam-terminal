@@ -26,7 +26,7 @@
   - Acceptance: тесты компилируются и падают; проверяют объединение past+future, сортировку по дате, флаги `IsFuture`, маппинг oneof (Coupon/Amortization/Offer) и nil-safe обёрток
 - [x] Task: (Green) Реализовать `GetDividends`/`GetSplits`/`GetBondEvents` в `api/client.go` (past 12 мес DESC + future ASC, limit 20; `formatDecimal`; `logGRPCError`; nil-safe) (235664c)
   - Acceptance: интеграционные тесты предыдущей задачи зелёные
-- [ ] Task: Добавить 3 метода в интерфейс `ui/app.go APIClient` и реализовать в `ui/mock_client_test.go`
+- [x] Task: Добавить 3 метода в интерфейс `ui/app.go APIClient` и реализовать в `ui/mock_client_test.go` (9cff229)
   - Acceptance: интерфейс и тестовый двойник обновлены; `go test ./...` компилируется
 
 ## Phase 3: Календари по акциям в профиле (дивиденды + сплиты)
