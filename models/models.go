@@ -99,14 +99,16 @@ type SecurityInfo struct {
 
 // Trade represents a trade in history
 type Trade struct {
-	ID        string
-	Symbol    string
-	Name      string
-	Side      string
-	Price     string
-	Quantity  string
-	Total     string
-	Timestamp time.Time
+	ID              string
+	Symbol          string
+	Name            string
+	Side            string
+	Price           string
+	Quantity        string
+	Total           string
+	AccruedInterest string // formatted accrued interest (bonds only), empty for others
+	Currency        string // currency of the trade price
+	Timestamp       time.Time
 }
 
 // Bar represents a single candlestick bar for chart rendering
@@ -169,24 +171,25 @@ type InstrumentProfile struct {
 
 // Order represents an active order
 type Order struct {
-	ID            string
-	Symbol        string
-	Name          string
-	Side          string
-	Type          string
-	Status        string
-	Quantity      string
-	Executed      string
-	Price         string
-	StopCondition string
-	LimitPrice    string
-	StopPrice     string
-	Validity      string
-	ExecutedQty   string
-	RemainingQty  string
-	SLQty         string
-	TPQty         string
-	SLPrice       string
-	TPPrice       string
-	CreationTime  time.Time
+	ID               string
+	Symbol           string
+	Name             string
+	Side             string
+	Type             string
+	Status           string
+	Quantity         string
+	Executed         string
+	Price            string
+	StopCondition    string
+	LimitPrice       string
+	StopPrice        string
+	Validity         string
+	ExecutedQty      string
+	RemainingQty     string
+	SLQty            string
+	TPQty            string
+	SLPrice          string
+	TPPrice          string
+	TriggeredOrderID string // ID of the exchange order spawned by this stop order (2.17.0)
+	CreationTime     time.Time
 }
