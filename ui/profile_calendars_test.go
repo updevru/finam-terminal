@@ -79,6 +79,90 @@ func TestProfilePanel_EquityDividendsAndSplits(t *testing.T) {
 	}
 }
 
+func TestProfilePanel_BondEventsSections(t *testing.T) {
+	app := tview.NewApplication()
+	panel := NewProfilePanel(app)
+
+	profile := &models.InstrumentProfile{
+		Symbol: "SU26238@TQOB",
+		Details: &models.AssetDetails{
+			Name:             "ОФЗ 26238",
+			Type:             "Bond",
+			BondFaceValue:    "1000",
+			BondFaceCurrency: "RUB",
+		},
+		BondEvents: []models.BondEvent{
+			{Date: "2026-01-20", Kind: models.BondEventCoupon, Value: "34.9", Currency: "RUB",
+				RecordDate: "2026-01-18", Percent: "6.98", IsFuture: false},
+			{Date: "2026-10-20", Kind: models.BondEventAmortization,
+				NewFaceValue: "800", InitialFaceValue: "1000", Percent: "20", IsFuture: true},
+			{Date: "2026-11-15", Kind: models.BondEventOffer,
+				Type: "PUT", Price: "100", Start: "2026-11-10", End: "2026-11-14", IsFuture: true},
+		},
+	}
+
+	panel.Update(profile)
+	text := panel.InfoPanel.GetText(false)
+
+	// Coupons: rate % and record date
+	if !strings.Contains(text, "Coupons") {
+		t.Error("expected Coupons section header")
+	}
+	if !strings.Contains(text, "6.98%") {
+		t.Error("expected coupon rate 6.98%")
+	}
+	if !strings.Contains(text, "2026-01-18") {
+		t.Error("expected coupon record date 2026-01-18")
+	}
+
+	// Amortization: percent and new face value
+	if !strings.Contains(text, "Amortization") {
+		t.Error("expected Amortization section header")
+	}
+	if !strings.Contains(text, "20%") {
+		t.Error("expected amortization percent 20%")
+	}
+	if !strings.Contains(text, "800") {
+		t.Error("expected amortization new face value 800")
+	}
+
+	// Offers: type, price, date window
+	if !strings.Contains(text, "Offers") {
+		t.Error("expected Offers section header")
+	}
+	if !strings.Contains(text, "PUT") {
+		t.Error("expected offer type PUT")
+	}
+	if !strings.Contains(text, "100") {
+		t.Error("expected offer price 100")
+	}
+	if !strings.Contains(text, "2026-11-10") || !strings.Contains(text, "2026-11-14") {
+		t.Error("expected offer date window 2026-11-10..2026-11-14")
+	}
+}
+
+// A bond must not render equity Dividends/Splits sections.
+func TestProfilePanel_BondNoEquityCalendars(t *testing.T) {
+	app := tview.NewApplication()
+	panel := NewProfilePanel(app)
+
+	profile := &models.InstrumentProfile{
+		Symbol: "SU26238@TQOB",
+		Details: &models.AssetDetails{
+			Name:          "ОФЗ 26238",
+			BondFaceValue: "1000",
+		},
+		Dividends: []models.Dividend{{Date: "2026-03-15", Amount: "15.5", IsFuture: true}},
+	}
+
+	panel.Update(profile)
+	text := panel.InfoPanel.GetText(false)
+
+	if strings.Contains(text, "Dividends") {
+		t.Error("bond profile must not render a Dividends section")
+	}
+}
+
 // A futures instrument must not render equity calendars even if slices are set.
 func TestProfilePanel_FuturesNoEquityCalendars(t *testing.T) {
 	app := tview.NewApplication()
