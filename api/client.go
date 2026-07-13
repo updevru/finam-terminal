@@ -1145,6 +1145,24 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 	return activeOrders, nil
 }
 
+// GetDividends returns the merged past+future dividend calendar for a symbol.
+// TODO(Phase 2 Green): implement.
+func (c *Client) GetDividends(symbol string) ([]models.Dividend, error) {
+	return nil, nil
+}
+
+// GetSplits returns the merged past+future split calendar for a symbol.
+// TODO(Phase 2 Green): implement.
+func (c *Client) GetSplits(symbol string) ([]models.Split, error) {
+	return nil, nil
+}
+
+// GetBondEvents returns the merged past+future bond-event calendar for a symbol.
+// TODO(Phase 2 Green): implement.
+func (c *Client) GetBondEvents(symbol string) ([]models.BondEvent, error) {
+	return nil, nil
+}
+
 // GetSnapshots returns initial prices for a list of securities
 func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error) {
 	if len(symbols) == 0 {
