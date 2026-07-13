@@ -18,7 +18,7 @@
 ## Phase 2: Фундамент CorporateActionsService (клиент, модели, мок, методы API)
 - [x] Task: Проводка `corporateActionsClient` в `Client`/`newClientFromConn` (поле, `NewCorporateActionsServiceClient(conn)`, импорт `.../v1/corporateactions`) (2c99970)
   - Acceptance: компилируется; клиент инициализируется, в т.ч. в интеграционном пути через bufconn
-- [ ] Task: Новые модели `Dividend`, `Split`, `BondEvent` (+плоские детали купона/амортизации/оферты) и поля `Dividends`/`Splits`/`BondEvents` в `InstrumentProfile`
+- [x] Task: Новые модели `Dividend`, `Split`, `BondEvent` (+плоские детали купона/амортизации/оферты) и поля `Dividends`/`Splits`/`BondEvents` в `InstrumentProfile` (009d4b1)
   - Acceptance: типы добавлены, `go build ./...` зелёный; поля-строки готовы к прямому рендеру
 - [ ] Task: `MockCorporateActionsServer` (`api/testserver/corporateactions_server.go`) + регистрация в `server.go` + фикстуры `DefaultDividends`/`DefaultSplits`/`DefaultBondEvents` (покрыть все ветки oneof и обёртки-указатели)
   - Acceptance: мок реализует 6 методов и отдаёт фикстуры; зарегистрирован в `NewTestServer`; сервер стартует
