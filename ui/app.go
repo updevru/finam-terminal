@@ -7,8 +7,8 @@ import (
 
 	"finam-terminal/models"
 
-	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
+	_ "github.com/gdamore/tcell/v2/encoding" // Register encodings for Windows support
 	"github.com/rivo/tview"
 )
 
@@ -41,6 +41,11 @@ type APIClient interface {
 	GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error)
 	GetAssetParams(accountID string, symbol string) (*models.AssetParams, error)
 	GetSchedule(symbol string) ([]models.TradingSession, error)
+
+	// Corporate action calendars
+	GetDividends(symbol string) ([]models.Dividend, error)
+	GetSplits(symbol string) ([]models.Split, error)
+	GetBondEvents(symbol string) ([]models.BondEvent, error)
 }
 
 // App represents the TUI application
@@ -74,7 +79,7 @@ type App struct {
 	// Profile overlay
 	profilePanel     *ProfilePanel
 	profileSymbol    string
-	profileTimeframe int  // 0=M5, 1=H1, 2=D, 3=W
+	profileTimeframe int // 0=M5, 1=H1, 2=D, 3=W
 	profileOpen      bool
 }
 
@@ -753,9 +758,9 @@ func (a *App) OpenCloseModal() {
 
 // profileTimeframeDurations maps timeframe index to lookback duration
 var profileTimeframeDurations = [4]time.Duration{
-	7 * 24 * time.Hour,     // M5: 7 days
-	30 * 24 * time.Hour,    // H1: 30 days
-	365 * 24 * time.Hour,   // D: 1 year
+	7 * 24 * time.Hour,       // M5: 7 days
+	30 * 24 * time.Hour,      // H1: 30 days
+	365 * 24 * time.Hour,     // D: 1 year
 	5 * 365 * 24 * time.Hour, // W: 5 years
 }
 
