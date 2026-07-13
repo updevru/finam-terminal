@@ -18,20 +18,20 @@ The project follows a clean modular structure:
 
 *   **`main.go`**: The entry point. Handles configuration loading, API client initialization, and starting the UI loop.
 *   **`api/`**: Contains the `Client` struct and methods for interacting with the Finam gRPC services. Encapsulates the complexity of the raw API calls.
-    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients, authenticates, starts the JWT renewal stream, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS. Both `Auth` and `SubscribeJwtRenewal` requests carry `SourceAppId` set to the `sourceAppID` constant (`"finam-terminal"`). After the initial `authenticate()` call (needed for the first JWT and account list via `TokenDetails`), `subscribeJwtRenewal` keeps the token fresh by consuming the `SubscribeJwtRenewal` server stream instead of a timer — it reconnects with exponential backoff (1s, capped at 30s) if the stream drops, and stops silently when the client's context is cancelled via `Close()`.
+    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients (including `corporateActionsClient` for the CorporateActionsService), authenticates, starts the JWT renewal stream, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS. Both `Auth` and `SubscribeJwtRenewal` requests carry `SourceAppId` set to the `sourceAppID` constant (`"finam-terminal"`). After the initial `authenticate()` call (needed for the first JWT and account list via `TokenDetails`), `subscribeJwtRenewal` keeps the token fresh by consuming the `SubscribeJwtRenewal` server stream instead of a timer — it reconnects with exponential backoff (1s, capped at 30s) if the stream drops, and stops silently when the client's context is cancelled via `Close()`.
 *   **`api/testserver/`**: In-process mock gRPC server for integration testing (see [Testing](#testing) section).
 *   **`ui/`**: Manages the Terminal User Interface.
     *   `app.go`: Main `App` struct, state management, tabbed view (Positions/History/Orders), and lifecycle (Run/Stop).
     *   `render.go` / `components.go`: Responsible for drawing UI elements (tables, lists, headers).
-    *   `data.go`: Data fetching logic for trades history and active orders.
+    *   `data.go`: Data fetching logic for trades history and active orders. `loadProfileAsync` fetches `GetAssetInfo` first, then fans out the remaining fetches in parallel; the instrument type gates which corporate-action calendars are loaded (equities: dividends + splits; bonds: bond events; each non-fatal).
     *   `search.go`: Dedicated search window for finding securities.
-    *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart. Renders instrument-type-specific fields (futures: expiration + contract size; options: + strike; bonds: face value + currency) and open interest in the Quote section for derivatives.
+    *   `profile.go`: Full-screen instrument profile overlay with asset details, trading parameters, and chart. Renders instrument-type-specific fields (futures: expiration + contract size; options: + strike; bonds: face value + currency) and open interest in the Quote section for derivatives. Renders compact corporate-action calendar sections (equities: Dividends/Splits; bonds: Coupons/Amortization/Offers), each capped at 3 past + 3 future with a `…` overflow hint via the generic `capCalendar` helper. Instrument type is classified by `isEquityDetails`/`isBondDetails`.
     *   `chart.go`: Unicode candlestick chart renderer with smart time labels.
     *   `input.go`: Keyboard input handlers for all views (navigation, shortcuts, order actions).
     *   `modal.go`: Order placement modal with dynamic fields for Market/Limit/Stop/TP/SL+TP order types.
     *   `utils.go`: UI utility functions (number formatting, account ID masking).
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
-*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker. `AccountInfo.DailyPnL` holds the daily P&L value. `Order` includes extended fields for stop/limit prices, conditions, validity, and SL/TP quantities.
+*   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AccountInfo.LoadError` is set when an account fails to load from the broker. `AccountInfo.DailyPnL` holds the daily P&L value. `Order` includes extended fields for stop/limit prices, conditions, validity, and SL/TP quantities, plus `TriggeredOrderID` (the exchange order a stop spawned, 2.17.0). `Trade` carries `AccruedInterest` and `Currency` (bond НКД + price currency, 2.16.0). Corporate-action calendar types `Dividend`, `Split`, and `BondEvent` (flat pre-formatted strings; `BondEvent.Kind` ∈ {Coupon, Amortization, Offer} selects the populated detail group) are surfaced via `InstrumentProfile.Dividends`/`Splits`/`BondEvents`.
 *   **`version/`**: Build-time version metadata. Exposes `Version`, `Commit`, and `BuildDate` as **package-level vars** (not consts — the linker can only override vars via `-ldflags -X`). `String()` returns the display string used by the UI header: a release tag verbatim (`v1.2.3`), or a dev build with VCS info (`dev (a1b2c3d)` or `dev (a1b2c3d, dirty)`), falling back through `runtime/debug.ReadBuildInfo()` when no commit is injected. `Info()` returns the raw tuple for diagnostics.
 
 ## Getting Started
@@ -142,13 +142,14 @@ Unit tests use manual mock structs that implement gRPC service client interfaces
 Integration tests use build tag `//go:build integration` and are located in `api/client_*_integration_test.go`. They exercise the real `api.Client` lifecycle (connect, authenticate, cache, call methods, close) against an in-process mock gRPC server.
 
 **Mock gRPC Server** (`api/testserver/`):
-*   `server.go` — `TestServer` struct: creates a `grpc.Server` + `bufconn.Listener`, registers all 5 mock services, exposes `Start()`, `Stop()`, `Dial()`.
+*   `server.go` — `TestServer` struct: creates a `grpc.Server` + `bufconn.Listener`, registers all 6 mock services, exposes `Start()`, `Stop()`, `Dial()`.
 *   `auth_server.go` — `MockAuthServer`: validates tokens, generates JWTs with configurable expiry, tracks call count via `AuthCallCount` and notifies via `AuthCalled` channel. Supports `AuthOverride` for per-call error injection.
 *   `accounts_server.go` — `MockAccountsServer`: returns configurable positions and trade history per account ID.
 *   `marketdata_server.go` — `MockMarketDataServer`: returns quotes and bars. Supports `QuoteOverride` for custom behavior.
 *   `assets_server.go` — `MockAssetsServer`: returns bulk assets, per-symbol details, trading parameters, and schedule. Supports error injection via `GetAssetError`, `GetAssetParamsError`, `ScheduleError`.
 *   `orders_server.go` — `MockOrdersServer`: records `PlaceOrder`, `PlaceSLTPOrder`, `CancelOrder` requests for assertion. Returns configurable active orders.
-*   `testdata.go` — Fixture functions: `MakeJWT()`, `DefaultAssets()`, `DefaultAccountPositions()`, `DefaultQuote()`, `DefaultBars()`, `DefaultOrders()`, `DefaultTrades()`, `DefaultAssetInfo()`, `DefaultAssetParams()`, `DefaultSchedule()`.
+*   `corporateactions_server.go` — `MockCorporateActionsServer`: implements all 6 CorporateActionsService methods, serving separate past/future fixtures per calendar kind with per-kind error injection (`DividendsError`/`SplitsError`/`BondEventsError`).
+*   `testdata.go` — Fixture functions: `MakeJWT()`, `DefaultAssets()`, `DefaultAccountPositions()`, `DefaultQuote()`, `DefaultBars()`, `DefaultOrders()`, `DefaultTrades()`, `DefaultAssetInfo()`, `DefaultAssetParams()`, `DefaultSchedule()`, `DefaultDividends()`, `DefaultSplits()`, `DefaultBondEvents()` (the last three return `(past, future)` and cover all BondEvent oneof branches + nil pointer wrappers).
 
 **Test helper**: `setupTestServer(t)` in `api/client_integration_test.go` creates a `TestServer` + `Client` pair and registers cleanup.
 
@@ -157,6 +158,7 @@ Integration tests use build tag `//go:build integration` and are located in `api
 *   `client_cache_integration_test.go` — Asset cache population, lot size on-demand fetch, name lookup (5 tests).
 *   `client_token_refresh_integration_test.go` — Auto-refresh before expiry, retry on failure, stop on close (3 tests).
 *   `client_errors_integration_test.go` — Unauthenticated, NotFound, ServerUnavailable, DeadlineExceeded, empty response (5 tests).
+*   `client_corporate_actions_integration_test.go` — Dividend/split/bond-event calendars: past+future merge, ascending date sort, `IsFuture` flags, oneof mapping (coupon/amortization/offer), nil-safe wrappers (3 tests).
 
 ### CI Pipeline
 
@@ -169,7 +171,7 @@ The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
 ## Directory Structure
 
 *   `api/`: gRPC client wrapper.
-    *   `testserver/`: Mock gRPC server for integration tests (bufconn-based, all 5 Finam services).
+    *   `testserver/`: Mock gRPC server for integration tests (bufconn-based, all 6 Finam services).
 *   `config/`: Configuration loader.
 *   `models/`: Data types.
 *   `ui/`: TUI implementation (views, controllers).
@@ -260,6 +262,24 @@ The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
 15.  **gRPC Error Logging**
     *   **File:** `api/client.go` (`logGRPCError`)
     *   **Usage:** Unified helper used by all gRPC calls to log errors in a structured format: `[ERROR] Service.Method failed | Param: value | gRPC code: <code> | Message: <msg> | Endpoint: <addr>`. Never logs secrets (tokens).
+
+16.  **Dividend Calendar** (2.16.0)
+    *   **Service:** `CorporateActionsServiceClient`
+    *   **Methods:** `GetPastDividends` + `GetFutureDividends`
+    *   **File:** `api/client.go` (`GetDividends`)
+    *   **Usage:** Returns the merged past (last 12 months, DESC) + future (ASC) dividend calendar for a symbol, limit 20 each, sorted ascending by date with `IsFuture` flags. Surfaced only in the equity profile.
+
+17.  **Split Calendar** (2.16.0)
+    *   **Service:** `CorporateActionsServiceClient`
+    *   **Methods:** `GetPastSplits` + `GetFutureSplits`
+    *   **File:** `api/client.go` (`GetSplits`)
+    *   **Usage:** Same past+future windows as dividends; maps ratio (old→new), new lot, and conversion type. Surfaced only in the equity profile.
+
+18.  **Bond Event Calendar** (2.17.0)
+    *   **Service:** `CorporateActionsServiceClient`
+    *   **Methods:** `GetPastBondsEvents` + `GetFutureBondsEvents`
+    *   **File:** `api/client.go` (`GetBondEvents`)
+    *   **Usage:** Same past+future windows; flattens the `oneof` event details (`CouponDetails`/`AmortizationDetails`/`OfferDetails`) into a `models.BondEvent` with `Kind` ∈ {Coupon, Amortization, Offer}. Surfaced only in the bond profile. `Future*` requests take no date interval; all SDK pointer/wrapper fields are formatted nil-safe (`formatDate`, `formatDecimalOpt`, `formatInt32Value`).
 
 # Conductor Context
 
