@@ -286,6 +286,71 @@ func updateHistoryTable(app *App) {
 	}
 }
 
+// orderRow is one display row of the orders table: an order plus whether it is
+// the triggered child of a parent rendered immediately above it.
+type orderRow struct {
+	order   models.Order
+	isChild bool
+}
+
+// groupTriggeredOrders reorders the active orders so that, when a parent stop
+// order and the exchange order it triggered are BOTH present in the set, the
+// triggered child is placed directly after its parent and flagged isChild.
+// Orders whose counterpart is absent keep their original position and are not
+// marked. Original relative order is otherwise preserved.
+func groupTriggeredOrders(orders []models.Order) []orderRow {
+	// Index present order IDs.
+	idToIndex := make(map[string]int, len(orders))
+	for i, o := range orders {
+		if o.ID != "" {
+			idToIndex[o.ID] = i
+		}
+	}
+
+	// parentToChild[parentIdx] = childIdx when the parent's TriggeredOrderID
+	// resolves to another order present in the set; childGrouped marks those
+	// children so they are emitted under their parent rather than at top level.
+	parentToChild := make(map[int]int, len(orders))
+	childGrouped := make(map[int]bool, len(orders))
+	for i, o := range orders {
+		if o.TriggeredOrderID == "" {
+			continue
+		}
+		if childIdx, ok := idToIndex[o.TriggeredOrderID]; ok && childIdx != i {
+			parentToChild[i] = childIdx
+			childGrouped[childIdx] = true
+		}
+	}
+
+	rows := make([]orderRow, 0, len(orders))
+	emitted := make([]bool, len(orders))
+	for i := range orders {
+		if emitted[i] || childGrouped[i] {
+			continue // grouped children are emitted under their parent
+		}
+		// Emit this order, then follow its chain of present triggered children.
+		rows = append(rows, orderRow{order: orders[i]})
+		emitted[i] = true
+		for cur := i; ; {
+			childIdx, ok := parentToChild[cur]
+			if !ok || emitted[childIdx] {
+				break
+			}
+			rows = append(rows, orderRow{order: orders[childIdx], isChild: true})
+			emitted[childIdx] = true
+			cur = childIdx
+		}
+	}
+	// Safety net for any leftovers (e.g. cycles): emit in original order.
+	for i := range orders {
+		if !emitted[i] {
+			rows = append(rows, orderRow{order: orders[i], isChild: childGrouped[i]})
+			emitted[i] = true
+		}
+	}
+	return rows
+}
+
 // updateOrdersTable refreshes the active orders table
 func updateOrdersTable(app *App) {
 	app.portfolioView.TabbedView.OrdersTable.Clear()
@@ -317,17 +382,14 @@ func updateOrdersTable(app *App) {
 	orders := app.activeOrders[accountID]
 	app.dataMutex.RUnlock()
 
-	// Cross-reference parent→triggered links within the current set. Only the
-	// parent carries TriggeredOrderID, so map each triggered (child) order back
-	// to its parent to mark both sides when they are present together.
-	childToParent := make(map[string]string, len(orders))
-	for _, o := range orders {
-		if o.TriggeredOrderID != "" {
-			childToParent[o.TriggeredOrderID] = o.ID
-		}
-	}
+	// Group parent→triggered links: when a stop order and the exchange order it
+	// spawned are both present in the current set, render the child directly
+	// under its parent (indented, with a ↳ marker) so the link is unambiguous.
+	// Orders whose counterpart is absent are shown normally, without a marker.
+	orderedRows := groupTriggeredOrders(orders)
 
-	for row, o := range orders {
+	for row, r := range orderedRows {
+		o := r.order
 		rowNum := row + 1
 		rowBg := tcell.ColorBlack
 		if row%2 == 0 {
@@ -363,14 +425,10 @@ func updateOrdersTable(app *App) {
 			orderDisplayName = o.Symbol
 		}
 
-		// Append a ↳ marker with the linked order's ID: on a parent it points to
-		// the order it triggered; on a triggered child it points back to its
-		// parent. Either side may be missing from the active set (e.g. the child
-		// already executed) — we render whichever side we have without failing.
-		if o.TriggeredOrderID != "" {
-			orderDisplayName += " ↳" + o.TriggeredOrderID
-		} else if parentID, ok := childToParent[o.ID]; ok {
-			orderDisplayName += " ↳" + parentID
+		// A triggered child is rendered indented under its parent with a ↳ marker,
+		// making the parent→child link unambiguous by adjacency.
+		if r.isChild {
+			orderDisplayName = "  ↳ " + orderDisplayName
 		}
 
 		// Build Price/Condition display
