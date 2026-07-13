@@ -46,7 +46,7 @@
   - Acceptance: тест профиля зелёный; купон показывает ставку и дату фиксации, оферта — тип/цену/даты
 
 ## Phase 5: Верификация и финализация
-- [ ] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint`
+- [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `make lint` (8da401b)
   - Acceptance: нет ошибок и предупреждений, все тесты зелёные, линтер чистый
 - [ ] Task: Обновить документацию — `CLAUDE.md` (новые секции API: CorporateActions `GetDividends`/`GetSplits`/`GetBondEvents`; поля `AccruedInterest`/`Currency` на `Trade`; `TriggeredOrderID` на `Order`; новый мок-сервер), при необходимости `product.md`/`CHANGELOG.md`
   - Acceptance: документация соответствует реализации
