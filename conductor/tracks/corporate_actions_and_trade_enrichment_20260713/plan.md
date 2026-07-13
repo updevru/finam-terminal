@@ -15,7 +15,7 @@
 - [x] Task: Маркер `↳` в `updateOrdersTable` через кросс-референс `TriggeredOrderID` по набору заявок + unit-тест рендера (bf09fbe)
   - Acceptance: связанная строка помечена `↳` с id связанной заявки; при наличии только одной стороны связи рендер не падает
 
-## Phase 2: Фундамент CorporateActionsService (клиент, модели, мок, методы API)
+## Phase 2: Фундамент CorporateActionsService (клиент, модели, мок, методы API) [checkpoint: 82c0431]
 - [x] Task: Проводка `corporateActionsClient` в `Client`/`newClientFromConn` (поле, `NewCorporateActionsServiceClient(conn)`, импорт `.../v1/corporateactions`) (2c99970)
   - Acceptance: компилируется; клиент инициализируется, в т.ч. в интеграционном пути через bufconn
 - [x] Task: Новые модели `Dividend`, `Split`, `BondEvent` (+плоские детали купона/амортизации/оферты) и поля `Dividends`/`Splits`/`BondEvents` в `InstrumentProfile` (009d4b1)
