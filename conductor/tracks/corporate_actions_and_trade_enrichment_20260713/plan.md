@@ -10,7 +10,7 @@
   - Acceptance: тесты компилируются и падают, фиксируя ожидаемый маппинг (НКД/валюта на `Trade`, `TriggeredOrderID` на `Order`)
 - [x] Task: (Green) Заполнить `AccruedInterest`/`Currency` в `GetTradeHistory` (nil-safe) и `TriggeredOrderID` в `GetActiveOrders` (13d2dae)
   - Acceptance: интеграционные тесты зелёные; для не-облигаций НКД пустой; nil-обёртки не роняют маппинг
-- [ ] Task: Колонка `НКД` в `updateHistoryTable` (формат `"12.34 RUB"`, выравнивание вправо, пусто для не-облигаций) + unit-тест рендера
+- [x] Task: Колонка `НКД` в `updateHistoryTable` (формат `"12.34 RUB"`, выравнивание вправо, пусто для не-облигаций) + unit-тест рендера (52eea1a)
   - Acceptance: 7 колонок; облигационная строка показывает НКД, акция — пусто; Price/Total не изменены
 - [ ] Task: Маркер `↳` в `updateOrdersTable` через кросс-референс `TriggeredOrderID` по набору заявок + unit-тест рендера
   - Acceptance: связанная строка помечена `↳` с id связанной заявки; при наличии только одной стороны связи рендер не падает
