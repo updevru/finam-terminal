@@ -159,14 +159,73 @@ type TradingSession struct {
 	EndTime   time.Time
 }
 
+// Corporate action Kind values for BondEvent.
+const (
+	BondEventCoupon       = "Coupon"
+	BondEventAmortization = "Amortization"
+	BondEventOffer        = "Offer"
+)
+
+// Dividend represents a single dividend payment (past or future) for an equity.
+// All fields are pre-formatted for display.
+type Dividend struct {
+	Date     string // record/close date
+	Amount   string // amount per share
+	Currency string
+	IsFuture bool
+}
+
+// Split represents a single stock split event (past or future) for an equity.
+// All fields are pre-formatted for display.
+type Split struct {
+	Date     string
+	OldRatio string
+	NewRatio string
+	NewLot   string
+	ConvType string
+	IsFuture bool
+}
+
+// BondEvent represents a single bond corporate-action event (coupon,
+// amortization, or offer). Kind selects which of the flat detail groups is
+// populated. All fields are pre-formatted for display; unused detail fields
+// are empty strings.
+type BondEvent struct {
+	Date     string
+	Kind     string // BondEventCoupon, BondEventAmortization, BondEventOffer
+	Value    string // primary value (coupon amount, amortization value, offer price)
+	Currency string
+	IsFuture bool
+
+	// Coupon details (Kind == BondEventCoupon)
+	RecordDate string
+	StartDate  string
+	FaceValue  string
+	Percent    string // coupon rate percent, also reused for amortization percent
+
+	// Amortization details (Kind == BondEventAmortization)
+	NewFaceValue     string
+	InitialFaceValue string
+
+	// Offer details (Kind == BondEventOffer)
+	Type  string // PUT / CALL
+	Price string
+	Start string
+	End   string
+	Agent string
+}
+
 // InstrumentProfile aggregates all instrument data for the profile view
 type InstrumentProfile struct {
-	Symbol   string
-	Details  *AssetDetails
-	Params   *AssetParams
-	Quote    *Quote
-	Schedule []TradingSession
-	Bars     []Bar
+	Symbol     string
+	Details    *AssetDetails
+	Params     *AssetParams
+	Quote      *Quote
+	Schedule   []TradingSession
+	Bars       []Bar
+	Dividends  []Dividend
+	Splits     []Split
+	BondEvents []BondEvent
 }
 
 // Order represents an active order
