@@ -26,6 +26,7 @@ import (
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/corporateactions"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 )
@@ -35,12 +36,13 @@ const sourceAppID = "finam-terminal"
 
 // Client is a client for the Finam Trade API
 type Client struct {
-	conn             *grpc.ClientConn
-	authClient       auth.AuthServiceClient
-	accountsClient   accounts.AccountsServiceClient
-	marketDataClient marketdata.MarketDataServiceClient
-	assetsClient     assets.AssetsServiceClient
-	ordersClient     orders.OrdersServiceClient
+	conn                   *grpc.ClientConn
+	authClient             auth.AuthServiceClient
+	accountsClient         accounts.AccountsServiceClient
+	marketDataClient       marketdata.MarketDataServiceClient
+	assetsClient           assets.AssetsServiceClient
+	ordersClient           orders.OrdersServiceClient
+	corporateActionsClient corporateactions.CorporateActionsServiceClient
 
 	token       string
 	tokenExpiry time.Time
@@ -84,17 +86,18 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 // and loads the asset cache. Used by NewClient and by tests via bufconn.
 func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) {
 	client := &Client{
-		conn:                conn,
-		authClient:          auth.NewAuthServiceClient(conn),
-		accountsClient:      accounts.NewAccountsServiceClient(conn),
-		marketDataClient:    marketdata.NewMarketDataServiceClient(conn),
-		assetsClient:        assets.NewAssetsServiceClient(conn),
-		ordersClient:        orders.NewOrdersServiceClient(conn),
-		apiToken:            apiToken,
-		assetMicCache:       make(map[string]string),
-		assetLotCache:       make(map[string]float64),
-		instrumentNameCache: make(map[string]string),
-		securityCache:       make([]models.SecurityInfo, 0),
+		conn:                   conn,
+		authClient:             auth.NewAuthServiceClient(conn),
+		accountsClient:         accounts.NewAccountsServiceClient(conn),
+		marketDataClient:       marketdata.NewMarketDataServiceClient(conn),
+		assetsClient:           assets.NewAssetsServiceClient(conn),
+		ordersClient:           orders.NewOrdersServiceClient(conn),
+		corporateActionsClient: corporateactions.NewCorporateActionsServiceClient(conn),
+		apiToken:               apiToken,
+		assetMicCache:          make(map[string]string),
+		assetLotCache:          make(map[string]float64),
+		instrumentNameCache:    make(map[string]string),
+		securityCache:          make([]models.SecurityInfo, 0),
 	}
 
 	// Authenticate
