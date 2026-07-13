@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 
 	"finam-terminal/models"
 
+	"google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/genproto/googleapis/type/decimal"
 	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/grpc"
@@ -21,6 +23,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
@@ -1145,22 +1148,204 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 	return activeOrders, nil
 }
 
-// GetDividends returns the merged past+future dividend calendar for a symbol.
-// TODO(Phase 2 Green): implement.
+// caCalendarLimit bounds how many past and future corporate-action entries are
+// requested per calendar.
+const caCalendarLimit = 20
+
+// GetDividends returns the merged past (last 12 months, DESC) + future (ASC)
+// dividend calendar for a symbol, sorted ascending by date with IsFuture flags.
 func (c *Client) GetDividends(symbol string) ([]models.Dividend, error) {
-	return nil, nil
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.Dividend
+
+	pastResp, err := c.corporateActionsClient.GetPastDividends(ctx, &corporateactions.GetPastDividendsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastDividends", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past dividends: %w", err)
+	}
+	for _, d := range pastResp.Dividends {
+		result = append(result, mapDividend(d, false))
+	}
+
+	// Future requests take only Symbol/SortDirection/Limit (no date interval).
+	futureResp, err := c.corporateActionsClient.GetFutureDividends(ctx, &corporateactions.GetFutureDividendsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureDividends", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future dividends: %w", err)
+	}
+	for _, d := range futureResp.Dividends {
+		result = append(result, mapDividend(d, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
 }
 
-// GetSplits returns the merged past+future split calendar for a symbol.
-// TODO(Phase 2 Green): implement.
+// GetSplits returns the merged past+future split calendar for a symbol, sorted
+// ascending by date with IsFuture flags.
 func (c *Client) GetSplits(symbol string) ([]models.Split, error) {
-	return nil, nil
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.Split
+
+	pastResp, err := c.corporateActionsClient.GetPastSplits(ctx, &corporateactions.GetPastSplitsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastSplits", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past splits: %w", err)
+	}
+	for _, s := range pastResp.Splits {
+		result = append(result, mapSplit(s, false))
+	}
+
+	futureResp, err := c.corporateActionsClient.GetFutureSplits(ctx, &corporateactions.GetFutureSplitsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureSplits", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future splits: %w", err)
+	}
+	for _, s := range futureResp.Splits {
+		result = append(result, mapSplit(s, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
 }
 
-// GetBondEvents returns the merged past+future bond-event calendar for a symbol.
-// TODO(Phase 2 Green): implement.
+// GetBondEvents returns the merged past+future bond-event calendar for a symbol,
+// sorted ascending by date with IsFuture flags. The oneof event details
+// (coupon/amortization/offer) are flattened into the model.
 func (c *Client) GetBondEvents(symbol string) ([]models.BondEvent, error) {
-	return nil, nil
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.BondEvent
+
+	pastResp, err := c.corporateActionsClient.GetPastBondsEvents(ctx, &corporateactions.GetPastBondsEventsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastBondsEvents", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past bond events: %w", err)
+	}
+	for _, e := range pastResp.Events {
+		result = append(result, mapBondEvent(e, false))
+	}
+
+	futureResp, err := c.corporateActionsClient.GetFutureBondsEvents(ctx, &corporateactions.GetFutureBondsEventsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureBondsEvents", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future bond events: %w", err)
+	}
+	for _, e := range futureResp.Events {
+		result = append(result, mapBondEvent(e, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
+}
+
+// pastYearRange returns a [now-12mo, now] date interval for Past* requests.
+func pastYearRange() (from, to *date.Date) {
+	now := time.Now()
+	start := now.AddDate(-1, 0, 0)
+	return toProtoDate(start), toProtoDate(now)
+}
+
+func toProtoDate(t time.Time) *date.Date {
+	return &date.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
+}
+
+func mapDividend(d *corporateactions.Dividend, isFuture bool) models.Dividend {
+	return models.Dividend{
+		Date:     formatDate(d.GetDate()),
+		Amount:   formatDecimalOpt(d.GetAmount()),
+		Currency: d.GetCurrency(),
+		IsFuture: isFuture,
+	}
+}
+
+func mapSplit(s *corporateactions.SplitInfo, isFuture bool) models.Split {
+	return models.Split{
+		Date:     formatDate(s.GetExecDate()),
+		OldRatio: formatDecimalOpt(s.GetOldRatio()),
+		NewRatio: formatDecimalOpt(s.GetNewRatio()),
+		NewLot:   formatInt32Value(s.GetNewLot()),
+		ConvType: s.GetConvertationType().String(),
+		IsFuture: isFuture,
+	}
+}
+
+func mapBondEvent(e *corporateactions.BondEvent, isFuture bool) models.BondEvent {
+	be := models.BondEvent{
+		Date:     formatDate(e.GetDate()),
+		Value:    formatDecimalOpt(e.GetValue()),
+		Currency: e.GetCurrency().GetValue(),
+		IsFuture: isFuture,
+	}
+	// Kind from the enum first, then refined/confirmed by the present oneof branch.
+	switch e.GetType() {
+	case corporateactions.BondEventType_COUPON:
+		be.Kind = models.BondEventCoupon
+	case corporateactions.BondEventType_AMORTIZATION:
+		be.Kind = models.BondEventAmortization
+	case corporateactions.BondEventType_OFFER:
+		be.Kind = models.BondEventOffer
+	}
+	if cd := e.GetCouponDetails(); cd != nil {
+		be.Kind = models.BondEventCoupon
+		be.RecordDate = formatDate(cd.GetRecordDate())
+		be.StartDate = formatDate(cd.GetStartDate())
+		be.FaceValue = formatDecimalOpt(cd.GetFaceValue())
+		be.Percent = formatDecimalOpt(cd.GetValuePercent())
+	}
+	if ad := e.GetAmortizationDetails(); ad != nil {
+		be.Kind = models.BondEventAmortization
+		be.NewFaceValue = formatDecimalOpt(ad.GetNewFaceValue())
+		be.InitialFaceValue = formatDecimalOpt(ad.GetInitialFaceValue())
+		be.Percent = formatDecimalOpt(ad.GetAmortizationPercent())
+	}
+	if od := e.GetOfferDetails(); od != nil {
+		be.Kind = models.BondEventOffer
+		be.Type = od.GetOfferType().GetValue()
+		be.Price = formatDecimalOpt(od.GetPrice())
+		be.Start = formatDate(od.GetStartDate())
+		be.End = formatDate(od.GetEndDate())
+		be.Agent = od.GetAgent().GetValue()
+	}
+	return be
 }
 
 // GetSnapshots returns initial prices for a list of securities
@@ -1429,4 +1614,30 @@ func formatDecimal(d *decimal.Decimal) string {
 		return "N/A"
 	}
 	return d.Value
+}
+
+// formatDecimalOpt is like formatDecimal but returns an empty string (not "N/A")
+// for nil/empty values. Used for optional corporate-action fields so absent
+// values render as blank rather than "N/A".
+func formatDecimalOpt(d *decimal.Decimal) string {
+	if d == nil {
+		return ""
+	}
+	return d.Value
+}
+
+// formatDate renders a google.type.Date as "YYYY-MM-DD", or "" when nil.
+func formatDate(d *date.Date) string {
+	if d == nil {
+		return ""
+	}
+	return fmt.Sprintf("%04d-%02d-%02d", d.Year, d.Month, d.Day)
+}
+
+// formatInt32Value renders a *wrapperspb.Int32Value, or "" when the wrapper is nil.
+func formatInt32Value(v *wrapperspb.Int32Value) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.Itoa(int(v.GetValue()))
 }
