@@ -6,7 +6,7 @@
 ## Phase 1: Быстрые табличные обогащения (НКД + валюта в History, связь заявок в Orders)
 - [x] Task: Расширить модели — `models.Trade` (+`AccruedInterest string`, `Currency string`) и `models.Order` (+`TriggeredOrderID string`) (30bb6fe)
   - Acceptance: поля добавлены; `go build ./...` зелёный; существующие тесты не сломаны
-- [ ] Task: (Red) Расширить фикстуры `DefaultTrades` (НКД+валюта у облигационной сделки) и `DefaultOrders` (`TriggeredOrderId`) + интеграционные ассерты в history/orders тестах — падают
+- [x] Task: (Red) Расширить фикстуры `DefaultTrades` (НКД+валюта у облигационной сделки) и `DefaultOrders` (`TriggeredOrderId`) + интеграционные ассерты в history/orders тестах — падают (506ef16)
   - Acceptance: тесты компилируются и падают, фиксируя ожидаемый маппинг (НКД/валюта на `Trade`, `TriggeredOrderID` на `Order`)
 - [ ] Task: (Green) Заполнить `AccruedInterest`/`Currency` в `GetTradeHistory` (nil-safe) и `TriggeredOrderID` в `GetActiveOrders`
   - Acceptance: интеграционные тесты зелёные; для не-облигаций НКД пустой; nil-обёртки не роняют маппинг
