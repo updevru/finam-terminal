@@ -168,6 +168,12 @@ func (p *ProfilePanel) renderInfoPanel() {
 			writeField(&sb, "Face Value", faceVal)
 			sb.WriteString("\n")
 		}
+
+		// Corporate-action calendars: dividends and splits for equities.
+		if isEquityDetails(d) {
+			p.renderDividends(&sb)
+			p.renderSplits(&sb)
+		}
 	}
 
 	// Quote section
@@ -226,6 +232,85 @@ func (p *ProfilePanel) renderInfoPanel() {
 	}
 
 	p.InfoPanel.SetText(sb.String())
+}
+
+// calendarCap bounds how many past and future entries are shown per calendar
+// section in the compact profile panel.
+const calendarCap = 3
+
+// capCalendar splits items (assumed sorted ascending by date) into past and
+// future by isFuture, keeps at most calendarCap of the nearest entries on each
+// side, and reports whether older/newer entries were hidden. The returned slice
+// is [past…, future…] in chronological order.
+func capCalendar[T any](items []T, isFuture func(T) bool) (rows []T, morePast, moreFuture bool) {
+	var past, future []T
+	for _, it := range items {
+		if isFuture(it) {
+			future = append(future, it)
+		} else {
+			past = append(past, it)
+		}
+	}
+	if len(past) > calendarCap {
+		past = past[len(past)-calendarCap:]
+		morePast = true
+	}
+	if len(future) > calendarCap {
+		future = future[:calendarCap]
+		moreFuture = true
+	}
+	rows = append(append(rows, past...), future...)
+	return rows, morePast, moreFuture
+}
+
+// renderDividends renders the compact Dividends section for an equity.
+func (p *ProfilePanel) renderDividends(sb *strings.Builder) {
+	divs := p.profile.Dividends
+	if len(divs) == 0 {
+		return
+	}
+	rows, morePast, moreFuture := capCalendar(divs, func(d models.Dividend) bool { return d.IsFuture })
+
+	sb.WriteString("[cyan::b]─── Dividends ───[-:-:-]\n")
+	if morePast {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	for _, d := range rows {
+		val := d.Amount
+		if d.Currency != "" {
+			val += " " + d.Currency
+		}
+		fmt.Fprintf(sb, " [white]%-11s [lightgray]%s\n", d.Date, val)
+	}
+	if moreFuture {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	sb.WriteString("\n")
+}
+
+// renderSplits renders the compact Splits section for an equity.
+func (p *ProfilePanel) renderSplits(sb *strings.Builder) {
+	splits := p.profile.Splits
+	if len(splits) == 0 {
+		return
+	}
+	rows, morePast, moreFuture := capCalendar(splits, func(s models.Split) bool { return s.IsFuture })
+
+	sb.WriteString("[cyan::b]─── Splits ───[-:-:-]\n")
+	if morePast {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	for _, s := range rows {
+		val := s.OldRatio + "→" + s.NewRatio
+		if s.NewLot != "" {
+			val += "  lot " + s.NewLot
+		}
+		fmt.Fprintf(sb, " [white]%-11s [lightgray]%s\n", s.Date, val)
+	}
+	if moreFuture {
+		sb.WriteString(" [gray]…[-]\n")
+	}
+	sb.WriteString("\n")
 }
 
 // renderChart renders the candlestick chart in the ChartView.
