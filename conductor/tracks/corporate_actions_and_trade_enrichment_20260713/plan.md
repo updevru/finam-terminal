@@ -22,7 +22,7 @@
   - Acceptance: типы добавлены, `go build ./...` зелёный; поля-строки готовы к прямому рендеру
 - [x] Task: `MockCorporateActionsServer` (`api/testserver/corporateactions_server.go`) + регистрация в `server.go` + фикстуры `DefaultDividends`/`DefaultSplits`/`DefaultBondEvents` (покрыть все ветки oneof и обёртки-указатели) (240f3fd)
   - Acceptance: мок реализует 6 методов и отдаёт фикстуры; зарегистрирован в `NewTestServer`; сервер стартует
-- [ ] Task: (Red) Интеграционные тесты `client_corporate_actions_integration_test.go` для `GetDividends`/`GetSplits`/`GetBondEvents` — падают
+- [x] Task: (Red) Интеграционные тесты `client_corporate_actions_integration_test.go` для `GetDividends`/`GetSplits`/`GetBondEvents` — падают (69a70fb)
   - Acceptance: тесты компилируются и падают; проверяют объединение past+future, сортировку по дате, флаги `IsFuture`, маппинг oneof (Coupon/Amortization/Offer) и nil-safe обёрток
 - [ ] Task: (Green) Реализовать `GetDividends`/`GetSplits`/`GetBondEvents` в `api/client.go` (past 12 мес DESC + future ASC, limit 20; `formatDecimal`; `logGRPCError`; nil-safe)
   - Acceptance: интеграционные тесты предыдущей задачи зелёные
