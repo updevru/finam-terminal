@@ -935,15 +935,23 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 		name := c.instrumentNameCache[t.Symbol]
 		c.assetMutex.RUnlock()
 
+		// Accrued interest is populated only for bonds (2.16.0); nil for other instruments.
+		accruedInterest := ""
+		if t.AccruedInterest != nil && t.AccruedInterest.Value != "" {
+			accruedInterest = t.AccruedInterest.Value
+		}
+
 		trades = append(trades, models.Trade{
-			ID:        t.TradeId,
-			Symbol:    t.Symbol,
-			Name:      name,
-			Side:      side,
-			Price:     priceStr,
-			Quantity:  qtyStr,
-			Total:     fmt.Sprintf("%.2f", total),
-			Timestamp: t.Timestamp.AsTime().Local(),
+			ID:              t.TradeId,
+			Symbol:          t.Symbol,
+			Name:            name,
+			Side:            side,
+			Price:           priceStr,
+			Quantity:        qtyStr,
+			Total:           fmt.Sprintf("%.2f", total),
+			AccruedInterest: accruedInterest,
+			Currency:        t.Currency,
+			Timestamp:       t.Timestamp.AsTime().Local(),
 		})
 	}
 	return trades, nil
@@ -1017,9 +1025,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		}
 
 		order := models.Order{
-			ID:     o.OrderId,
-			Status: status,
-			Side:   side,
+			ID:               o.OrderId,
+			Status:           status,
+			Side:             side,
+			TriggeredOrderID: o.TriggeredOrderId,
 		}
 
 		// Populate executed/remaining quantities from OrderState
