@@ -317,6 +317,16 @@ func updateOrdersTable(app *App) {
 	orders := app.activeOrders[accountID]
 	app.dataMutex.RUnlock()
 
+	// Cross-reference parent→triggered links within the current set. Only the
+	// parent carries TriggeredOrderID, so map each triggered (child) order back
+	// to its parent to mark both sides when they are present together.
+	childToParent := make(map[string]string, len(orders))
+	for _, o := range orders {
+		if o.TriggeredOrderID != "" {
+			childToParent[o.TriggeredOrderID] = o.ID
+		}
+	}
+
 	for row, o := range orders {
 		rowNum := row + 1
 		rowBg := tcell.ColorBlack
@@ -351,6 +361,16 @@ func updateOrdersTable(app *App) {
 		orderDisplayName := o.Name
 		if orderDisplayName == "" {
 			orderDisplayName = o.Symbol
+		}
+
+		// Append a ↳ marker with the linked order's ID: on a parent it points to
+		// the order it triggered; on a triggered child it points back to its
+		// parent. Either side may be missing from the active set (e.g. the child
+		// already executed) — we render whichever side we have without failing.
+		if o.TriggeredOrderID != "" {
+			orderDisplayName += " ↳" + o.TriggeredOrderID
+		} else if parentID, ok := childToParent[o.ID]; ok {
+			orderDisplayName += " ↳" + parentID
 		}
 
 		// Build Price/Condition display
