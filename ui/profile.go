@@ -94,18 +94,10 @@ func (p *ProfilePanel) GetTimeframe() int {
 }
 
 // Instrument-type classification from AssetDetails markers. A bond has a face
-// value; an option has both contract size and strike; a future has a contract
-// size but no strike; an equity has none of these markers.
+// value; an equity has none of the derivative/bond markers (no contract size,
+// strike, or face value).
 func isBondDetails(d *models.AssetDetails) bool {
 	return d != nil && d.BondFaceValue != ""
-}
-
-func isOptionDetails(d *models.AssetDetails) bool {
-	return d != nil && d.ContractSize != "" && d.Strike != ""
-}
-
-func isFuturesDetails(d *models.AssetDetails) bool {
-	return d != nil && d.ContractSize != "" && d.Strike == ""
 }
 
 func isEquityDetails(d *models.AssetDetails) bool {
