@@ -48,7 +48,7 @@
   - Acceptance: тесты зелёные; захваченные `SetQuoteSymbols` при переключении счёта содержат символы нового счёта
 - [x] Task: Фоллбек: `skipQuotes` в `loadDataAsync` + сохранение `a.quotes[accountID]` вместо замены пустой картой (ui/data.go:68-72); skip котировки в `refreshProfileQuoteAndBars` при живом стриме (бары остаются) (aafd831)
   - Acceptance: при `streamLive` поллинг не затирает котировки активного счёта; при down следующий тик возобновляет поллинг; тест предиката зелёный
-- [ ] Task: Ревизия гонок: все мутации `a.quotes` только в QueueUpdateDraw-замыканиях под `dataMutex`; `CGO_ENABLED=1 go test -race` обеих сюит
+- [x] Task: Ревизия гонок: все мутации `a.quotes` только в QueueUpdateDraw-замыканиях под `dataMutex`; `CGO_ENABLED=1 go test -race` обеих сюит (873dcc4)
   - Acceptance: race-детектор чист на unit + integration
 
 ## Phase 7: Верификация и финализация
