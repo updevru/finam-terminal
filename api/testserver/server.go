@@ -7,6 +7,7 @@ import (
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/corporateactions"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 	"google.golang.org/grpc"
@@ -21,11 +22,12 @@ type TestServer struct {
 	server   *grpc.Server
 	listener *bufconn.Listener
 
-	Auth       *MockAuthServer
-	Accounts   *MockAccountsServer
-	MarketData *MockMarketDataServer
-	Assets     *MockAssetsServer
-	Orders     *MockOrdersServer
+	Auth             *MockAuthServer
+	Accounts         *MockAccountsServer
+	MarketData       *MockMarketDataServer
+	Assets           *MockAssetsServer
+	Orders           *MockOrdersServer
+	CorporateActions *MockCorporateActionsServer
 }
 
 // NewTestServer creates a new TestServer with all mock services registered.
@@ -34,13 +36,14 @@ func NewTestServer() *TestServer {
 	srv := grpc.NewServer()
 
 	ts := &TestServer{
-		server:     srv,
-		listener:   lis,
-		Auth:       NewMockAuthServer(),
-		Accounts:   NewMockAccountsServer(),
-		MarketData: NewMockMarketDataServer(),
-		Assets:     NewMockAssetsServer(),
-		Orders:     NewMockOrdersServer(),
+		server:           srv,
+		listener:         lis,
+		Auth:             NewMockAuthServer(),
+		Accounts:         NewMockAccountsServer(),
+		MarketData:       NewMockMarketDataServer(),
+		Assets:           NewMockAssetsServer(),
+		Orders:           NewMockOrdersServer(),
+		CorporateActions: NewMockCorporateActionsServer(),
 	}
 
 	auth.RegisterAuthServiceServer(srv, ts.Auth)
@@ -48,6 +51,7 @@ func NewTestServer() *TestServer {
 	marketdata.RegisterMarketDataServiceServer(srv, ts.MarketData)
 	assets.RegisterAssetsServiceServer(srv, ts.Assets)
 	orders.RegisterOrdersServiceServer(srv, ts.Orders)
+	corporateactions.RegisterCorporateActionsServiceServer(srv, ts.CorporateActions)
 
 	return ts
 }

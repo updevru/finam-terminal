@@ -158,17 +158,14 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 		var mu sync.Mutex
 		var wg sync.WaitGroup
 
-		// 1. GetAssetInfo
-		wg.Go(func() {
-			details, err := a.client.GetAssetInfo(accountID, symbol)
-			if err != nil {
-				log.Printf("[WARN] GetAssetInfo failed for %s: %v", symbol, err)
-				return
-			}
-			mu.Lock()
+		// 1. GetAssetInfo first — the instrument type it reveals gates which
+		// corporate-action calendars (if any) are fetched below.
+		details, err := a.client.GetAssetInfo(accountID, symbol)
+		if err != nil {
+			log.Printf("[WARN] GetAssetInfo failed for %s: %v", symbol, err)
+		} else {
 			profile.Details = details
-			mu.Unlock()
-		})
+		}
 
 		// 2. GetAssetParams
 		wg.Go(func() {
@@ -223,6 +220,46 @@ func (a *App) loadProfileAsync(accountID, symbol string, timeframeIdx int) {
 			profile.Bars = bars
 			mu.Unlock()
 		})
+
+		// 6. Type-gated corporate-action calendars. For an equity, fetch the
+		// dividend and split calendars in parallel; each is non-fatal — a failed
+		// request just leaves its section empty. Non-equities (futures/options/
+		// bonds) skip these entirely (bonds get their own events in Phase 4).
+		if isEquityDetails(details) {
+			wg.Go(func() {
+				dividends, err := a.client.GetDividends(symbol)
+				if err != nil {
+					log.Printf("[WARN] GetDividends failed for %s: %v", symbol, err)
+					return
+				}
+				mu.Lock()
+				profile.Dividends = dividends
+				mu.Unlock()
+			})
+
+			wg.Go(func() {
+				splits, err := a.client.GetSplits(symbol)
+				if err != nil {
+					log.Printf("[WARN] GetSplits failed for %s: %v", symbol, err)
+					return
+				}
+				mu.Lock()
+				profile.Splits = splits
+				mu.Unlock()
+			})
+		} else if isBondDetails(details) {
+			// For a bond, fetch the coupon/amortization/offer calendar; non-fatal.
+			wg.Go(func() {
+				events, err := a.client.GetBondEvents(symbol)
+				if err != nil {
+					log.Printf("[WARN] GetBondEvents failed for %s: %v", symbol, err)
+					return
+				}
+				mu.Lock()
+				profile.BondEvents = events
+				mu.Unlock()
+			})
+		}
 
 		wg.Wait()
 

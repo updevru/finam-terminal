@@ -34,9 +34,11 @@ A Go-based Terminal User Interface (TUI) application designed to interact with t
     - **Account Selection:** Interactive list of available accounts with real-time equity and status.
     - **Account Details:** Summary area showing Account ID, Type, Status, Equity, and Unrealized PnL.
     - **Positions Tab:** Detailed view of current positions including Symbol, Quantity, Average/Current Price, Daily P&L, Total Value, and Unrealized PnL.
-    - **History Tab:** View of completed trades for the selected account with Operation, Instrument, Qty, Price, Total, and Time.
-    - **Orders Tab:** Real-time list of active/pending orders with status, type, and execution details.
+    - **History Tab:** View of completed trades for the selected account with Operation, Instrument, Qty, Price, Total, an accrued-interest (`НКД`) column for bonds, and Time.
+    - **Orders Tab:** Real-time list of active/pending orders with status, type, and execution details, marking a stop order and the exchange order it triggered with a `↳` cross-reference.
     - **Seamless Navigation:** Use Left/Right arrows to cycle between Positions, History, and Orders; use Tab to switch focus between account selection and tables.
+- **Instrument Profile:**
+    - **Corporate Action Calendars:** The profile overlay shows dividend and split calendars for equities and coupon/amortization/offer calendars for bonds, so users no longer need third-party sites for payment and event schedules.
 - **Interactive TUI:** A responsive interface built with `tview`, featuring intuitive keyboard shortcuts for rapid navigation and data filtering.
     - **Live Status Feedback:** Bottom status bar indicating data loading states, network health, and detailed error messages without interrupting workflow.
 ## Non-Functional Requirements

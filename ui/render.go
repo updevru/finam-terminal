@@ -205,7 +205,7 @@ func updatePositionsTable(app *App) {
 func updateHistoryTable(app *App) {
 	app.portfolioView.TabbedView.HistoryTable.Clear()
 
-	headers := []string{"Instrument", "Side", "Price", "Qty (Lots)", "Total", "Time"}
+	headers := []string{"Instrument", "Side", "Price", "Qty (Lots)", "Total", "НКД", "Time"}
 	headerStyle := tcell.StyleDefault.
 		Background(tcell.ColorDarkBlue).
 		Foreground(tcell.ColorWhite).
@@ -271,7 +271,10 @@ func updateHistoryTable(app *App) {
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 4, tview.NewTableCell(t.Total).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorLightGreen)).SetAlign(tview.AlignRight))
-		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(timeStr).
+		// Accrued interest (bonds only) combined with its currency; blank for equities.
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 5, tview.NewTableCell(formatAccruedInterest(t)).
+			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
+		app.portfolioView.TabbedView.HistoryTable.SetCell(rowNum, 6, tview.NewTableCell(timeStr).
 			SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(tcell.ColorWhite)).SetAlign(tview.AlignRight))
 	}
 
@@ -281,6 +284,71 @@ func updateHistoryTable(app *App) {
 			SetAlign(tview.AlignCenter).
 			SetTextColor(tcell.ColorGray))
 	}
+}
+
+// orderRow is one display row of the orders table: an order plus whether it is
+// the triggered child of a parent rendered immediately above it.
+type orderRow struct {
+	order   models.Order
+	isChild bool
+}
+
+// groupTriggeredOrders reorders the active orders so that, when a parent stop
+// order and the exchange order it triggered are BOTH present in the set, the
+// triggered child is placed directly after its parent and flagged isChild.
+// Orders whose counterpart is absent keep their original position and are not
+// marked. Original relative order is otherwise preserved.
+func groupTriggeredOrders(orders []models.Order) []orderRow {
+	// Index present order IDs.
+	idToIndex := make(map[string]int, len(orders))
+	for i, o := range orders {
+		if o.ID != "" {
+			idToIndex[o.ID] = i
+		}
+	}
+
+	// parentToChild[parentIdx] = childIdx when the parent's TriggeredOrderID
+	// resolves to another order present in the set; childGrouped marks those
+	// children so they are emitted under their parent rather than at top level.
+	parentToChild := make(map[int]int, len(orders))
+	childGrouped := make(map[int]bool, len(orders))
+	for i, o := range orders {
+		if o.TriggeredOrderID == "" {
+			continue
+		}
+		if childIdx, ok := idToIndex[o.TriggeredOrderID]; ok && childIdx != i {
+			parentToChild[i] = childIdx
+			childGrouped[childIdx] = true
+		}
+	}
+
+	rows := make([]orderRow, 0, len(orders))
+	emitted := make([]bool, len(orders))
+	for i := range orders {
+		if emitted[i] || childGrouped[i] {
+			continue // grouped children are emitted under their parent
+		}
+		// Emit this order, then follow its chain of present triggered children.
+		rows = append(rows, orderRow{order: orders[i]})
+		emitted[i] = true
+		for cur := i; ; {
+			childIdx, ok := parentToChild[cur]
+			if !ok || emitted[childIdx] {
+				break
+			}
+			rows = append(rows, orderRow{order: orders[childIdx], isChild: true})
+			emitted[childIdx] = true
+			cur = childIdx
+		}
+	}
+	// Safety net for any leftovers (e.g. cycles): emit in original order.
+	for i := range orders {
+		if !emitted[i] {
+			rows = append(rows, orderRow{order: orders[i], isChild: childGrouped[i]})
+			emitted[i] = true
+		}
+	}
+	return rows
 }
 
 // updateOrdersTable refreshes the active orders table
@@ -314,7 +382,14 @@ func updateOrdersTable(app *App) {
 	orders := app.activeOrders[accountID]
 	app.dataMutex.RUnlock()
 
-	for row, o := range orders {
+	// Group parent→triggered links: when a stop order and the exchange order it
+	// spawned are both present in the current set, render the child directly
+	// under its parent (indented, with a ↳ marker) so the link is unambiguous.
+	// Orders whose counterpart is absent are shown normally, without a marker.
+	orderedRows := groupTriggeredOrders(orders)
+
+	for row, r := range orderedRows {
+		o := r.order
 		rowNum := row + 1
 		rowBg := tcell.ColorBlack
 		if row%2 == 0 {
@@ -348,6 +423,12 @@ func updateOrdersTable(app *App) {
 		orderDisplayName := o.Name
 		if orderDisplayName == "" {
 			orderDisplayName = o.Symbol
+		}
+
+		// A triggered child is rendered indented under its parent with a ↳ marker,
+		// making the parent→child link unambiguous by adjacency.
+		if r.isChild {
+			orderDisplayName = "  ↳ " + orderDisplayName
 		}
 
 		// Build Price/Condition display
@@ -403,6 +484,19 @@ func updateOrdersTable(app *App) {
 
 // formatOrderPriceCondition builds a display string for the Price/Condition column.
 // Non-GTC validity is appended in parentheses, e.g. "SL: 100.50 ↓ (Day)".
+// formatAccruedInterest renders the combined НКД cell as "<amount> <currency>"
+// (e.g. "12.34 RUB"). Returns an empty string for trades without accrued interest
+// (non-bond instruments), so the column stays blank for them.
+func formatAccruedInterest(t models.Trade) string {
+	if t.AccruedInterest == "" || t.AccruedInterest == "N/A" {
+		return ""
+	}
+	if t.Currency == "" {
+		return t.AccruedInterest
+	}
+	return t.AccruedInterest + " " + t.Currency
+}
+
 func formatOrderPriceCondition(o models.Order) string {
 	var result string
 	switch o.Type {

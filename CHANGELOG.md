@@ -5,12 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v0.13.0] - 2026-08-24
+
+### Added
+- **Corporate Action Calendars**: Instrument profile now shows dividend and split calendars for equities and coupon/amortization/offer calendars for bonds, via the new `CorporateActionsService` (`GetDividends`/`GetSplits`/`GetBondEvents`); each section is capped at 3 past + 3 future with a `…` overflow hint (`corporate_actions_and_trade_enrichment`).
+- **Trade НКД**: History tab shows a combined `НКД` column (accrued interest + currency, e.g. `12.34 RUB`) for bond trades, blank for others (`corporate_actions_and_trade_enrichment`).
+- **Order Link Marker**: Orders tab marks a stop order and the exchange order it triggered with a `↳` cross-reference (`corporate_actions_and_trade_enrichment`).
 
 ### Changed
 - **Finam Trade API SDK** updated to commit `ee013ef` (2026-07-07), past releases 2.15.0–2.17.0 (`sdk_update_new_api_keys`).
 - **API Key Format**: onboarding, `.env.example`, and `README.md` now point to `https://api.finam.ru/tokens/` and describe the new short `tapi_sk_...` key format; old long tokens remain supported as Legacy (`sdk_update_new_api_keys`).
 - **Token Refresh**: replaced timer-based re-authentication with the `SubscribeJwtRenewal` gRPC stream for automatic JWT renewal, including reconnect with backoff (`sdk_update_new_api_keys`).
+
+### Fixed
+- **Startup Authentication**: `AuthService.TokenDetails` is now called without the `Authorization` metadata header — the API rejects calls that carry both the header and the body token, which broke account loading at startup with `InvalidArgument: Token is invalid or malformed`.
+- **Slow First Connect**: `grpc.WithDisableServiceConfig()` skips the `_grpc_config.api.finam.ru` TXT lookup that Finam does not publish; its ~11s NXDOMAIN alone consumed the 10s deadline of the first `Auth` call (measured: 12.2s connect vs 0.3s RPC).
+- **Token Expiry Source**: session token expiry now comes from `TokenDetails.expires_at` (readable via the new `TokenExpiry()` getter) instead of a JWT parser that always failed on the opaque `tapi_ak_...` token and fell back to an invented 50m lifetime (real: 15m).
 
 ## [v0.12.0] - 2026-04-07
 

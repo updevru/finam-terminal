@@ -29,6 +29,10 @@ type mockClient struct {
 	GetAssetInfoFunc   func(accountID string, symbol string) (*models.AssetDetails, error)
 	GetAssetParamsFunc func(accountID string, symbol string) (*models.AssetParams, error)
 	GetScheduleFunc    func(symbol string) ([]models.TradingSession, error)
+
+	GetDividendsFunc  func(symbol string) ([]models.Dividend, error)
+	GetSplitsFunc     func(symbol string) ([]models.Split, error)
+	GetBondEventsFunc func(symbol string) ([]models.BondEvent, error)
 }
 
 func (m *mockClient) GetAccounts() ([]models.AccountInfo, error) {
@@ -139,6 +143,27 @@ func (m *mockClient) GetAssetParams(accountID string, symbol string) (*models.As
 func (m *mockClient) GetSchedule(symbol string) ([]models.TradingSession, error) {
 	if m.GetScheduleFunc != nil {
 		return m.GetScheduleFunc(symbol)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) GetDividends(symbol string) ([]models.Dividend, error) {
+	if m.GetDividendsFunc != nil {
+		return m.GetDividendsFunc(symbol)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) GetSplits(symbol string) ([]models.Split, error) {
+	if m.GetSplitsFunc != nil {
+		return m.GetSplitsFunc(symbol)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) GetBondEvents(symbol string) ([]models.BondEvent, error) {
+	if m.GetBondEventsFunc != nil {
+		return m.GetBondEventsFunc(symbol)
 	}
 	return nil, nil
 }

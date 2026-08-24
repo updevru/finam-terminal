@@ -3,10 +3,9 @@ package api
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 
 	"finam-terminal/models"
 
+	"google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/genproto/googleapis/type/decimal"
 	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/grpc"
@@ -21,11 +21,13 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 
 	tradeapiv1 "github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/accounts"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/corporateactions"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/orders"
 )
@@ -35,12 +37,13 @@ const sourceAppID = "finam-terminal"
 
 // Client is a client for the Finam Trade API
 type Client struct {
-	conn             *grpc.ClientConn
-	authClient       auth.AuthServiceClient
-	accountsClient   accounts.AccountsServiceClient
-	marketDataClient marketdata.MarketDataServiceClient
-	assetsClient     assets.AssetsServiceClient
-	ordersClient     orders.OrdersServiceClient
+	conn                   *grpc.ClientConn
+	authClient             auth.AuthServiceClient
+	accountsClient         accounts.AccountsServiceClient
+	marketDataClient       marketdata.MarketDataServiceClient
+	assetsClient           assets.AssetsServiceClient
+	ordersClient           orders.OrdersServiceClient
+	corporateActionsClient corporateactions.CorporateActionsServiceClient
 
 	token       string
 	tokenExpiry time.Time
@@ -65,6 +68,11 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 	conn, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)),
+		// Skip the resolver's service-config lookup. gRPC would otherwise query
+		// the TXT record _grpc_config.<host>, which api.finam.ru does not
+		// publish; on networks where that NXDOMAIN takes ~11s to come back it
+		// alone blows the 10s deadline on the first Auth call.
+		grpc.WithDisableServiceConfig(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
@@ -84,17 +92,18 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 // and loads the asset cache. Used by NewClient and by tests via bufconn.
 func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) {
 	client := &Client{
-		conn:                conn,
-		authClient:          auth.NewAuthServiceClient(conn),
-		accountsClient:      accounts.NewAccountsServiceClient(conn),
-		marketDataClient:    marketdata.NewMarketDataServiceClient(conn),
-		assetsClient:        assets.NewAssetsServiceClient(conn),
-		ordersClient:        orders.NewOrdersServiceClient(conn),
-		apiToken:            apiToken,
-		assetMicCache:       make(map[string]string),
-		assetLotCache:       make(map[string]float64),
-		instrumentNameCache: make(map[string]string),
-		securityCache:       make([]models.SecurityInfo, 0),
+		conn:                   conn,
+		authClient:             auth.NewAuthServiceClient(conn),
+		accountsClient:         accounts.NewAccountsServiceClient(conn),
+		marketDataClient:       marketdata.NewMarketDataServiceClient(conn),
+		assetsClient:           assets.NewAssetsServiceClient(conn),
+		ordersClient:           orders.NewOrdersServiceClient(conn),
+		corporateActionsClient: corporateactions.NewCorporateActionsServiceClient(conn),
+		apiToken:               apiToken,
+		assetMicCache:          make(map[string]string),
+		assetLotCache:          make(map[string]float64),
+		instrumentNameCache:    make(map[string]string),
+		securityCache:          make([]models.SecurityInfo, 0),
 	}
 
 	// Authenticate
@@ -177,9 +186,12 @@ func (c *Client) subscribeJwtRenewal(ctx context.Context) {
 				break
 			}
 
+			// Fetched before taking the lock so the RPC never holds it.
+			expiry, expErr := c.fetchTokenExpiry(resp.Token)
+
 			c.tokenMutex.Lock()
 			c.token = resp.Token
-			if expiry, expErr := c.getExpiryFromToken(resp.Token); expErr == nil {
+			if expErr == nil {
 				c.tokenExpiry = expiry
 			}
 			c.tokenMutex.Unlock()
@@ -213,41 +225,33 @@ func nextBackoff(d time.Duration) time.Duration {
 	return d
 }
 
-// getExpiryFromToken extracts the expiration time from a JWT token
-func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid token format")
-	}
+// fetchTokenExpiry asks AuthService.TokenDetails when the given session token
+// expires. This is the only contractual source for that timestamp: the token
+// issued by Auth is an opaque tapi_ak_... string, not a JWT, so it carries no
+// readable expiry of its own.
+func (c *Client) fetchTokenExpiry(token string) (time.Time, error) {
+	// No Authorization header here — see getUnauthenticatedContext.
+	ctx, cancel := c.getUnauthenticatedContext()
+	defer cancel()
 
-	payload := parts[1]
-	// Add padding if needed (JWTs are raw url encoded, but robustness helps)
-	if l := len(payload) % 4; l > 0 {
-		payload += strings.Repeat("=", 4-l)
-	}
-
-	data, err := base64.RawURLEncoding.DecodeString(parts[1]) // Try RawURLEncoding first (standard)
+	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: token})
 	if err != nil {
-		// Fallback to standard URL encoding if raw fails
-		data, err = base64.URLEncoding.DecodeString(payload)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed to decode payload: %w", err)
-		}
+		c.logGRPCError("AuthService", "TokenDetails", err)
+		return time.Time{}, fmt.Errorf("failed to get token details: %w", err)
+	}
+	if resp.ExpiresAt == nil {
+		return time.Time{}, fmt.Errorf("token details carry no expiry")
 	}
 
-	var claims struct {
-		Exp int64 `json:"exp"`
-	}
+	return resp.ExpiresAt.AsTime().Local(), nil
+}
 
-	if err := json.Unmarshal(data, &claims); err != nil {
-		return time.Time{}, fmt.Errorf("failed to unmarshal claims: %w", err)
-	}
-
-	if claims.Exp == 0 {
-		return time.Time{}, fmt.Errorf("exp claim missing")
-	}
-
-	return time.Unix(claims.Exp, 0), nil
+// TokenExpiry returns when the current session token expires, as reported by
+// TokenDetails. It is zero when the expiry could not be retrieved.
+func (c *Client) TokenExpiry() time.Time {
+	c.tokenMutex.RLock()
+	defer c.tokenMutex.RUnlock()
+	return c.tokenExpiry
 }
 
 // logGRPCError logs a detailed error message for a failed gRPC call.
@@ -490,12 +494,13 @@ func (c *Client) authenticate(apiToken string) error {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
-	// The original code had c.tokenExpiry = time.Now().Add(50 * time.Minute)
-	// This has been updated to parse expiry from the token.
-	expiry, err := c.getExpiryFromToken(resp.Token)
-	if err != nil {
-		log.Printf("[WARN] Could not parse expiry from token: %v. Using default 50m.", err)
-		expiry = time.Now().Add(50 * time.Minute)
+	// A failed expiry lookup must not block startup: authentication itself has
+	// already succeeded and the expiry is informational. Leave it zero rather
+	// than inventing a value.
+	expiry, expErr := c.fetchTokenExpiry(resp.Token)
+	if expErr != nil {
+		log.Printf("[WARN] Could not fetch token expiry: %v", expErr)
+		expiry = time.Time{}
 	}
 
 	c.tokenMutex.Lock()
@@ -515,6 +520,14 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", c.token)
 	return ctx, cancel
+}
+
+// getUnauthenticatedContext returns a plain context without the Authorization
+// header. AuthService methods take the token in the request body instead, and
+// TokenDetails rejects requests that also carry the header with
+// InvalidArgument "Token is invalid or malformed".
+func (c *Client) getUnauthenticatedContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 30*time.Second)
 }
 
 // PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
@@ -697,14 +710,23 @@ func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity 
 
 // GetAccounts returns a list of all accounts
 func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
-	ctx, cancel := c.getContext()
-	defer cancel()
+	// TokenDetails must be called without the Authorization header — the token
+	// travels in the request body, and sending both makes the API reject the
+	// call with InvalidArgument "Token is invalid or malformed".
+	authCtx, authCancel := c.getUnauthenticatedContext()
+	c.tokenMutex.RLock()
+	sessionToken := c.token
+	c.tokenMutex.RUnlock()
 
-	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: c.token})
+	resp, err := c.authClient.TokenDetails(authCtx, &auth.TokenDetailsRequest{Token: sessionToken})
+	authCancel()
 	if err != nil {
 		c.logGRPCError("AuthService", "TokenDetails", err)
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
+
+	ctx, cancel := c.getContext()
+	defer cancel()
 
 	var accountsList []models.AccountInfo
 	seen := make(map[string]bool, len(resp.AccountIds))
@@ -935,15 +957,23 @@ func (c *Client) GetTradeHistory(accountID string) ([]models.Trade, error) {
 		name := c.instrumentNameCache[t.Symbol]
 		c.assetMutex.RUnlock()
 
+		// Accrued interest is populated only for bonds (2.16.0); nil for other instruments.
+		accruedInterest := ""
+		if t.AccruedInterest != nil && t.AccruedInterest.Value != "" {
+			accruedInterest = t.AccruedInterest.Value
+		}
+
 		trades = append(trades, models.Trade{
-			ID:        t.TradeId,
-			Symbol:    t.Symbol,
-			Name:      name,
-			Side:      side,
-			Price:     priceStr,
-			Quantity:  qtyStr,
-			Total:     fmt.Sprintf("%.2f", total),
-			Timestamp: t.Timestamp.AsTime().Local(),
+			ID:              t.TradeId,
+			Symbol:          t.Symbol,
+			Name:            name,
+			Side:            side,
+			Price:           priceStr,
+			Quantity:        qtyStr,
+			Total:           fmt.Sprintf("%.2f", total),
+			AccruedInterest: accruedInterest,
+			Currency:        t.Currency,
+			Timestamp:       t.Timestamp.AsTime().Local(),
 		})
 	}
 	return trades, nil
@@ -1017,9 +1047,10 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		}
 
 		order := models.Order{
-			ID:     o.OrderId,
-			Status: status,
-			Side:   side,
+			ID:               o.OrderId,
+			Status:           status,
+			Side:             side,
+			TriggeredOrderID: o.TriggeredOrderId,
 		}
 
 		// Populate executed/remaining quantities from OrderState
@@ -1131,6 +1162,206 @@ func (c *Client) GetActiveOrders(accountID string) ([]models.Order, error) {
 		activeOrders = append(activeOrders, order)
 	}
 	return activeOrders, nil
+}
+
+// caCalendarLimit bounds how many past and future corporate-action entries are
+// requested per calendar.
+const caCalendarLimit = 20
+
+// GetDividends returns the merged past (last 12 months, DESC) + future (ASC)
+// dividend calendar for a symbol, sorted ascending by date with IsFuture flags.
+func (c *Client) GetDividends(symbol string) ([]models.Dividend, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.Dividend
+
+	pastResp, err := c.corporateActionsClient.GetPastDividends(ctx, &corporateactions.GetPastDividendsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastDividends", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past dividends: %w", err)
+	}
+	for _, d := range pastResp.Dividends {
+		result = append(result, mapDividend(d, false))
+	}
+
+	// Future requests take only Symbol/SortDirection/Limit (no date interval).
+	futureResp, err := c.corporateActionsClient.GetFutureDividends(ctx, &corporateactions.GetFutureDividendsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureDividends", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future dividends: %w", err)
+	}
+	for _, d := range futureResp.Dividends {
+		result = append(result, mapDividend(d, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
+}
+
+// GetSplits returns the merged past+future split calendar for a symbol, sorted
+// ascending by date with IsFuture flags.
+func (c *Client) GetSplits(symbol string) ([]models.Split, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.Split
+
+	pastResp, err := c.corporateActionsClient.GetPastSplits(ctx, &corporateactions.GetPastSplitsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastSplits", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past splits: %w", err)
+	}
+	for _, s := range pastResp.Splits {
+		result = append(result, mapSplit(s, false))
+	}
+
+	futureResp, err := c.corporateActionsClient.GetFutureSplits(ctx, &corporateactions.GetFutureSplitsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureSplits", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future splits: %w", err)
+	}
+	for _, s := range futureResp.Splits {
+		result = append(result, mapSplit(s, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
+}
+
+// GetBondEvents returns the merged past+future bond-event calendar for a symbol,
+// sorted ascending by date with IsFuture flags. The oneof event details
+// (coupon/amortization/offer) are flattened into the model.
+func (c *Client) GetBondEvents(symbol string) ([]models.BondEvent, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	from, to := pastYearRange()
+	var result []models.BondEvent
+
+	pastResp, err := c.corporateActionsClient.GetPastBondsEvents(ctx, &corporateactions.GetPastBondsEventsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_DESC,
+		DateFrom:      from,
+		DateTo:        to,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetPastBondsEvents", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get past bond events: %w", err)
+	}
+	for _, e := range pastResp.Events {
+		result = append(result, mapBondEvent(e, false))
+	}
+
+	futureResp, err := c.corporateActionsClient.GetFutureBondsEvents(ctx, &corporateactions.GetFutureBondsEventsRequest{
+		Symbol:        symbol,
+		SortDirection: corporateactions.SortDirection_ASC,
+		Limit:         caCalendarLimit,
+	})
+	if err != nil {
+		c.logGRPCError("CorporateActionsService", "GetFutureBondsEvents", err, fmt.Sprintf("Symbol: %s", symbol))
+		return nil, fmt.Errorf("failed to get future bond events: %w", err)
+	}
+	for _, e := range futureResp.Events {
+		result = append(result, mapBondEvent(e, true))
+	}
+
+	sort.SliceStable(result, func(i, j int) bool { return result[i].Date < result[j].Date })
+	return result, nil
+}
+
+// pastYearRange returns a [now-12mo, now] date interval for Past* requests.
+func pastYearRange() (from, to *date.Date) {
+	now := time.Now()
+	start := now.AddDate(-1, 0, 0)
+	return toProtoDate(start), toProtoDate(now)
+}
+
+func toProtoDate(t time.Time) *date.Date {
+	return &date.Date{Year: int32(t.Year()), Month: int32(t.Month()), Day: int32(t.Day())}
+}
+
+func mapDividend(d *corporateactions.Dividend, isFuture bool) models.Dividend {
+	return models.Dividend{
+		Date:     formatDate(d.GetDate()),
+		Amount:   formatDecimalOpt(d.GetAmount()),
+		Currency: d.GetCurrency(),
+		IsFuture: isFuture,
+	}
+}
+
+func mapSplit(s *corporateactions.SplitInfo, isFuture bool) models.Split {
+	return models.Split{
+		Date:     formatDate(s.GetExecDate()),
+		OldRatio: formatDecimalOpt(s.GetOldRatio()),
+		NewRatio: formatDecimalOpt(s.GetNewRatio()),
+		NewLot:   formatInt32Value(s.GetNewLot()),
+		ConvType: s.GetConvertationType().String(),
+		IsFuture: isFuture,
+	}
+}
+
+func mapBondEvent(e *corporateactions.BondEvent, isFuture bool) models.BondEvent {
+	be := models.BondEvent{
+		Date:     formatDate(e.GetDate()),
+		Value:    formatDecimalOpt(e.GetValue()),
+		Currency: e.GetCurrency().GetValue(),
+		IsFuture: isFuture,
+	}
+	// Kind from the enum first, then refined/confirmed by the present oneof branch.
+	switch e.GetType() {
+	case corporateactions.BondEventType_COUPON:
+		be.Kind = models.BondEventCoupon
+	case corporateactions.BondEventType_AMORTIZATION:
+		be.Kind = models.BondEventAmortization
+	case corporateactions.BondEventType_OFFER:
+		be.Kind = models.BondEventOffer
+	}
+	if cd := e.GetCouponDetails(); cd != nil {
+		be.Kind = models.BondEventCoupon
+		be.RecordDate = formatDate(cd.GetRecordDate())
+		be.StartDate = formatDate(cd.GetStartDate())
+		be.FaceValue = formatDecimalOpt(cd.GetFaceValue())
+		be.Percent = formatDecimalOpt(cd.GetValuePercent())
+	}
+	if ad := e.GetAmortizationDetails(); ad != nil {
+		be.Kind = models.BondEventAmortization
+		be.NewFaceValue = formatDecimalOpt(ad.GetNewFaceValue())
+		be.InitialFaceValue = formatDecimalOpt(ad.GetInitialFaceValue())
+		be.Percent = formatDecimalOpt(ad.GetAmortizationPercent())
+	}
+	if od := e.GetOfferDetails(); od != nil {
+		be.Kind = models.BondEventOffer
+		be.Type = od.GetOfferType().GetValue()
+		be.Price = formatDecimalOpt(od.GetPrice())
+		be.Start = formatDate(od.GetStartDate())
+		be.End = formatDate(od.GetEndDate())
+		be.Agent = od.GetAgent().GetValue()
+	}
+	return be
 }
 
 // GetSnapshots returns initial prices for a list of securities
@@ -1399,4 +1630,30 @@ func formatDecimal(d *decimal.Decimal) string {
 		return "N/A"
 	}
 	return d.Value
+}
+
+// formatDecimalOpt is like formatDecimal but returns an empty string (not "N/A")
+// for nil/empty values. Used for optional corporate-action fields so absent
+// values render as blank rather than "N/A".
+func formatDecimalOpt(d *decimal.Decimal) string {
+	if d == nil {
+		return ""
+	}
+	return d.Value
+}
+
+// formatDate renders a google.type.Date as "YYYY-MM-DD", or "" when nil.
+func formatDate(d *date.Date) string {
+	if d == nil {
+		return ""
+	}
+	return fmt.Sprintf("%04d-%02d-%02d", d.Year, d.Month, d.Day)
+}
+
+// formatInt32Value renders a *wrapperspb.Int32Value, or "" when the wrapper is nil.
+func formatInt32Value(v *wrapperspb.Int32Value) string {
+	if v == nil {
+		return ""
+	}
+	return strconv.Itoa(int(v.GetValue()))
 }

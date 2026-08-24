@@ -7,7 +7,9 @@ import (
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/auth"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // JwtRenewalItem is one item fed into MockAuthServer.JwtRenewalQueue: either a
@@ -28,7 +30,8 @@ type MockAuthServer struct {
 	// AccountIDs returned by TokenDetails.
 	AccountIDs []string
 
-	// TokenExpiry controls the JWT expiry time. Defaults to 1 hour from now.
+	// TokenExpiry controls how far ahead TokenDetails reports expires_at.
+	// Defaults to 1 hour from now.
 	TokenExpiry time.Duration
 
 	// AuthCallCount tracks the number of Auth calls (for refresh tests).
@@ -151,8 +154,18 @@ func (m *MockAuthServer) SubscribeJwtRenewal(req *auth.SubscribeJwtRenewalReques
 }
 
 // TokenDetails returns the configured account IDs.
-func (m *MockAuthServer) TokenDetails(_ context.Context, _ *auth.TokenDetailsRequest) (*auth.TokenDetailsResponse, error) {
+//
+// Like the real Trade API, it rejects calls that carry an Authorization header:
+// the session token belongs in the request body only, and sending both makes the
+// server answer InvalidArgument "Token is invalid or malformed".
+func (m *MockAuthServer) TokenDetails(ctx context.Context, _ *auth.TokenDetailsRequest) (*auth.TokenDetailsResponse, error) {
+	if md, ok := metadata.FromIncomingContext(ctx); ok && len(md.Get("authorization")) > 0 {
+		return nil, status.Error(codes.InvalidArgument, "Token is invalid or malformed. See: https://api.finam.ru/docs/rest/#authservice_auth")
+	}
+	now := time.Now()
 	return &auth.TokenDetailsResponse{
 		AccountIds: m.AccountIDs,
+		CreatedAt:  timestamppb.New(now),
+		ExpiresAt:  timestamppb.New(now.Add(m.TokenExpiry)),
 	}, nil
 }
