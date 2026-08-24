@@ -3,7 +3,7 @@ module finam-terminal
 go 1.26.0
 
 require (
-	github.com/FinamWeb/finam-trade-api/go v0.0.0-20260707135128-ee013ef14834
+	github.com/FinamWeb/finam-trade-api/go v0.0.0-20260813094515-ac0abddcd07d
 	github.com/gdamore/tcell/v2 v2.13.8
 	github.com/joho/godotenv v1.5.1
 	github.com/rivo/tview v0.42.0
