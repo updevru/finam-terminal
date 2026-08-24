@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Realtime Quotes**: quotes for the active account (and an open instrument profile) now arrive over the `SubscribeQuote` gRPC stream instead of a 5-second poll per position; the stream manager reconnects with backoff, resubscribes when the symbol set changes, and merges incremental updates using the 2.19.0 `is_data_snapshot` flag (`trade_lot_and_realtime_quotes`).
+- **Quote Polling Fallback**: if the stream drops, the next 5-second tick resumes polling automatically; inactive accounts and chart bars keep polling as before (`trade_lot_and_realtime_quotes`).
+- **Trade Lot Size**: `GetAssetParams.trade_lot_size` (2.18.1) is now the primary lot size for order sizing, shown as `Trade Lot` in the profile Trading section and in the order modal label `Lots (size - N)` (`trade_lot_and_realtime_quotes`).
+
+### Changed
+- **Finam Trade API SDK** updated to commit `ac0abdd` (2026-08-13), covering releases 2.18.0–2.19.0 (`trade_lot_and_realtime_quotes`).
+- **Lot Resolution**: two-tier cache — the trade lot from `GetAssetParams` wins over the asset lot from `GetAsset`, with a negative cache entry when the API reports no trade lot; positions, the order modal, the close modal, `PlaceOrder` and `PlaceSLTPOrder` all read the same resolved value (`trade_lot_and_realtime_quotes`).
+
 ## [v0.13.0] - 2026-08-24
 
 ### Added
