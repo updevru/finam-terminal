@@ -1,0 +1,9 @@
+{
+  "id": "trade_lot_and_realtime_quotes_20260824",
+  "title": "Finam API 2.18.1/2.19.0 — корректный лот заявок (trade_lot_size) и realtime-котировки (SubscribeQuote)",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-08-24T00:00:00Z",
+  "phases": 7,
+  "total_tasks": 22
+}
