@@ -56,7 +56,7 @@
   - Acceptance: нет ошибок и предупреждений, линтер чистый
 - [x] Task: Документация — CLAUDE.md (новый пункт «Realtime Quotes (SubscribeQuote)», TradeLotSize у GetAssetParams, стрим-мок в testserver, обновлённый список интеграционных файлов), CHANGELOG.md (2.18.1/2.19.0), README.md (29d364a)
   - Acceptance: документация соответствует реализации
-- [ ] Task: Руководство пользователя `docs/user_manual/` — profile.md (строка Trade Lot), trading.md (источник лота в модалке заявки), positions.md (realtime-обновление котировок и фоллбек на поллинг), при необходимости index.md
+- [x] Task: Руководство пользователя `docs/user_manual/` — profile.md (строка Trade Lot), trading.md (источник лота в модалке заявки), positions.md (realtime-обновление котировок и фоллбек на поллинг), при необходимости index.md (f414651)
   - Acceptance: разделы в стиле существующего мануала
 - [ ] Task: (Ручной смоук) Реальный ключ: `Trade Lot` в профиле; `[INFO] Quote stream` up в логе; колонка Value обновляется чаще 5 с; обрыв сети → down-лог + продолжение поллингом → восстановление стрима; тестовая заявка: объём у брокера = «штукам» модалки
   - Acceptance: пользователь подтверждает поведение
