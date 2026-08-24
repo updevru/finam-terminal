@@ -26,8 +26,13 @@ import (
 // mockMarketDataServiceClient is a manual mock for marketdata.MarketDataServiceClient
 type mockMarketDataServiceClient struct {
 	marketdata.MarketDataServiceClient
-	LastQuoteFunc func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error)
-	BarsFunc      func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error)
+	LastQuoteFunc      func(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error)
+	BarsFunc           func(ctx context.Context, in *marketdata.BarsRequest, opts ...grpc.CallOption) (*marketdata.BarsResponse, error)
+	SubscribeQuoteFunc func(ctx context.Context, in *marketdata.SubscribeQuoteRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[marketdata.SubscribeQuoteResponse], error)
+}
+
+func (m *mockMarketDataServiceClient) SubscribeQuote(ctx context.Context, in *marketdata.SubscribeQuoteRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[marketdata.SubscribeQuoteResponse], error) {
+	return m.SubscribeQuoteFunc(ctx, in, opts...)
 }
 
 func (m *mockMarketDataServiceClient) LastQuote(ctx context.Context, in *marketdata.QuoteRequest, opts ...grpc.CallOption) (*marketdata.QuoteResponse, error) {
