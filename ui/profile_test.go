@@ -279,3 +279,49 @@ func TestSessionDisplayName(t *testing.T) {
 		}
 	}
 }
+
+// TestProfilePanel_TradeLotRow verifies that the Trading section shows the
+// broker's trade lot size (Trade API 2.18.1) only when the API reports one.
+func TestProfilePanel_TradeLotRow(t *testing.T) {
+	tests := []struct {
+		name         string
+		tradeLotSize int64
+		wantRow      bool
+	}{
+		{name: "reported", tradeLotSize: 5, wantRow: true},
+		{name: "absent", tradeLotSize: 0, wantRow: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			panel := NewProfilePanel(tview.NewApplication())
+			panel.Update(&models.InstrumentProfile{
+				Symbol: "SBER@TQBR",
+				Details: &models.AssetDetails{
+					Name:    "Сбербанк",
+					Type:    "Stock",
+					LotSize: "10",
+				},
+				Params: &models.AssetParams{
+					IsTradable:   true,
+					Longable:     "Available",
+					Shortable:    "Available",
+					TradeLotSize: tt.tradeLotSize,
+				},
+			})
+
+			text := panel.InfoPanel.GetText(false)
+			hasRow := strings.Contains(text, "Trade Lot")
+
+			switch {
+			case tt.wantRow && !hasRow:
+				t.Error("Trading section should show the Trade Lot row when the API reports one")
+			case !tt.wantRow && hasRow:
+				t.Error("Trading section should omit the Trade Lot row when trade_lot_size is 0")
+			}
+			if tt.wantRow && !strings.Contains(text, "5") {
+				t.Error("Trade Lot row should show the value 5")
+			}
+		})
+	}
+}

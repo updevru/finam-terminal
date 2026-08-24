@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"finam-terminal/models"
@@ -198,6 +199,11 @@ func (p *ProfilePanel) renderInfoPanel() {
 		writeField(&sb, "Tradable", tradable)
 		writeField(&sb, "Long", t.Longable)
 		writeField(&sb, "Short", t.Shortable)
+		// trade_lot_size is the lot the broker sizes orders by; 0 means the API
+		// has no value and the asset lot from Details applies.
+		if t.TradeLotSize > 0 {
+			writeField(&sb, "Trade Lot", strconv.FormatInt(t.TradeLotSize, 10))
+		}
 		if t.LongRiskRate != "" && t.LongRiskRate != "N/A" {
 			writeField(&sb, "Long Risk", t.LongRiskRate)
 		}
