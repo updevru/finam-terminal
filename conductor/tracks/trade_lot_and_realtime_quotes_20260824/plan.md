@@ -38,7 +38,7 @@
   - Acceptance: тесты компилируются и падают
 - [x] Task: (Green) `StartQuoteStream`/`SetQuoteSymbols`/`runQuoteStream`/`getStreamContext` (без таймаута, свежий токен на (пере)подписку)/`normalizeSymbols`; переиспользовать `sleepOrDone`/`nextBackoff`; `Close()` + `quoteCancel` (4ee0e54)
   - Acceptance: все 7 интеграционных сценариев зелёные; race-детектор чист
-- [ ] Task: Unit-тесты: `normalizeSymbols` (фильтр `@`, дедуп, сортировка) + переподписка через `fakeQuoteStream` (клон `fakeJwtRenewalStream`)
+- [x] Task: Unit-тесты: `normalizeSymbols` (фильтр `@`, дедуп, сортировка) + переподписка через `fakeQuoteStream` (клон `fakeJwtRenewalStream`) (39fbaf3)
   - Acceptance: unit-тесты зелёные без bufconn
 
 ## Phase 6: Стриминг — потребление в UI и фоллбек
