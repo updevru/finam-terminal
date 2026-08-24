@@ -135,3 +135,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/sdk_update_new_api_keys_20260712/spec.md](./tracks/sdk_update_new_api_keys_20260712/spec.md)*
 *Plan: [./tracks/sdk_update_new_api_keys_20260712/plan.md](./tracks/sdk_update_new_api_keys_20260712/plan.md)*
 *Phases: 4 | Tasks: 13*
+
+
+---
+
+
+- [ ] **Track: Интеграция данных Finam API 2.16/2.17 — НКД сделок, связь заявок и календари корпоративных действий**
+
+*Link: [./tracks/corporate_actions_and_trade_enrichment_20260713/](./tracks/corporate_actions_and_trade_enrichment_20260713/)*
+*Spec: [./tracks/corporate_actions_and_trade_enrichment_20260713/spec.md](./tracks/corporate_actions_and_trade_enrichment_20260713/spec.md)*
+*Plan: [./tracks/corporate_actions_and_trade_enrichment_20260713/plan.md](./tracks/corporate_actions_and_trade_enrichment_20260713/plan.md)*
+*Phases: 5 | Tasks: 21*
