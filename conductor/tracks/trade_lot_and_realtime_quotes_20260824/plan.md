@@ -26,7 +26,7 @@
   - Acceptance: модалка со всех трёх путей открытия показывает trade-лот; `apply` не трогает модалку, открытую уже на другом инструменте
 
 ## Phase 4: Стриминг — testserver + чистое ядро
-- [ ] Task: `MockMarketDataServer.SubscribeQuote` (QuoteStreamItem{Quotes/StreamErr/Err}, QuoteStreamQueue cap 100, QuoteStreamCalled, QuoteStreamCallCount, LastQuoteStreamSymbols, SubscribeQuoteOverride; select на ctx.Done/очередь) + `DefaultStreamQuote(symbol, snapshot)` в testdata.go
+- [x] Task: `MockMarketDataServer.SubscribeQuote` (QuoteStreamItem{Quotes/StreamErr/Err}, QuoteStreamQueue cap 100, QuoteStreamCalled, QuoteStreamCallCount, LastQuoteStreamSymbols, SubscribeQuoteOverride; select на ctx.Done/очередь) + `DefaultStreamQuote(symbol, snapshot)` в testdata.go (53c5d3d)
   - Acceptance: мок компилируется, сервер стартует; очередь управляет стримом; символы запроса фиксируются
 - [ ] Task: (Red) Тесты `mergeQuote` (снепшот затирает неприсланное инкрементом поле; инкремент сохраняет Bid при обновлении Last; первое сообщение без флага = полное состояние) и `quoteToModel` (nil-поля → "N/A")
   - Acceptance: тесты компилируются и падают
