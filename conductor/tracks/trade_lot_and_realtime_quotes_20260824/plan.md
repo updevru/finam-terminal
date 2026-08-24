@@ -12,7 +12,7 @@
   - Acceptance: тесты компилируются и падают, фиксируя маппинг и приоритет
 - [x] Task: (Green) `models.AssetParams.TradeLotSize int64`; маппинг в `GetAssetParams` (api/client.go:1503-1567) + `storeTradeLotSize`; `tradeLotCache` в `Client`/`newClientFromConn`; `lotSizeLocked` + рефакторинг `GetLotSize` (df6b846)
   - Acceptance: тесты предыдущей задачи зелёные; существующие тесты лотов не сломаны
-- [ ] Task: (Red) Падающие тесты холодного пути и заявок: `fetchLotSize` наполняет оба уровня; повторный вызов — 0 RPC (счётчики мока, негативный кэш); ошибка `GetAssetParams` не мешает asset-лоту и повторяется при следующем промахе; `PlaceOrder`/`PlaceSLTPOrder` умножают на trade-лот (2 лота → Quantity "10")
+- [x] Task: (Red) Падающие тесты холодного пути и заявок: `fetchLotSize` наполняет оба уровня; повторный вызов — 0 RPC (счётчики мока, негативный кэш); ошибка `GetAssetParams` не мешает asset-лоту и повторяется при следующем промахе; `PlaceOrder`/`PlaceSLTPOrder` умножают на trade-лот (2 лота → Quantity "10") (9cff832)
   - Acceptance: тесты компилируются и падают
 - [ ] Task: (Green) Вторая ветка в `fetchLotSize` (вызов `GetAssetParams`, запись включая 0); расширенное miss-условие в `getFullSymbol` (:337, :346-349); `GetAccountDetails` → `lotSizeLocked` внутри удерживаемого RLock
   - Acceptance: тесты зелёные; race-детектор чист (нет вложенного RLock)
