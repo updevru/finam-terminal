@@ -170,6 +170,7 @@ func TestLoadAssetCache_LogsGRPCError(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 		securityCache:       nil,
 	}
@@ -378,6 +379,9 @@ func TestGetQuotes_LogsGRPCError(t *testing.T) {
 		marketDataClient: mockMarketData,
 		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
 		assetLotCache:    map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 	}
 
 	_, _ = client.GetQuotes("acc1", []string{"SBER"})
@@ -410,6 +414,9 @@ func TestGetSnapshots_LogsGRPCError(t *testing.T) {
 		marketDataClient: mockMarketData,
 		assetMicCache:    map[string]string{"GAZP": "GAZP@TQBR"},
 		assetLotCache:    map[string]float64{"GAZP": 1},
+		tradeLotCache: map[string]float64{
+			"GAZP": 0,
+		},
 	}
 
 	_, _ = client.GetSnapshots("acc1", []string{"GAZP"})
@@ -441,6 +448,9 @@ func TestGetBars_LogsGRPCError(t *testing.T) {
 		},
 		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
 		assetLotCache: map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 	}
 
 	now := time.Now()
@@ -493,6 +503,7 @@ func TestGetFullSymbol_LogsGRPCError(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -527,6 +538,7 @@ func TestFetchLotSize_LogsGRPCError(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -558,9 +570,12 @@ func TestGetAssetInfo_LogsGRPCError(t *testing.T) {
 	}
 
 	client := &Client{
-		assetsClient:        mockAssets,
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 1},
+		assetsClient:  mockAssets,
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -612,8 +627,11 @@ func TestGetAssetParams_LogsGRPCError(t *testing.T) {
 				return nil, grpcstatus.Error(codes.PermissionDenied, "no access")
 			},
 		},
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 1},
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -701,6 +719,10 @@ func TestPlaceOrder_LogsGRPCError(t *testing.T) {
 		ordersClient:  mockOrders,
 		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
 		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+		tradeLotCache: map[string]float64{
+			"SBER":      0,
+			"SBER@TQBR": 0,
+		},
 	}
 
 	_, err := client.PlaceOrder("acc1", "SBER", "Buy", 5, nil)

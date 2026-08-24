@@ -64,14 +64,23 @@ func TestIntegration_GetLotSize_CacheLookup(t *testing.T) {
 	// Trigger lot size fetch
 	_, _ = client.GetQuotes("ACC001", []string{"SBER"})
 
-	// Lookup by ticker
+	// Lookup by ticker. The fixtures serve an asset lot of 10 and a trade lot
+	// of 5, and the trade lot is what the broker sizes orders by.
 	lot := client.GetLotSize("SBER")
 	if lot == 0 {
 		// Try full symbol
 		lot = client.GetLotSize("SBER@TQBR")
 	}
-	if lot != 10 {
-		t.Errorf("expected lot size 10, got %v", lot)
+	if lot != 5 {
+		t.Errorf("expected trade lot size 5, got %v", lot)
+	}
+
+	// The asset lot tier is still populated underneath.
+	client.assetMutex.RLock()
+	assetLot := client.assetLotCache["SBER"]
+	client.assetMutex.RUnlock()
+	if assetLot != 10 {
+		t.Errorf("expected asset lot size 10, got %v", assetLot)
 	}
 }
 

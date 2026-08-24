@@ -331,15 +331,17 @@ func (c *Client) loadAssetCache() error {
 	return nil
 }
 
-// getFullSymbol converts a ticker to full symbol with MIC
+// getFullSymbol converts a ticker to full symbol with MIC, making sure both lot
+// tiers (asset lot and trade lot) are cached for it.
 func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	// First check local cache
 	c.assetMutex.RLock()
 	if strings.Contains(ticker, "@") {
 		_, hasLot := c.assetLotCache[ticker]
+		_, hasTradeLot := c.tradeLotCache[ticker]
 		c.assetMutex.RUnlock()
-		if !hasLot {
-			// Full symbol provided but lot size not cached — fetch via GetAsset
+		if !hasLot || !hasTradeLot {
+			// Full symbol provided but lot sizes not cached — fetch them
 			c.fetchLotSize(ticker, accountID)
 		}
 		return ticker
@@ -349,23 +351,50 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	if !hasLot {
 		_, hasLot = c.assetLotCache[fullSymbol]
 	}
+	_, hasTradeLot := c.tradeLotCache[ticker]
+	if !hasTradeLot {
+		_, hasTradeLot = c.tradeLotCache[fullSymbol]
+	}
 
-	if hasSymbol && hasLot {
+	if hasSymbol && hasLot && hasTradeLot {
 		c.assetMutex.RUnlock()
 		return fullSymbol
 	}
 	c.assetMutex.RUnlock()
 
 	// Fallback: Fetch specific asset from API
-	log.Printf("[DEBUG] Cache miss (symbol or lot) for ticker: %s. hasSymbol=%v, hasLot=%v", ticker, hasSymbol, hasLot)
+	log.Printf("[DEBUG] Cache miss (symbol or lot) for ticker: %s. hasSymbol=%v, hasLot=%v, hasTradeLot=%v", ticker, hasSymbol, hasLot, hasTradeLot)
 
+	resolved := fullSymbol
+	if !hasSymbol || !hasLot {
+		fetchSymbol := ticker
+		if hasSymbol && fullSymbol != "" {
+			fetchSymbol = fullSymbol
+		}
+		if apiSymbol := c.resolveAssetLot(ticker, fetchSymbol, accountID); apiSymbol != "" {
+			resolved = apiSymbol
+		}
+	}
+
+	if resolved == "" {
+		return ticker // Return original if failed and not in cache
+	}
+
+	// The trade lot is an independent cache tier: resolving the MIC and the
+	// asset lot says nothing about it.
+	if !hasTradeLot {
+		c.fetchTradeLotSize(resolved, accountID)
+	}
+
+	return resolved
+}
+
+// resolveAssetLot fetches an instrument via GetAsset and caches its MIC and
+// asset lot size. It returns the resolved full symbol, or "" when the asset
+// could not be resolved.
+func (c *Client) resolveAssetLot(ticker, fetchSymbol, accountID string) string {
 	ctx, cancel := c.getContext()
 	defer cancel()
-
-	fetchSymbol := ticker
-	if hasSymbol && fullSymbol != "" {
-		fetchSymbol = fullSymbol
-	}
 
 	// Pass AccountId to GetAssetRequest
 	resp, err := c.assetsClient.GetAsset(ctx, &assets.GetAssetRequest{
@@ -374,46 +403,51 @@ func (c *Client) getFullSymbol(ticker string, accountID string) string {
 	})
 	if err != nil {
 		c.logGRPCError("AssetsService", "GetAsset", err, fmt.Sprintf("Symbol: %s", fetchSymbol), fmt.Sprintf("AccountId: %s", accountID))
-		if hasSymbol {
-			return fullSymbol
-		}
-		return ticker // Return original if failed and not in cache
+		return ""
 	}
 
-	if resp.Ticker != "" && resp.Board != "" {
-		fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
-		lotSizeStr := formatDecimal(resp.LotSize)
-		lotSize, parseErr := strconv.ParseFloat(strings.ReplaceAll(lotSizeStr, ",", "."), 64)
-		if parseErr != nil {
-			log.Printf("[WARN] Failed to parse lot size '%s' for %s: %v", lotSizeStr, ticker, parseErr)
-		}
-
-		c.assetMutex.Lock()
-		c.assetMicCache[ticker] = fullSymbol
-		c.assetLotCache[ticker] = lotSize
-		c.assetLotCache[fullSymbol] = lotSize // Also cache by full symbol
-		c.assetMutex.Unlock()
-
-		log.Printf("[DEBUG] Resolved %s via API: %s (Lot: %v, Raw: %s)", ticker, fullSymbol, lotSize, lotSizeStr)
-		return fullSymbol
+	if resp.Ticker == "" || resp.Board == "" {
+		return ""
 	}
 
-	if hasSymbol {
-		return fullSymbol
+	fullSymbol := fmt.Sprintf("%s@%s", resp.Ticker, resp.Board)
+	lotSizeStr := formatDecimal(resp.LotSize)
+	lotSize, parseErr := strconv.ParseFloat(strings.ReplaceAll(lotSizeStr, ",", "."), 64)
+	if parseErr != nil {
+		log.Printf("[WARN] Failed to parse lot size '%s' for %s: %v", lotSizeStr, ticker, parseErr)
 	}
-	return ticker
+
+	c.assetMutex.Lock()
+	c.assetMicCache[ticker] = fullSymbol
+	c.assetLotCache[ticker] = lotSize
+	c.assetLotCache[fullSymbol] = lotSize // Also cache by full symbol
+	c.assetMutex.Unlock()
+
+	log.Printf("[DEBUG] Resolved %s via API: %s (Lot: %v, Raw: %s)", ticker, fullSymbol, lotSize, lotSizeStr)
+	return fullSymbol
 }
 
-// fetchLotSize fetches lot size for a full symbol (ticker@mic) via GetAsset and caches it
+// fetchLotSize makes sure both lot tiers are cached for a full symbol
+// (ticker@mic): the asset lot via GetAsset and the trade lot via GetAssetParams.
+// The tiers are independent — a failure in one does not block the other.
 func (c *Client) fetchLotSize(symbol string, accountID string) {
 	// Double-check under lock to avoid duplicate API calls from concurrent goroutines
 	c.assetMutex.RLock()
-	if _, ok := c.assetLotCache[symbol]; ok {
-		c.assetMutex.RUnlock()
-		return
-	}
+	_, hasLot := c.assetLotCache[symbol]
+	_, hasTradeLot := c.tradeLotCache[symbol]
 	c.assetMutex.RUnlock()
 
+	if !hasLot {
+		c.fetchAssetLotSize(symbol, accountID)
+	}
+	if !hasTradeLot {
+		c.fetchTradeLotSize(symbol, accountID)
+	}
+}
+
+// fetchAssetLotSize fetches the asset lot size (GetAsset.lot_size) for a full
+// symbol and caches it by full symbol and ticker.
+func (c *Client) fetchAssetLotSize(symbol string, accountID string) {
 	ctx, cancel := c.getContext()
 	defer cancel()
 
@@ -442,6 +476,38 @@ func (c *Client) fetchLotSize(symbol string, accountID string) {
 		c.assetMutex.Unlock()
 		log.Printf("[DEBUG] Fetched lot size for %s: %v", symbol, lotSize)
 	}
+}
+
+// fetchTradeLotSize fetches the trade lot size (GetAssetParams.trade_lot_size,
+// Trade API 2.18.1) for a full symbol and caches it, including a zero value.
+// A failed call is not cached, so the next miss retries — symmetric with the
+// GetAsset tier.
+//
+// GetAssetParams is account-scoped while the cache is keyed by symbol: the trade
+// lot is treated as a property of the instrument and cached under whichever
+// account touched it first.
+func (c *Client) fetchTradeLotSize(symbol string, accountID string) {
+	c.assetMutex.RLock()
+	_, cached := c.tradeLotCache[symbol]
+	c.assetMutex.RUnlock()
+	if cached {
+		return
+	}
+
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	resp, err := c.assetsClient.GetAssetParams(ctx, &assets.GetAssetParamsRequest{
+		Symbol:    symbol,
+		AccountId: accountID,
+	})
+	if err != nil {
+		c.logGRPCError("AssetsService", "GetAssetParams", err, fmt.Sprintf("Symbol: %s", symbol), fmt.Sprintf("AccountId: %s", accountID))
+		return
+	}
+
+	c.storeTradeLotSize(symbol, float64(resp.TradeLotSize))
+	log.Printf("[DEBUG] Fetched trade lot size for %s: %d", symbol, resp.TradeLotSize)
 }
 
 // storeTradeLotSize caches the trade lot size for a full symbol and its ticker.
@@ -857,7 +923,8 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 		}
 
 		c.assetMutex.RLock()
-		lotSize := c.assetLotCache[ticker]
+		// RWMutex is not reentrant: resolve under the lock we already hold.
+		lotSize := c.lotSizeLocked(ticker)
 		name := c.instrumentNameCache[ticker]
 		if name == "" {
 			name = c.instrumentNameCache[fullSymbol]

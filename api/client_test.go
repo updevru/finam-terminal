@@ -56,6 +56,12 @@ func (m *mockAssetsServiceClient) GetAsset(ctx context.Context, in *assets.GetAs
 }
 
 func (m *mockAssetsServiceClient) GetAssetParams(ctx context.Context, in *assets.GetAssetParamsRequest, opts ...grpc.CallOption) (*assets.GetAssetParamsResponse, error) {
+	// Resolving a symbol warms the trade lot cache, so tests that only care
+	// about other calls may leave GetAssetParamsFunc unset. An empty response
+	// means "no trade lot" and keeps the asset lot in charge.
+	if m.GetAssetParamsFunc == nil {
+		return &assets.GetAssetParamsResponse{Symbol: in.Symbol}, nil
+	}
 	return m.GetAssetParamsFunc(ctx, in, opts...)
 }
 
@@ -173,6 +179,9 @@ func TestPlaceOrder_Success(t *testing.T) {
 		assetLotCache: map[string]float64{
 			"SBER": 1,
 		},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 	}
 
 	txID, err := client.PlaceOrder("test-acc", "SBER", "Buy", 10, nil)
@@ -199,6 +208,9 @@ func TestPlaceOrder_Error(t *testing.T) {
 		},
 		assetLotCache: map[string]float64{
 			"SBER": 1,
+		},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
 		},
 	}
 
@@ -229,6 +241,9 @@ func TestClosePosition_Success(t *testing.T) {
 		},
 		assetLotCache: map[string]float64{
 			"SBER": 1,
+		},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
 		},
 	}
 
@@ -276,6 +291,9 @@ func TestGetAccountDetails(t *testing.T) {
 		},
 		assetLotCache: map[string]float64{
 			"GAZP": 1,
+		},
+		tradeLotCache: map[string]float64{
+			"GAZP": 0,
 		},
 		instrumentNameCache: map[string]string{
 			"GAZP":      "Газпром",
@@ -470,6 +488,9 @@ func TestGetSnapshots(t *testing.T) {
 		},
 		assetLotCache: map[string]float64{
 			"SBER": 1,
+		},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
 		},
 	}
 
@@ -696,6 +717,7 @@ func TestGetAccountDetails_LocalTimezone(t *testing.T) {
 		accountsClient:      mockAccounts,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -783,6 +805,7 @@ func TestLotSizeRetrieval(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -832,6 +855,7 @@ func TestGetAccountDetails_LotSize(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -872,6 +896,10 @@ func TestPlaceOrder_LotMultiplication(t *testing.T) {
 			"SBER":      10,
 			"SBER@TQBR": 10,
 		},
+		tradeLotCache: map[string]float64{
+			"SBER":      0,
+			"SBER@TQBR": 0,
+		},
 	}
 
 	// Place order for 1 lot
@@ -888,6 +916,7 @@ func TestInstrumentNameCache(t *testing.T) {
 	client := &Client{
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -931,6 +960,7 @@ func TestLoadAssetCache_PopulatesInstrumentNames(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 		securityCache:       make([]models.SecurityInfo, 0),
 	}
@@ -973,6 +1003,9 @@ func TestGetQuotes_LocalTimezone(t *testing.T) {
 		marketDataClient: mockMarketData,
 		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
 		assetLotCache:    map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 	}
 
 	quotes, err := client.GetQuotes("acc1", []string{"SBER"})
@@ -1011,6 +1044,9 @@ func TestGetSnapshots_LocalTimezone(t *testing.T) {
 		marketDataClient: mockMarketData,
 		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
 		assetLotCache:    map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 	}
 
 	quotes, err := client.GetSnapshots("acc1", []string{"SBER"})
@@ -1049,6 +1085,10 @@ func TestPlaceOrder_LotMultiplication_MultipleLots(t *testing.T) {
 		assetLotCache: map[string]float64{
 			"GAZP":      10,
 			"GAZP@TQBR": 10,
+		},
+		tradeLotCache: map[string]float64{
+			"GAZP":      0,
+			"GAZP@TQBR": 0,
 		},
 	}
 
@@ -1232,9 +1272,12 @@ func TestCancelOrder_Error(t *testing.T) {
 
 func newTestOrderClient(mock *mockOrdersServiceClient) *Client {
 	return &Client{
-		ordersClient:        mock,
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 1},
+		ordersClient:  mock,
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 1},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 }
@@ -1469,9 +1512,12 @@ func TestGetBars(t *testing.T) {
 	}
 
 	client := &Client{
-		marketDataClient:    mockMD,
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 10},
+		marketDataClient: mockMD,
+		assetMicCache:    map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:    map[string]float64{"SBER": 10},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1513,9 +1559,12 @@ func TestGetAssetInfo(t *testing.T) {
 	}
 
 	client := &Client{
-		assetsClient:        mockAssets,
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 10},
+		assetsClient:  mockAssets,
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 10},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1555,9 +1604,12 @@ func TestGetAssetParams(t *testing.T) {
 	}
 
 	client := &Client{
-		assetsClient:        mockAssets,
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 10},
+		assetsClient:  mockAssets,
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 10},
+		tradeLotCache: map[string]float64{
+			"SBER": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1601,6 +1653,7 @@ func TestGetSchedule(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       make(map[string]string),
 		assetLotCache:       make(map[string]float64),
+		tradeLotCache:       make(map[string]float64),
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1624,8 +1677,12 @@ func TestGetSchedule(t *testing.T) {
 
 func TestGetFullSymbol_CacheHit(t *testing.T) {
 	client := &Client{
-		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache:       map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+		tradeLotCache: map[string]float64{
+			"SBER":      0,
+			"SBER@TQBR": 0,
+		},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1650,6 +1707,7 @@ func TestGetFullSymbol_AlreadyFullSymbol(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       map[string]string{},
 		assetLotCache:       map[string]float64{},
+		tradeLotCache:       map[string]float64{},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1675,6 +1733,7 @@ func TestGetFullSymbol_CacheMissFallback(t *testing.T) {
 		assetsClient:        mockAssets,
 		assetMicCache:       map[string]string{}, // empty cache
 		assetLotCache:       map[string]float64{},
+		tradeLotCache:       map[string]float64{},
 		instrumentNameCache: make(map[string]string),
 	}
 
