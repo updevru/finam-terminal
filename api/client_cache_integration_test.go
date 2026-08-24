@@ -118,3 +118,89 @@ func TestIntegration_UpdateInstrumentCache(t *testing.T) {
 		t.Errorf("expected 'Test Instrument' by full symbol, got %q", name)
 	}
 }
+
+func TestIntegration_EnsureLotSize_WarmsColdSymbol(t *testing.T) {
+	client, _ := setupTestServer(t)
+
+	// Nothing has touched SBER yet: both tiers are cold.
+	client.assetMutex.RLock()
+	_, hasTradeLot := client.tradeLotCache["SBER"]
+	client.assetMutex.RUnlock()
+	if hasTradeLot {
+		t.Fatal("expected the trade lot cache to be cold before EnsureLotSize")
+	}
+
+	if lot := client.EnsureLotSize("ACC001", "SBER"); lot != 5 {
+		t.Errorf("EnsureLotSize(SBER) = %v, want 5 (trade lot)", lot)
+	}
+
+	client.assetMutex.RLock()
+	tradeLot := client.tradeLotCache["SBER"]
+	assetLot := client.assetLotCache["SBER"]
+	client.assetMutex.RUnlock()
+
+	if tradeLot != 5 {
+		t.Errorf("tradeLotCache[SBER] = %v, want 5", tradeLot)
+	}
+	if assetLot != 10 {
+		t.Errorf("assetLotCache[SBER] = %v, want 10", assetLot)
+	}
+}
+
+func TestIntegration_PositionsWarmTradeLot(t *testing.T) {
+	client, _ := setupTestServer(t)
+
+	_, positions, err := client.GetAccountDetails("ACC001")
+	if err != nil {
+		t.Fatalf("GetAccountDetails error: %v", err)
+	}
+	if len(positions) == 0 {
+		t.Fatal("expected positions for ACC001")
+	}
+
+	for _, pos := range positions {
+		if pos.LotSize != 5 {
+			t.Errorf("position %s: LotSize = %v, want 5 (trade lot)", pos.Symbol, pos.LotSize)
+		}
+	}
+}
+
+func TestIntegration_PlaceOrder_UsesTradeLotSize(t *testing.T) {
+	client, ts := setupTestServer(t)
+
+	if _, err := client.PlaceOrder("ACC001", "SBER", "Buy", 2, nil); err != nil {
+		t.Fatalf("PlaceOrder error: %v", err)
+	}
+
+	ts.Orders.Mu.Lock()
+	defer ts.Orders.Mu.Unlock()
+
+	if len(ts.Orders.RecordedOrders) != 1 {
+		t.Fatalf("expected 1 recorded order, got %d", len(ts.Orders.RecordedOrders))
+	}
+	// 2 lots * trade lot 5 = 10 shares (the asset lot of 10 would give 20).
+	if got := ts.Orders.RecordedOrders[0].Quantity.GetValue(); got != "10" {
+		t.Errorf("recorded order quantity = %q, want \"10\"", got)
+	}
+}
+
+func TestIntegration_GetAssetParams_WarmsTradeLotCache(t *testing.T) {
+	client, _ := setupTestServer(t)
+
+	params, err := client.GetAssetParams("ACC001", "SBER@TQBR")
+	if err != nil {
+		t.Fatalf("GetAssetParams error: %v", err)
+	}
+	if params.TradeLotSize != 5 {
+		t.Errorf("params.TradeLotSize = %d, want 5", params.TradeLotSize)
+	}
+
+	client.assetMutex.RLock()
+	byFull := client.tradeLotCache["SBER@TQBR"]
+	byTicker := client.tradeLotCache["SBER"]
+	client.assetMutex.RUnlock()
+
+	if byFull != 5 || byTicker != 5 {
+		t.Errorf("trade lot cache after profile load: full=%v ticker=%v, want 5 and 5", byFull, byTicker)
+	}
+}

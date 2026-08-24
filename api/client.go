@@ -570,6 +570,18 @@ func (c *Client) GetLotSize(ticker string) float64 {
 	return c.lotSizeLocked(ticker)
 }
 
+// EnsureLotSize resolves a symbol (fetching both lot tiers when they are cold)
+// and returns the lot size to size orders by. It performs network calls on a
+// cache miss, so callers must not run it on the UI thread.
+func (c *Client) EnsureLotSize(accountID, symbol string) float64 {
+	fullSymbol := c.getFullSymbol(symbol, accountID)
+
+	if lot := c.GetLotSize(symbol); lot > 0 {
+		return lot
+	}
+	return c.GetLotSize(fullSymbol)
+}
+
 // GetInstrumentName returns the cached human-readable name for a ticker or full symbol.
 // Returns empty string if not found.
 func (c *Client) GetInstrumentName(key string) string {
