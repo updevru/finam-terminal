@@ -16,7 +16,7 @@
   - Acceptance: тесты компилируются и падают
 - [x] Task: (Green) Вторая ветка в `fetchLotSize` (вызов `GetAssetParams`, запись включая 0); расширенное miss-условие в `getFullSymbol` (:337, :346-349); `GetAccountDetails` → `lotSizeLocked` внутри удерживаемого RLock (47684ee)
   - Acceptance: тесты зелёные; race-детектор чист (нет вложенного RLock)
-- [ ] Task: `EnsureLotSize(accountID, symbol) float64` + интеграционные тесты (client_cache_integration_test.go): холодный символ прогревается через поток позиций, записанное `MockOrdersServer` количество = лоты × 5, профильный `GetAssetParams` греет кэш
+- [x] Task: `EnsureLotSize(accountID, symbol) float64` + интеграционные тесты (client_cache_integration_test.go): холодный символ прогревается через поток позиций, записанное `MockOrdersServer` количество = лоты × 5, профильный `GetAssetParams` греет кэш (f35a939)
   - Acceptance: интеграционные тесты зелёные end-to-end
 
 ## Phase 3: trade_lot_size — UI (профиль + модалки)
