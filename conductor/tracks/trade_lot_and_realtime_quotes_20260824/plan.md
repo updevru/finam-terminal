@@ -44,7 +44,7 @@
 ## Phase 6: Стриминг — потребление в UI и фоллбек
 - [x] Task: (Red) Тесты `computeStreamSymbols` (позиции ∪ профиль, фильтр, дедуп), `flushQuoteInbox` (прямой вызов, upsert в quotes), предиката поллинга (матрица стрим up/down × активный/другой счёт) (a661755)
   - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) `ui/stream.go`: inbox + коалесинг (один QueueUpdateDraw за раз, дроп при закрытом stopChan), `onStreamState` (`streamLive`, `[INFO]`-лог), `computeStreamSymbols`/`recomputeStreamSymbols`; вызовы из `loadDataAsync`/`switchAccount`/`OpenProfileForSymbol`/`CloseProfile`; старт в `Run()`; `APIClient` + мок (`StartQuoteStream`, `SetQuoteSymbols` с захватом)
+- [x] Task: (Green) `ui/stream.go`: inbox + коалесинг (один QueueUpdateDraw за раз, дроп при закрытом stopChan), `onStreamState` (`streamLive`, `[INFO]`-лог), `computeStreamSymbols`/`recomputeStreamSymbols`; вызовы из `loadDataAsync`/`switchAccount`/`OpenProfileForSymbol`/`CloseProfile`; старт в `Run()`; `APIClient` + мок (`StartQuoteStream`, `SetQuoteSymbols` с захватом) (7d657a1)
   - Acceptance: тесты зелёные; захваченные `SetQuoteSymbols` при переключении счёта содержат символы нового счёта
 - [ ] Task: Фоллбек: `skipQuotes` в `loadDataAsync` + сохранение `a.quotes[accountID]` вместо замены пустой картой (ui/data.go:68-72); skip котировки в `refreshProfileQuoteAndBars` при живом стриме (бары остаются)
   - Acceptance: при `streamLive` поллинг не затирает котировки активного счёта; при down следующий тик возобновляет поллинг; тест предиката зелёный
