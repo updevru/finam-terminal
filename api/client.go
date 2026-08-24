@@ -992,22 +992,7 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			continue
 		}
 
-		quotes[fullSymbol] = &models.Quote{
-			Symbol:       fullSymbol,
-			Bid:          formatDecimal(q.Bid),
-			BidSize:      formatDecimal(q.BidSize),
-			Ask:          formatDecimal(q.Ask),
-			AskSize:      formatDecimal(q.AskSize),
-			Last:         formatDecimal(q.Last),
-			LastSize:     formatDecimal(q.LastSize),
-			Volume:       formatDecimal(q.Volume),
-			Open:         formatDecimal(q.Open),
-			High:         formatDecimal(q.High),
-			Low:          formatDecimal(q.Low),
-			Close:        formatDecimal(q.Close),
-			OpenInterest: formatDecimal(q.OpenInterest),
-			Timestamp:    q.Timestamp.AsTime().Local(),
-		}
+		quotes[fullSymbol] = quoteToModel(fullSymbol, q)
 	}
 
 	return quotes, nil
