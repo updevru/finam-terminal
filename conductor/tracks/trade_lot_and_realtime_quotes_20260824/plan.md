@@ -10,7 +10,7 @@
 ## Phase 2: trade_lot_size — модель, маппинг, кэш, заявки (api)
 - [x] Task: (Red) Фикстура `DefaultAssetParams()` +`TradeLotSize: 5` (≠ лоту 10 из `DefaultAssetInfo`) + падающие тесты: маппинг в `GetAssetParams`, приоритет в `GetLotSize` (5 vs 10 → 5), фоллбек при trade=0 → 10 (e57f5fa)
   - Acceptance: тесты компилируются и падают, фиксируя маппинг и приоритет
-- [ ] Task: (Green) `models.AssetParams.TradeLotSize int64`; маппинг в `GetAssetParams` (api/client.go:1503-1567) + `storeTradeLotSize`; `tradeLotCache` в `Client`/`newClientFromConn`; `lotSizeLocked` + рефакторинг `GetLotSize`
+- [x] Task: (Green) `models.AssetParams.TradeLotSize int64`; маппинг в `GetAssetParams` (api/client.go:1503-1567) + `storeTradeLotSize`; `tradeLotCache` в `Client`/`newClientFromConn`; `lotSizeLocked` + рефакторинг `GetLotSize` (df6b846)
   - Acceptance: тесты предыдущей задачи зелёные; существующие тесты лотов не сломаны
 - [ ] Task: (Red) Падающие тесты холодного пути и заявок: `fetchLotSize` наполняет оба уровня; повторный вызов — 0 RPC (счётчики мока, негативный кэш); ошибка `GetAssetParams` не мешает asset-лоту и повторяется при следующем промахе; `PlaceOrder`/`PlaceSLTPOrder` умножают на trade-лот (2 лота → Quantity "10")
   - Acceptance: тесты компилируются и падают
