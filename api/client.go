@@ -55,7 +55,8 @@ type Client struct {
 
 	// Cache for instrument MIC codes
 	assetMicCache       map[string]string  // ticker -> symbol@mic
-	assetLotCache       map[string]float64 // ticker -> lot size
+	assetLotCache       map[string]float64 // ticker -> lot size (GetAsset.lot_size)
+	tradeLotCache       map[string]float64 // ticker -> trade lot size (GetAssetParams.trade_lot_size); 0 = checked, API has none
 	instrumentNameCache map[string]string  // ticker or symbol -> human-readable name
 	securityCache       []models.SecurityInfo
 	assetMutex          sync.RWMutex
@@ -102,6 +103,7 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 		apiToken:               apiToken,
 		assetMicCache:          make(map[string]string),
 		assetLotCache:          make(map[string]float64),
+		tradeLotCache:          make(map[string]float64),
 		instrumentNameCache:    make(map[string]string),
 		securityCache:          make([]models.SecurityInfo, 0),
 	}

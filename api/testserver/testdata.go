@@ -193,11 +193,15 @@ func DefaultAssetInfo(symbol string) *assets.GetAssetResponse {
 }
 
 // DefaultAssetParams returns trading parameters for the given symbol.
+// TradeLotSize is deliberately 5 while DefaultAssetInfo reports LotSize 10, so
+// tests can prove that the trade lot (GetAssetParams.trade_lot_size) wins over
+// the asset lot (GetAsset.lot_size) end to end.
 func DefaultAssetParams(symbol string) *assets.GetAssetParamsResponse {
 	return &assets.GetAssetParamsResponse{
-		Symbol:    symbol,
-		Longable:  &assets.Longable{Value: assets.Longable_AVAILABLE},
-		Shortable: &assets.Shortable{Value: assets.Shortable_AVAILABLE},
+		Symbol:       symbol,
+		Longable:     &assets.Longable{Value: assets.Longable_AVAILABLE},
+		Shortable:    &assets.Shortable{Value: assets.Shortable_AVAILABLE},
+		TradeLotSize: 5,
 	}
 }
 
