@@ -60,6 +60,18 @@ type Client struct {
 	instrumentNameCache map[string]string  // ticker or symbol -> human-readable name
 	securityCache       []models.SecurityInfo
 	assetMutex          sync.RWMutex
+
+	// Realtime quote stream (SubscribeQuote, Trade API 2.19.0)
+	quoteMu          sync.Mutex
+	quoteStarted     bool
+	quoteUp          bool                         // last reported liveness, so onState fires only on change
+	quoteSymbols     []string                     // normalized desired subscription
+	quoteOnQuote     func(models.Quote)           // delivery callback
+	quoteOnState     func(up bool)                // up/down callback, deduplicated
+	quoteCancel      context.CancelFunc           // ends the manager (Close)
+	quoteSubCancel   context.CancelFunc           // ends the current subscription (resubscribe)
+	quoteWake        chan struct{}                // nudges the manager after a symbol change
+	lastStreamQuotes map[string]*marketdata.Quote // last known full state per symbol
 }
 
 // NewClient creates a new Finam API client
@@ -131,6 +143,14 @@ func (c *Client) Close() error {
 	if c.refreshCancel != nil {
 		c.refreshCancel()
 	}
+
+	c.quoteMu.Lock()
+	quoteCancel := c.quoteCancel
+	c.quoteMu.Unlock()
+	if quoteCancel != nil {
+		quoteCancel()
+	}
+
 	if c.conn != nil {
 		return c.conn.Close()
 	}
