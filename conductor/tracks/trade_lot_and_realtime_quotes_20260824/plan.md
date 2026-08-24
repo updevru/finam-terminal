@@ -20,7 +20,7 @@
   - Acceptance: интеграционные тесты зелёные end-to-end
 
 ## Phase 3: trade_lot_size — UI (профиль + модалки)
-- [ ] Task: (Red→Green) Строка `Trade Lot` в секции Trading профиля (ui/profile.go:193-212) при `TradeLotSize > 0` + unit-тест рендера (есть при 5, нет при 0)
+- [x] Task: (Red→Green) Строка `Trade Lot` в секции Trading профиля (ui/profile.go:193-212) при `TradeLotSize > 0` + unit-тест рендера (есть при 5, нет при 0) (cde2f07)
   - Acceptance: тест рендера зелёный; формат согласован с существующими строками секции
 - [ ] Task: `warmLotSizeAsync` в ui/app.go + вызовы в `OpenOrderModalWithTicker` (SetLotSize ПОСЛЕ синхронного GetSnapshots), `OpenOrderModal`, `ShowModifyOrderModal` (пересчёт предзаполненных лотов только при нетронутом поле); `APIClient.EnsureLotSize` + мок; unit-тесты (метка `Lots (size - 5)`, счётчик перечитывания)
   - Acceptance: модалка со всех трёх путей открытия показывает trade-лот; `apply` не трогает модалку, открытую уже на другом инструменте
