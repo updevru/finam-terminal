@@ -89,6 +89,41 @@ func DefaultQuote(symbol string) *marketdata.Quote {
 	return nil
 }
 
+// DefaultStreamQuote returns a quote as SubscribeQuote would deliver it. A
+// snapshot carries the full state and sets IsDataSnapshot; an incremental
+// update carries only Last and Timestamp, like the real stream.
+func DefaultStreamQuote(symbol string, snapshot bool) *marketdata.Quote {
+	ts := timestamppb.New(time.Date(2026, 8, 13, 10, 30, 0, 0, time.UTC))
+
+	if !snapshot {
+		return &marketdata.Quote{
+			Symbol:    symbol,
+			Timestamp: ts,
+			Last:      &decimal.Decimal{Value: "291.00"},
+		}
+	}
+
+	return &marketdata.Quote{
+		Symbol:         symbol,
+		Timestamp:      ts,
+		Ask:            &decimal.Decimal{Value: "290.10"},
+		AskSize:        &decimal.Decimal{Value: "50"},
+		Bid:            &decimal.Decimal{Value: "289.90"},
+		BidSize:        &decimal.Decimal{Value: "100"},
+		Last:           &decimal.Decimal{Value: "290.00"},
+		LastSize:       &decimal.Decimal{Value: "10"},
+		Volume:         &decimal.Decimal{Value: "1500000"},
+		Turnover:       &decimal.Decimal{Value: "435000000"},
+		Open:           &decimal.Decimal{Value: "288.00"},
+		High:           &decimal.Decimal{Value: "292.00"},
+		Low:            &decimal.Decimal{Value: "287.50"},
+		Close:          &decimal.Decimal{Value: "289.00"},
+		Change:         &decimal.Decimal{Value: "1.00"},
+		OpenInterest:   &decimal.Decimal{Value: "0"},
+		IsDataSnapshot: true,
+	}
+}
+
 // DefaultBars returns 5 candlesticks for testing.
 func DefaultBars(symbol string) []*marketdata.Bar {
 	base := time.Date(2026, 4, 1, 10, 0, 0, 0, time.UTC)
