@@ -25,7 +25,7 @@
 - [x] Task: `warmLotSizeAsync` в ui/app.go + вызовы в `OpenOrderModalWithTicker` (SetLotSize ПОСЛЕ синхронного GetSnapshots), `OpenOrderModal`, `ShowModifyOrderModal` (пересчёт предзаполненных лотов только при нетронутом поле); `APIClient.EnsureLotSize` + мок; unit-тесты (метка `Lots (size - 5)`, счётчик перечитывания) (e9517ac)
   - Acceptance: модалка со всех трёх путей открытия показывает trade-лот; `apply` не трогает модалку, открытую уже на другом инструменте
 
-## Phase 4: Стриминг — testserver + чистое ядро
+## Phase 4: Стриминг — testserver + чистое ядро [checkpoint: 53bc1fc]
 - [x] Task: `MockMarketDataServer.SubscribeQuote` (QuoteStreamItem{Quotes/StreamErr/Err}, QuoteStreamQueue cap 100, QuoteStreamCalled, QuoteStreamCallCount, LastQuoteStreamSymbols, SubscribeQuoteOverride; select на ctx.Done/очередь) + `DefaultStreamQuote(symbol, snapshot)` в testdata.go (53c5d3d)
   - Acceptance: мок компилируется, сервер стартует; очередь управляет стримом; символы запроса фиксируются
 - [x] Task: (Red) Тесты `mergeQuote` (снепшот затирает неприсланное инкрементом поле; инкремент сохраняет Bid при обновлении Last; первое сообщение без флага = полное состояние) и `quoteToModel` (nil-поля → "N/A") (da2ea60)
