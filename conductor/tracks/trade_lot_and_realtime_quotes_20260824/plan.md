@@ -30,7 +30,7 @@
   - Acceptance: мок компилируется, сервер стартует; очередь управляет стримом; символы запроса фиксируются
 - [x] Task: (Red) Тесты `mergeQuote` (снепшот затирает неприсланное инкрементом поле; инкремент сохраняет Bid при обновлении Last; первое сообщение без флага = полное состояние) и `quoteToModel` (nil-поля → "N/A") (da2ea60)
   - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) Новый `api/quote_stream.go`: выделить `quoteToModel` из `GetQuotes` (:872-887, чистый рефакторинг) + `mergeQuote` (явный список 14 decimal-полей + Timestamp, non-nil перезапись)
+- [x] Task: (Green) Новый `api/quote_stream.go`: выделить `quoteToModel` из `GetQuotes` (:872-887, чистый рефакторинг) + `mergeQuote` (явный список 14 decimal-полей + Timestamp, non-nil перезапись) (6e88e44)
   - Acceptance: новые тесты зелёные; существующие тесты `GetQuotes` зелёные (регрессионная сетка рефакторинга)
 
 ## Phase 5: Стриминг — менеджер в api.Client
