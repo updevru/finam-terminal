@@ -38,6 +38,9 @@ func setupInputHandlers(app *App) {
 			updateInfoPanel(app)
 			updateStatusBar(app)
 
+			// The stream follows the active account
+			app.recomputeStreamSymbols()
+
 			// Trigger fresh data load for active tab
 			accountID := app.accounts[idx].ID
 			switch app.portfolioView.TabbedView.ActiveTab {

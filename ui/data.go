@@ -88,6 +88,9 @@ func (a *App) loadDataAsync(accountID string) {
 				updatePositionsTable(a)
 				updateInfoPanel(a)
 				updateStatusBar(a)
+
+				// Positions changed, so the stream subscription may need to too.
+				a.recomputeStreamSymbols()
 			}
 		})
 	}()

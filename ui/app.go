@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"finam-terminal/models"
@@ -33,6 +34,10 @@ type APIClient interface {
 	// cache is cold. It performs network calls, so callers must run it off the
 	// event loop.
 	EnsureLotSize(accountID, symbol string) float64
+
+	// Realtime quotes (SubscribeQuote)
+	StartQuoteStream(onQuote func(models.Quote), onState func(up bool))
+	SetQuoteSymbols(symbols []string)
 	GetInstrumentName(key string) string
 
 	// History and Orders
@@ -79,6 +84,12 @@ type App struct {
 	// UI Components
 	header    *tview.TextView
 	statusBar *tview.TextView
+
+	// Realtime quote stream
+	quoteInboxMu     sync.Mutex
+	quoteInbox       map[string]*models.Quote
+	quoteFlushQueued bool
+	streamLive       atomic.Bool
 
 	// Profile overlay
 	profilePanel     *ProfilePanel
@@ -716,6 +727,9 @@ func (a *App) Run() error {
 	// Start background refresh
 	go a.backgroundRefresh()
 
+	// Start realtime quotes; polling stays as the fallback
+	a.startQuoteStream()
+
 	return a.app.SetRoot(a.pages, true).EnableMouse(false).Run()
 }
 
@@ -889,6 +903,8 @@ func (a *App) OpenProfileForSymbol(symbol string) {
 	}
 	a.dataMutex.RUnlock()
 
+	a.recomputeStreamSymbols()
+
 	if accountID != "" {
 		a.loadProfileAsync(accountID, symbol, a.profileTimeframe)
 	}
@@ -898,6 +914,7 @@ func (a *App) OpenProfileForSymbol(symbol string) {
 func (a *App) CloseProfile() {
 	a.profileOpen = false
 	a.profileSymbol = ""
+	a.recomputeStreamSymbols()
 	a.pages.SwitchToPage("main")
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }
