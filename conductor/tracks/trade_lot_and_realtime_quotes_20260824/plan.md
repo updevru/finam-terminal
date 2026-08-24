@@ -54,7 +54,7 @@
 ## Phase 7: Верификация и финализация
 - [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint` (29ab820)
   - Acceptance: нет ошибок и предупреждений, линтер чистый
-- [ ] Task: Документация — CLAUDE.md (новый пункт «Realtime Quotes (SubscribeQuote)», TradeLotSize у GetAssetParams, стрим-мок в testserver, обновлённый список интеграционных файлов), CHANGELOG.md (2.18.1/2.19.0), README.md
+- [x] Task: Документация — CLAUDE.md (новый пункт «Realtime Quotes (SubscribeQuote)», TradeLotSize у GetAssetParams, стрим-мок в testserver, обновлённый список интеграционных файлов), CHANGELOG.md (2.18.1/2.19.0), README.md (29d364a)
   - Acceptance: документация соответствует реализации
 - [ ] Task: Руководство пользователя `docs/user_manual/` — profile.md (строка Trade Lot), trading.md (источник лота в модалке заявки), positions.md (realtime-обновление котировок и фоллбек на поллинг), при необходимости index.md
   - Acceptance: разделы в стиле существующего мануала
