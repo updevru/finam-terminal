@@ -34,7 +34,7 @@
   - Acceptance: новые тесты зелёные; существующие тесты `GetQuotes` зелёные (регрессионная сетка рефакторинга)
 
 ## Phase 5: Стриминг — менеджер в api.Client
-- [ ] Task: (Red) Интеграционные тесты `client_quote_stream_integration_test.go` (7 сценариев: доставка снепшота + up только после первого Recv + символы запроса; мерж инкремента; переподписка при смене символов без down-события, CallCount=2; reconnect после обрыва через ≈1 с backoff; пустой набор не подписывается; Close останавливает; in-band StreamError не рвёт стрим). Синхронизация каналами + таймауты, без sleep
+- [x] Task: (Red) Интеграционные тесты `client_quote_stream_integration_test.go` (7 сценариев: доставка снепшота + up только после первого Recv + символы запроса; мерж инкремента; переподписка при смене символов без down-события, CallCount=2; reconnect после обрыва через ≈1 с backoff; пустой набор не подписывается; Close останавливает; in-band StreamError не рвёт стрим). Синхронизация каналами + таймауты, без sleep (eacd89e)
   - Acceptance: тесты компилируются и падают
 - [ ] Task: (Green) `StartQuoteStream`/`SetQuoteSymbols`/`runQuoteStream`/`getStreamContext` (без таймаута, свежий токен на (пере)подписку)/`normalizeSymbols`; переиспользовать `sleepOrDone`/`nextBackoff`; `Close()` + `quoteCancel`
   - Acceptance: все 7 интеграционных сценариев зелёные; race-детектор чист
