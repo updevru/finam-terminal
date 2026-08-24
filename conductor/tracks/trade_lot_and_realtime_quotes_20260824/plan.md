@@ -42,7 +42,7 @@
   - Acceptance: unit-тесты зелёные без bufconn
 
 ## Phase 6: Стриминг — потребление в UI и фоллбек
-- [ ] Task: (Red) Тесты `computeStreamSymbols` (позиции ∪ профиль, фильтр, дедуп), `flushQuoteInbox` (прямой вызов, upsert в quotes), предиката поллинга (матрица стрим up/down × активный/другой счёт)
+- [x] Task: (Red) Тесты `computeStreamSymbols` (позиции ∪ профиль, фильтр, дедуп), `flushQuoteInbox` (прямой вызов, upsert в quotes), предиката поллинга (матрица стрим up/down × активный/другой счёт) (a661755)
   - Acceptance: тесты компилируются и падают
 - [ ] Task: (Green) `ui/stream.go`: inbox + коалесинг (один QueueUpdateDraw за раз, дроп при закрытом stopChan), `onStreamState` (`streamLive`, `[INFO]`-лог), `computeStreamSymbols`/`recomputeStreamSymbols`; вызовы из `loadDataAsync`/`switchAccount`/`OpenProfileForSymbol`/`CloseProfile`; старт в `Run()`; `APIClient` + мок (`StartQuoteStream`, `SetQuoteSymbols` с захватом)
   - Acceptance: тесты зелёные; захваченные `SetQuoteSymbols` при переключении счёта содержат символы нового счёта
