@@ -33,8 +33,12 @@ func (a *App) loadDataAsync(accountID string) {
 			return
 		}
 
+		// While the stream is live it owns this account's quotes; polling them
+		// would only overwrite fresher data with 5-second-old prices.
+		skipQuotes := a.shouldSkipQuotePolling(accountID)
+
 		var finalQuotes map[string]*models.Quote
-		if len(pos) > 0 {
+		if len(pos) > 0 && !skipQuotes {
 			symbols := make([]string, len(pos))
 			for i, p := range pos {
 				symbols[i] = p.Symbol
@@ -63,37 +67,45 @@ func (a *App) loadDataAsync(accountID string) {
 
 		// Schedule a UI update on the main thread
 		a.app.QueueUpdateDraw(func() {
-			a.dataMutex.Lock()
-			a.positions[accountID] = pos
-			if finalQuotes != nil {
-				a.quotes[accountID] = finalQuotes
-			} else {
-				a.quotes[accountID] = make(map[string]*models.Quote)
-			}
-			// Update account info (Equity, UnrealizedPnL) with fresh data from API
-			if accInfo != nil {
-				for i := range a.accounts {
-					if a.accounts[i].ID == accountID {
-						a.accounts[i].Equity = accInfo.Equity
-						a.accounts[i].UnrealizedPnL = accInfo.UnrealizedPnL
-						break
-					}
-				}
-			}
-			a.dataMutex.Unlock()
-
-			// If the data for the currently viewed account is updated, refresh the view.
-			if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
-				updateAccountList(a)
-				updatePositionsTable(a)
-				updateInfoPanel(a)
-				updateStatusBar(a)
-
-				// Positions changed, so the stream subscription may need to too.
-				a.recomputeStreamSymbols()
-			}
+			a.applyAccountData(accountID, pos, finalQuotes, accInfo)
 		})
 	}()
+}
+
+// applyAccountData writes freshly loaded account data into the app state and
+// refreshes the view. It runs on the event loop.
+func (a *App) applyAccountData(accountID string, pos []models.Position, quotes map[string]*models.Quote, accInfo *models.AccountInfo) {
+	a.dataMutex.Lock()
+	a.positions[accountID] = pos
+	if quotes != nil {
+		a.quotes[accountID] = quotes
+	} else if a.quotes[accountID] == nil {
+		// Keep whatever is already cached: when quote polling was skipped, this
+		// map holds the quotes the stream delivered.
+		a.quotes[accountID] = make(map[string]*models.Quote)
+	}
+	// Update account info (Equity, UnrealizedPnL) with fresh data from API
+	if accInfo != nil {
+		for i := range a.accounts {
+			if a.accounts[i].ID == accountID {
+				a.accounts[i].Equity = accInfo.Equity
+				a.accounts[i].UnrealizedPnL = accInfo.UnrealizedPnL
+				break
+			}
+		}
+	}
+	a.dataMutex.Unlock()
+
+	// If the data for the currently viewed account is updated, refresh the view.
+	if a.selectedIdx < len(a.accounts) && a.accounts[a.selectedIdx].ID == accountID {
+		updateAccountList(a)
+		updatePositionsTable(a)
+		updateInfoPanel(a)
+		updateStatusBar(a)
+
+		// Positions changed, so the stream subscription may need to too.
+		a.recomputeStreamSymbols()
+	}
 }
 
 // loadHistoryAsync loads trade history from API asynchronously
@@ -304,18 +316,22 @@ func (a *App) refreshProfileQuoteAndBars(accountID, symbol string, timeframeIdx 
 		var newBars []models.Bar
 		var mu sync.Mutex
 
-		wg.Go(func() {
-			quotes, err := a.client.GetQuotes(accountID, []string{symbol})
-			if err != nil {
-				return
-			}
-			mu.Lock()
-			for _, q := range quotes {
-				newQuote = q
-				break
-			}
-			mu.Unlock()
-		})
+		// The stream keeps the quote fresh; bars still need polling
+		// (SubscribeBars is out of scope).
+		if !a.shouldSkipQuotePolling(accountID) {
+			wg.Go(func() {
+				quotes, err := a.client.GetQuotes(accountID, []string{symbol})
+				if err != nil {
+					return
+				}
+				mu.Lock()
+				for _, q := range quotes {
+					newQuote = q
+					break
+				}
+				mu.Unlock()
+			})
+		}
 
 		wg.Go(func() {
 			now := time.Now()

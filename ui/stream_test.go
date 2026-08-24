@@ -2,6 +2,7 @@ package ui
 
 import (
 	"testing"
+	"time"
 
 	"finam-terminal/models"
 )
@@ -203,5 +204,90 @@ func TestRecomputeStreamSymbols_UsesActiveAccount(t *testing.T) {
 
 	if len(captured) != 1 || captured[0] != "LKOH@TQBR" {
 		t.Errorf("declared symbols = %v, want [LKOH@TQBR]", captured)
+	}
+}
+
+// TestApplyAccountData_KeepsStreamQuotes verifies that a poll which skipped
+// quotes does not wipe the quotes the stream delivered.
+func TestApplyAccountData_KeepsStreamQuotes(t *testing.T) {
+	app := NewApp(&mockClient{}, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.quotes["acc1"] = map[string]*models.Quote{
+		"SBER@TQBR": {Symbol: "SBER@TQBR", Last: "291"},
+	}
+
+	positions := []models.Position{{Symbol: "SBER@TQBR", Ticker: "SBER", Quantity: "100"}}
+	app.applyAccountData("acc1", positions, nil, nil)
+
+	quotes := app.quotes["acc1"]
+	if quotes["SBER@TQBR"] == nil || quotes["SBER@TQBR"].Last != "291" {
+		t.Error("skipped quote polling must not replace the streamed quotes")
+	}
+}
+
+// TestApplyAccountData_PolledQuotesWin verifies that a normal poll still
+// replaces the quote map wholesale.
+func TestApplyAccountData_PolledQuotesWin(t *testing.T) {
+	app := NewApp(&mockClient{}, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.quotes["acc1"] = map[string]*models.Quote{
+		"SBER@TQBR": {Symbol: "SBER@TQBR", Last: "291"},
+	}
+
+	polled := map[string]*models.Quote{"SBER@TQBR": {Symbol: "SBER@TQBR", Last: "285"}}
+	app.applyAccountData("acc1", nil, polled, nil)
+
+	if got := app.quotes["acc1"]["SBER@TQBR"].Last; got != "285" {
+		t.Errorf("quote last = %q, want 285 from the poller", got)
+	}
+}
+
+// TestLoadDataAsync_SkipsQuotesWhileStreamLive verifies the fallback switch: the
+// poller leaves the active account's quotes alone while the stream is live, and
+// resumes as soon as it drops.
+func TestLoadDataAsync_SkipsQuotesWhileStreamLive(t *testing.T) {
+	quoteCalls := make(chan string, 4)
+	mock := &mockClient{
+		GetAccountDetailsFunc: func(accountID string) (*models.AccountInfo, []models.Position, error) {
+			return &models.AccountInfo{ID: accountID}, []models.Position{{Symbol: "SBER@TQBR"}}, nil
+		},
+		GetQuotesFunc: func(accountID string, symbols []string) (map[string]*models.Quote, error) {
+			quoteCalls <- accountID
+			return map[string]*models.Quote{}, nil
+		},
+	}
+
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}, {ID: "acc2"}})
+	app.selectedIdx = 0
+	app.streamLive.Store(true)
+
+	app.loadDataAsync("acc1")
+	select {
+	case got := <-quoteCalls:
+		t.Fatalf("quotes polled for %q while the stream owns the active account", got)
+	case <-time.After(500 * time.Millisecond):
+	}
+
+	// Inactive accounts keep polling.
+	app.loadDataAsync("acc2")
+	select {
+	case got := <-quoteCalls:
+		if got != "acc2" {
+			t.Errorf("polled quotes for %q, want acc2", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("the inactive account must keep polling quotes")
+	}
+
+	// Stream down: the next tick polls the active account again.
+	app.streamLive.Store(false)
+	app.loadDataAsync("acc1")
+	select {
+	case got := <-quoteCalls:
+		if got != "acc1" {
+			t.Errorf("polled quotes for %q, want acc1", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("polling must resume for the active account once the stream is down")
 	}
 }
