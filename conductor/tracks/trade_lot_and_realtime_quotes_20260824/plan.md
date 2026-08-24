@@ -8,7 +8,7 @@
   - Acceptance: `go build ./...`, `go test ./...`, `go test -tags=integration ./api/...` зелёные; в `go.sum` новая версия; сеть не потребовалась (кэш модулей)
 
 ## Phase 2: trade_lot_size — модель, маппинг, кэш, заявки (api)
-- [ ] Task: (Red) Фикстура `DefaultAssetParams()` +`TradeLotSize: 5` (≠ лоту 10 из `DefaultAssetInfo`) + падающие тесты: маппинг в `GetAssetParams`, приоритет в `GetLotSize` (5 vs 10 → 5), фоллбек при trade=0 → 10
+- [x] Task: (Red) Фикстура `DefaultAssetParams()` +`TradeLotSize: 5` (≠ лоту 10 из `DefaultAssetInfo`) + падающие тесты: маппинг в `GetAssetParams`, приоритет в `GetLotSize` (5 vs 10 → 5), фоллбек при trade=0 → 10 (e57f5fa)
   - Acceptance: тесты компилируются и падают, фиксируя маппинг и приоритет
 - [ ] Task: (Green) `models.AssetParams.TradeLotSize int64`; маппинг в `GetAssetParams` (api/client.go:1503-1567) + `storeTradeLotSize`; `tradeLotCache` в `Client`/`newClientFromConn`; `lotSizeLocked` + рефакторинг `GetLotSize`
   - Acceptance: тесты предыдущей задачи зелёные; существующие тесты лотов не сломаны
