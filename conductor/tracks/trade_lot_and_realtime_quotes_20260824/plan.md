@@ -46,7 +46,7 @@
   - Acceptance: тесты компилируются и падают
 - [x] Task: (Green) `ui/stream.go`: inbox + коалесинг (один QueueUpdateDraw за раз, дроп при закрытом stopChan), `onStreamState` (`streamLive`, `[INFO]`-лог), `computeStreamSymbols`/`recomputeStreamSymbols`; вызовы из `loadDataAsync`/`switchAccount`/`OpenProfileForSymbol`/`CloseProfile`; старт в `Run()`; `APIClient` + мок (`StartQuoteStream`, `SetQuoteSymbols` с захватом) (7d657a1)
   - Acceptance: тесты зелёные; захваченные `SetQuoteSymbols` при переключении счёта содержат символы нового счёта
-- [ ] Task: Фоллбек: `skipQuotes` в `loadDataAsync` + сохранение `a.quotes[accountID]` вместо замены пустой картой (ui/data.go:68-72); skip котировки в `refreshProfileQuoteAndBars` при живом стриме (бары остаются)
+- [x] Task: Фоллбек: `skipQuotes` в `loadDataAsync` + сохранение `a.quotes[accountID]` вместо замены пустой картой (ui/data.go:68-72); skip котировки в `refreshProfileQuoteAndBars` при живом стриме (бары остаются) (aafd831)
   - Acceptance: при `streamLive` поллинг не затирает котировки активного счёта; при down следующий тик возобновляет поллинг; тест предиката зелёный
 - [ ] Task: Ревизия гонок: все мутации `a.quotes` только в QueueUpdateDraw-замыканиях под `dataMutex`; `CGO_ENABLED=1 go test -race` обеих сюит
   - Acceptance: race-детектор чист на unit + integration
