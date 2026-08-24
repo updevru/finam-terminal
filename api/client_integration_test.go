@@ -96,18 +96,16 @@ func TestIntegration_Auth_InvalidToken(t *testing.T) {
 	}
 }
 
-func TestIntegration_Auth_JWTParsing(t *testing.T) {
+func TestIntegration_Auth_TokenExpiryFromTokenDetails(t *testing.T) {
 	client, _ := setupTestServer(t)
 
-	client.tokenMutex.RLock()
-	expiry := client.tokenExpiry
-	client.tokenMutex.RUnlock()
+	expiry := client.TokenExpiry()
 
 	if expiry.IsZero() {
-		t.Fatal("expected non-zero expiry from JWT parsing")
+		t.Fatal("expected non-zero expiry from TokenDetails")
 	}
 
-	// The mock JWT has 1h expiry, so expiry should be in the future
+	// The mock server reports a 1h expiry, so it should be in the future
 	if expiry.Before(time.Now()) {
 		t.Error("expected expiry to be in the future")
 	}

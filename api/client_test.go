@@ -17,6 +17,9 @@ import (
 	"google.golang.org/genproto/googleapis/type/decimal"
 	"google.golang.org/genproto/googleapis/type/interval"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -84,6 +87,11 @@ type mockAuthServiceClient struct {
 }
 
 func (m *mockAuthServiceClient) TokenDetails(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+	// authenticate() calls TokenDetails to learn the session expiry, so tests
+	// that only care about Auth may leave TokenDetailsFunc unset.
+	if m.TokenDetailsFunc == nil {
+		return &auth.TokenDetailsResponse{}, nil
+	}
 	return m.TokenDetailsFunc(ctx, in, opts...)
 }
 
@@ -1093,12 +1101,12 @@ func TestGetActiveOrders_ExtendedFields(t *testing.T) {
 						OrderId: "SLTP-1",
 						Status:  orders.OrderStatus_ORDER_STATUS_NEW,
 						SltpOrder: &orders.SLTPOrder{
-							Symbol:     "AAPL",
-							Side:       tradeapiv1.Side_SIDE_SELL,
-							SlPrice:    &decimal.Decimal{Value: "170.00"},
-							TpPrice:    &decimal.Decimal{Value: "200.00"},
-							QuantitySl: &decimal.Decimal{Value: "10"},
-							QuantityTp: &decimal.Decimal{Value: "10"},
+							Symbol:      "AAPL",
+							Side:        tradeapiv1.Side_SIDE_SELL,
+							SlPrice:     &decimal.Decimal{Value: "170.00"},
+							TpPrice:     &decimal.Decimal{Value: "200.00"},
+							QuantitySl:  &decimal.Decimal{Value: "10"},
+							QuantityTp:  &decimal.Decimal{Value: "10"},
 							ValidBefore: orders.ValidBefore_VALID_BEFORE_GOOD_TILL_CANCEL,
 						},
 						TransactAt: timestamppb.Now(),
@@ -1616,8 +1624,8 @@ func TestGetSchedule(t *testing.T) {
 
 func TestGetFullSymbol_CacheHit(t *testing.T) {
 	client := &Client{
-		assetMicCache: map[string]string{"SBER": "SBER@TQBR"},
-		assetLotCache: map[string]float64{"SBER": 10, "SBER@TQBR": 10},
+		assetMicCache:       map[string]string{"SBER": "SBER@TQBR"},
+		assetLotCache:       map[string]float64{"SBER": 10, "SBER@TQBR": 10},
 		instrumentNameCache: make(map[string]string),
 	}
 
@@ -1709,5 +1717,141 @@ func TestAuthenticate_SetsSourceAppId(t *testing.T) {
 	}
 	if gotSourceAppID != sourceAppID {
 		t.Errorf("Expected SourceAppId %q, got %q", sourceAppID, gotSourceAppID)
+	}
+}
+
+// TestGetAccounts_TokenDetailsOmitsAuthorizationHeader reproduces the startup
+// failure "failed to get token details: ... InvalidArgument: Token is invalid or
+// malformed". Since 2026-08 the Trade API rejects AuthService.TokenDetails calls
+// that carry an Authorization metadata header: the session token issued by Auth
+// (tapi_ak_...) is no longer a JWT, and TokenDetails only accepts it in the
+// request body. The header must be omitted for this one call, while the
+// AccountsService.GetAccount calls that follow still require it.
+func TestGetAccounts_TokenDetailsOmitsAuthorizationHeader(t *testing.T) {
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			if md, ok := metadata.FromOutgoingContext(ctx); ok {
+				if vals := md.Get("authorization"); len(vals) > 0 {
+					return nil, status.Error(codes.InvalidArgument, "Token is invalid or malformed. See: https://api.finam.ru/docs/rest/#authservice_auth")
+				}
+			}
+			if in.Token != "session-token" {
+				t.Errorf("Expected session token in request body, got %q", in.Token)
+			}
+			return &auth.TokenDetailsResponse{AccountIds: []string{"acc1"}}, nil
+		},
+	}
+
+	var gotAccountAuth []string
+	mockAccounts := &mockAccountsServiceClient{
+		GetAccountFunc: func(ctx context.Context, in *accounts.GetAccountRequest, opts ...grpc.CallOption) (*accounts.GetAccountResponse, error) {
+			if md, ok := metadata.FromOutgoingContext(ctx); ok {
+				gotAccountAuth = md.Get("authorization")
+			}
+			return &accounts.GetAccountResponse{
+				AccountId: in.AccountId,
+				Type:      "test-type",
+				Status:    "test-status",
+			}, nil
+		},
+	}
+
+	client := &Client{
+		authClient:     mockAuth,
+		accountsClient: mockAccounts,
+		token:          "session-token",
+	}
+
+	accs, err := client.GetAccounts()
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if len(accs) != 1 || accs[0].ID != "acc1" {
+		t.Fatalf("Expected one account acc1, got %+v", accs)
+	}
+	if len(gotAccountAuth) != 1 || gotAccountAuth[0] != "session-token" {
+		t.Errorf("GetAccount must still send the Authorization header, got %v", gotAccountAuth)
+	}
+}
+
+// TestAuthenticate_SetsExpiryFromTokenDetails pins the session expiry to
+// AuthService.TokenDetails.expires_at — the contractual source. The token
+// returned by Auth is an opaque tapi_ak_... string, not a JWT, so it carries no
+// readable expiry of its own.
+func TestAuthenticate_SetsExpiryFromTokenDetails(t *testing.T) {
+	want := time.Now().Add(11 * time.Minute).Truncate(time.Second)
+
+	mockAuth := &mockAuthServiceClient{
+		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+			return &auth.AuthResponse{Token: "tapi_ak_opaque"}, nil
+		},
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			if in.Token != "tapi_ak_opaque" {
+				t.Errorf("Expected the fresh session token in the request body, got %q", in.Token)
+			}
+			return &auth.TokenDetailsResponse{ExpiresAt: timestamppb.New(want)}, nil
+		},
+	}
+
+	client := &Client{authClient: mockAuth}
+	if err := client.authenticate("secret"); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if got := client.TokenExpiry(); !got.Equal(want) {
+		t.Errorf("Expected expiry %v, got %v", want, got)
+	}
+}
+
+// TestFetchTokenExpiry_OmitsAuthorizationHeader guards the same constraint as
+// GetAccounts: TokenDetails rejects requests that carry an Authorization header.
+func TestFetchTokenExpiry_OmitsAuthorizationHeader(t *testing.T) {
+	want := time.Now().Add(11 * time.Minute).Truncate(time.Second)
+
+	mockAuth := &mockAuthServiceClient{
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			if md, ok := metadata.FromOutgoingContext(ctx); ok && len(md.Get("authorization")) > 0 {
+				return nil, status.Error(codes.InvalidArgument, "Token is invalid or malformed. See: https://api.finam.ru/docs/rest/#authservice_auth")
+			}
+			return &auth.TokenDetailsResponse{ExpiresAt: timestamppb.New(want)}, nil
+		},
+	}
+
+	client := &Client{authClient: mockAuth, token: "session-token"}
+	got, err := client.fetchTokenExpiry("session-token")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if !got.Equal(want) {
+		t.Errorf("Expected expiry %v, got %v", want, got)
+	}
+}
+
+// TestAuthenticate_TokenDetailsErrorIsNonFatal keeps a failing expiry lookup from
+// blocking startup: authentication itself already succeeded, and the expiry is
+// only informational. No made-up fallback value is stored.
+func TestAuthenticate_TokenDetailsErrorIsNonFatal(t *testing.T) {
+	mockAuth := &mockAuthServiceClient{
+		AuthFunc: func(ctx context.Context, in *auth.AuthRequest, opts ...grpc.CallOption) (*auth.AuthResponse, error) {
+			return &auth.AuthResponse{Token: "tapi_ak_opaque"}, nil
+		},
+		TokenDetailsFunc: func(ctx context.Context, in *auth.TokenDetailsRequest, opts ...grpc.CallOption) (*auth.TokenDetailsResponse, error) {
+			return nil, status.Error(codes.Unavailable, "service unavailable")
+		},
+	}
+
+	client := &Client{authClient: mockAuth}
+	if err := client.authenticate("secret"); err != nil {
+		t.Fatalf("Expected authentication to survive a TokenDetails failure, got: %v", err)
+	}
+
+	client.tokenMutex.RLock()
+	token := client.token
+	client.tokenMutex.RUnlock()
+	if token != "tapi_ak_opaque" {
+		t.Errorf("Expected the token to be stored anyway, got %q", token)
+	}
+	if got := client.TokenExpiry(); !got.IsZero() {
+		t.Errorf("Expected a zero expiry rather than an invented one, got %v", got)
 	}
 }

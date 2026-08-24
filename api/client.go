@@ -3,8 +3,6 @@ package api
 import (
 	"context"
 	"crypto/tls"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sort"
@@ -70,6 +68,11 @@ func NewClient(grpcAddr string, apiToken string) (*Client, error) {
 	conn, err := grpc.NewClient(
 		grpcAddr,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tlsConfig)),
+		// Skip the resolver's service-config lookup. gRPC would otherwise query
+		// the TXT record _grpc_config.<host>, which api.finam.ru does not
+		// publish; on networks where that NXDOMAIN takes ~11s to come back it
+		// alone blows the 10s deadline on the first Auth call.
+		grpc.WithDisableServiceConfig(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
@@ -183,9 +186,12 @@ func (c *Client) subscribeJwtRenewal(ctx context.Context) {
 				break
 			}
 
+			// Fetched before taking the lock so the RPC never holds it.
+			expiry, expErr := c.fetchTokenExpiry(resp.Token)
+
 			c.tokenMutex.Lock()
 			c.token = resp.Token
-			if expiry, expErr := c.getExpiryFromToken(resp.Token); expErr == nil {
+			if expErr == nil {
 				c.tokenExpiry = expiry
 			}
 			c.tokenMutex.Unlock()
@@ -219,41 +225,33 @@ func nextBackoff(d time.Duration) time.Duration {
 	return d
 }
 
-// getExpiryFromToken extracts the expiration time from a JWT token
-func (c *Client) getExpiryFromToken(token string) (time.Time, error) {
-	parts := strings.Split(token, ".")
-	if len(parts) != 3 {
-		return time.Time{}, fmt.Errorf("invalid token format")
-	}
+// fetchTokenExpiry asks AuthService.TokenDetails when the given session token
+// expires. This is the only contractual source for that timestamp: the token
+// issued by Auth is an opaque tapi_ak_... string, not a JWT, so it carries no
+// readable expiry of its own.
+func (c *Client) fetchTokenExpiry(token string) (time.Time, error) {
+	// No Authorization header here — see getUnauthenticatedContext.
+	ctx, cancel := c.getUnauthenticatedContext()
+	defer cancel()
 
-	payload := parts[1]
-	// Add padding if needed (JWTs are raw url encoded, but robustness helps)
-	if l := len(payload) % 4; l > 0 {
-		payload += strings.Repeat("=", 4-l)
-	}
-
-	data, err := base64.RawURLEncoding.DecodeString(parts[1]) // Try RawURLEncoding first (standard)
+	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: token})
 	if err != nil {
-		// Fallback to standard URL encoding if raw fails
-		data, err = base64.URLEncoding.DecodeString(payload)
-		if err != nil {
-			return time.Time{}, fmt.Errorf("failed to decode payload: %w", err)
-		}
+		c.logGRPCError("AuthService", "TokenDetails", err)
+		return time.Time{}, fmt.Errorf("failed to get token details: %w", err)
+	}
+	if resp.ExpiresAt == nil {
+		return time.Time{}, fmt.Errorf("token details carry no expiry")
 	}
 
-	var claims struct {
-		Exp int64 `json:"exp"`
-	}
+	return resp.ExpiresAt.AsTime().Local(), nil
+}
 
-	if err := json.Unmarshal(data, &claims); err != nil {
-		return time.Time{}, fmt.Errorf("failed to unmarshal claims: %w", err)
-	}
-
-	if claims.Exp == 0 {
-		return time.Time{}, fmt.Errorf("exp claim missing")
-	}
-
-	return time.Unix(claims.Exp, 0), nil
+// TokenExpiry returns when the current session token expires, as reported by
+// TokenDetails. It is zero when the expiry could not be retrieved.
+func (c *Client) TokenExpiry() time.Time {
+	c.tokenMutex.RLock()
+	defer c.tokenMutex.RUnlock()
+	return c.tokenExpiry
 }
 
 // logGRPCError logs a detailed error message for a failed gRPC call.
@@ -496,12 +494,13 @@ func (c *Client) authenticate(apiToken string) error {
 		return fmt.Errorf("auth request failed: %w", err)
 	}
 
-	// The original code had c.tokenExpiry = time.Now().Add(50 * time.Minute)
-	// This has been updated to parse expiry from the token.
-	expiry, err := c.getExpiryFromToken(resp.Token)
-	if err != nil {
-		log.Printf("[WARN] Could not parse expiry from token: %v. Using default 50m.", err)
-		expiry = time.Now().Add(50 * time.Minute)
+	// A failed expiry lookup must not block startup: authentication itself has
+	// already succeeded and the expiry is informational. Leave it zero rather
+	// than inventing a value.
+	expiry, expErr := c.fetchTokenExpiry(resp.Token)
+	if expErr != nil {
+		log.Printf("[WARN] Could not fetch token expiry: %v", expErr)
+		expiry = time.Time{}
 	}
 
 	c.tokenMutex.Lock()
@@ -521,6 +520,14 @@ func (c *Client) getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", c.token)
 	return ctx, cancel
+}
+
+// getUnauthenticatedContext returns a plain context without the Authorization
+// header. AuthService methods take the token in the request body instead, and
+// TokenDetails rejects requests that also carry the header with
+// InvalidArgument "Token is invalid or malformed".
+func (c *Client) getUnauthenticatedContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), 30*time.Second)
 }
 
 // PlaceOrder places a new order. Quantity is in lots; it is multiplied by the lot size before sending to the API.
@@ -703,14 +710,23 @@ func (c *Client) ClosePosition(accountID string, symbol string, currentQuantity 
 
 // GetAccounts returns a list of all accounts
 func (c *Client) GetAccounts() ([]models.AccountInfo, error) {
-	ctx, cancel := c.getContext()
-	defer cancel()
+	// TokenDetails must be called without the Authorization header — the token
+	// travels in the request body, and sending both makes the API reject the
+	// call with InvalidArgument "Token is invalid or malformed".
+	authCtx, authCancel := c.getUnauthenticatedContext()
+	c.tokenMutex.RLock()
+	sessionToken := c.token
+	c.tokenMutex.RUnlock()
 
-	resp, err := c.authClient.TokenDetails(ctx, &auth.TokenDetailsRequest{Token: c.token})
+	resp, err := c.authClient.TokenDetails(authCtx, &auth.TokenDetailsRequest{Token: sessionToken})
+	authCancel()
 	if err != nil {
 		c.logGRPCError("AuthService", "TokenDetails", err)
 		return nil, fmt.Errorf("failed to get token details: %w", err)
 	}
+
+	ctx, cancel := c.getContext()
+	defer cancel()
 
 	var accountsList []models.AccountInfo
 	seen := make(map[string]bool, len(resp.AccountIds))
