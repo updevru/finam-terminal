@@ -41,7 +41,7 @@
 - [x] Task: Unit-тесты: `normalizeSymbols` (фильтр `@`, дедуп, сортировка) + переподписка через `fakeQuoteStream` (клон `fakeJwtRenewalStream`) (39fbaf3)
   - Acceptance: unit-тесты зелёные без bufconn
 
-## Phase 6: Стриминг — потребление в UI и фоллбек
+## Phase 6: Стриминг — потребление в UI и фоллбек [checkpoint: c8c4756]
 - [x] Task: (Red) Тесты `computeStreamSymbols` (позиции ∪ профиль, фильтр, дедуп), `flushQuoteInbox` (прямой вызов, upsert в quotes), предиката поллинга (матрица стрим up/down × активный/другой счёт) (a661755)
   - Acceptance: тесты компилируются и падают
 - [x] Task: (Green) `ui/stream.go`: inbox + коалесинг (один QueueUpdateDraw за раз, дроп при закрытом stopChan), `onStreamState` (`streamLive`, `[INFO]`-лог), `computeStreamSymbols`/`recomputeStreamSymbols`; вызовы из `loadDataAsync`/`switchAccount`/`OpenProfileForSymbol`/`CloseProfile`; старт в `Run()`; `APIClient` + мок (`StartQuoteStream`, `SetQuoteSymbols` с захватом) (7d657a1)
