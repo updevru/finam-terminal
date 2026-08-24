@@ -444,22 +444,64 @@ func (c *Client) fetchLotSize(symbol string, accountID string) {
 	}
 }
 
-// GetLotSize returns the cached lot size for a ticker
-func (c *Client) GetLotSize(ticker string) float64 {
-	c.assetMutex.RLock()
-	defer c.assetMutex.RUnlock()
+// storeTradeLotSize caches the trade lot size for a full symbol and its ticker.
+// A zero value is stored deliberately: it means "checked, the API reports no
+// trade lot for this instrument" and keeps the next lookup from calling
+// GetAssetParams again on every quote refresh.
+func (c *Client) storeTradeLotSize(fullSymbol string, lotSize float64) {
+	if fullSymbol == "" {
+		return
+	}
 
-	// Try ticker
+	c.assetMutex.Lock()
+	defer c.assetMutex.Unlock()
+
+	if c.tradeLotCache == nil {
+		c.tradeLotCache = make(map[string]float64)
+	}
+
+	c.tradeLotCache[fullSymbol] = lotSize
+	if ticker, _, found := strings.Cut(fullSymbol, "@"); found && ticker != "" {
+		c.tradeLotCache[ticker] = lotSize
+	}
+}
+
+// lotSizeLocked resolves the lot size for a ticker or full symbol. The trade lot
+// (GetAssetParams.trade_lot_size) wins over the asset lot (GetAsset.lot_size);
+// a cached zero trade lot means the API has no value and is skipped.
+//
+// The caller must hold assetMutex (read or write): sync.RWMutex is not
+// reentrant, so callers that already hold the lock must not go through
+// GetLotSize.
+func (c *Client) lotSizeLocked(ticker string) float64 {
+	full, hasFull := c.assetMicCache[ticker]
+
+	if lot, ok := c.tradeLotCache[ticker]; ok && lot > 0 {
+		return lot
+	}
+	if hasFull {
+		if lot, ok := c.tradeLotCache[full]; ok && lot > 0 {
+			return lot
+		}
+	}
+
 	if lot, ok := c.assetLotCache[ticker]; ok {
 		return lot
 	}
-
-	// Try resolve ticker to full symbol and check
-	if full, ok := c.assetMicCache[ticker]; ok {
+	if hasFull {
 		return c.assetLotCache[full]
 	}
 
 	return 0
+}
+
+// GetLotSize returns the cached lot size for a ticker, preferring the trade lot
+// size the broker requires for order sizing.
+func (c *Client) GetLotSize(ticker string) float64 {
+	c.assetMutex.RLock()
+	defer c.assetMutex.RUnlock()
+
+	return c.lotSizeLocked(ticker)
 }
 
 // GetInstrumentName returns the cached human-readable name for a ticker or full symbol.
@@ -1520,7 +1562,11 @@ func (c *Client) GetAssetParams(accountID string, symbol string) (*models.AssetP
 	params := &models.AssetParams{
 		LongRiskRate:  formatDecimal(resp.LongRiskRate),
 		ShortRiskRate: formatDecimal(resp.ShortRiskRate),
+		TradeLotSize:  resp.TradeLotSize,
 	}
+
+	// Loading an instrument profile warms the trade lot cache for free.
+	c.storeTradeLotSize(fullSymbol, float64(resp.TradeLotSize))
 
 	// IsTradable
 	if resp.IsTradable != nil {
