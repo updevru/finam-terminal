@@ -14,7 +14,7 @@
   - Acceptance: тесты предыдущей задачи зелёные; существующие тесты лотов не сломаны
 - [x] Task: (Red) Падающие тесты холодного пути и заявок: `fetchLotSize` наполняет оба уровня; повторный вызов — 0 RPC (счётчики мока, негативный кэш); ошибка `GetAssetParams` не мешает asset-лоту и повторяется при следующем промахе; `PlaceOrder`/`PlaceSLTPOrder` умножают на trade-лот (2 лота → Quantity "10") (9cff832)
   - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) Вторая ветка в `fetchLotSize` (вызов `GetAssetParams`, запись включая 0); расширенное miss-условие в `getFullSymbol` (:337, :346-349); `GetAccountDetails` → `lotSizeLocked` внутри удерживаемого RLock
+- [x] Task: (Green) Вторая ветка в `fetchLotSize` (вызов `GetAssetParams`, запись включая 0); расширенное miss-условие в `getFullSymbol` (:337, :346-349); `GetAccountDetails` → `lotSizeLocked` внутри удерживаемого RLock (47684ee)
   - Acceptance: тесты зелёные; race-детектор чист (нет вложенного RLock)
 - [ ] Task: `EnsureLotSize(accountID, symbol) float64` + интеграционные тесты (client_cache_integration_test.go): холодный символ прогревается через поток позиций, записанное `MockOrdersServer` количество = лоты × 5, профильный `GetAssetParams` греет кэш
   - Acceptance: интеграционные тесты зелёные end-to-end
