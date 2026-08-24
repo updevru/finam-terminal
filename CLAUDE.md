@@ -18,7 +18,7 @@ The project follows a clean modular structure:
 
 *   **`main.go`**: The entry point. Handles configuration loading, API client initialization, and starting the UI loop.
 *   **`api/`**: Contains the `Client` struct and methods for interacting with the Finam gRPC services. Encapsulates the complexity of the raw API calls.
-    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients (including `corporateActionsClient` for the CorporateActionsService), authenticates, starts the JWT renewal stream, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS. Both `Auth` and `SubscribeJwtRenewal` requests carry `SourceAppId` set to the `sourceAppID` constant (`"finam-terminal"`). After the initial `authenticate()` call (needed for the first JWT and account list via `TokenDetails`), `subscribeJwtRenewal` keeps the token fresh by consuming the `SubscribeJwtRenewal` server stream instead of a timer — it reconnects with exponential backoff (1s, capped at 30s) if the stream drops, and stops silently when the client's context is cancelled via `Close()`.
+    *   `client.go`: Core client — `NewClient` creates a TLS connection, `newClientFromConn` initializes service clients (including `corporateActionsClient` for the CorporateActionsService), authenticates, starts the JWT renewal stream, and loads the asset cache. `newClientFromConn` is also used by integration tests to create clients via `bufconn` without TLS. Both `Auth` and `SubscribeJwtRenewal` requests carry `SourceAppId` set to the `sourceAppID` constant (`"finam-terminal"`). After the initial `authenticate()` call (needed for the first JWT and account list via `TokenDetails`), `subscribeJwtRenewal` keeps the token fresh by consuming the `SubscribeJwtRenewal` server stream instead of a timer — it reconnects with exponential backoff (1s, capped at 30s) if the stream drops, and stops silently when the client's context is cancelled via `Close()`. Two API contracts shape the auth path: the connection is built with `grpc.WithDisableServiceConfig()` because Finam publishes no `_grpc_config.<host>` TXT record and the resolver would otherwise stall the first `Auth` call, and `AuthService.TokenDetails` must be called through `getUnauthenticatedContext()` — it rejects requests that also carry the `Authorization` header with `InvalidArgument` (`getContext()` stays the default for every other service). The session token is an opaque `tapi_ak_...` string, not a JWT, so its lifetime is not parsed from the token: `fetchTokenExpiry` reads `TokenDetails.expires_at` after the initial auth and on every renewal-stream token, and `TokenExpiry()` exposes it.
 *   **`api/testserver/`**: In-process mock gRPC server for integration testing (see [Testing](#testing) section).
 *   **`ui/`**: Manages the Terminal User Interface.
     *   `app.go`: Main `App` struct, state management, tabbed view (Positions/History/Orders), and lifecycle (Run/Stop).
@@ -143,7 +143,7 @@ Integration tests use build tag `//go:build integration` and are located in `api
 
 **Mock gRPC Server** (`api/testserver/`):
 *   `server.go` — `TestServer` struct: creates a `grpc.Server` + `bufconn.Listener`, registers all 6 mock services, exposes `Start()`, `Stop()`, `Dial()`.
-*   `auth_server.go` — `MockAuthServer`: validates tokens, generates JWTs with configurable expiry, tracks call count via `AuthCallCount` and notifies via `AuthCalled` channel. Supports `AuthOverride` for per-call error injection.
+*   `auth_server.go` — `MockAuthServer`: validates tokens, generates JWTs with configurable expiry, tracks call count via `AuthCallCount` and notifies via `AuthCalled` channel. Supports `AuthOverride` for per-call error injection. `TokenDetails` mirrors the real API: it rejects calls carrying an `Authorization` header with `InvalidArgument` and reports `created_at`/`expires_at` (window controlled by `TokenExpiry`, default 1h), so the startup-auth regression is caught end to end.
 *   `accounts_server.go` — `MockAccountsServer`: returns configurable positions and trade history per account ID.
 *   `marketdata_server.go` — `MockMarketDataServer`: returns quotes and bars. Supports `QuoteOverride` for custom behavior.
 *   `assets_server.go` — `MockAssetsServer`: returns bulk assets, per-symbol details, trading parameters, and schedule. Supports error injection via `GetAssetError`, `GetAssetParamsError`, `ScheduleError`.
@@ -280,6 +280,12 @@ The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
     *   **Methods:** `GetPastBondsEvents` + `GetFutureBondsEvents`
     *   **File:** `api/client.go` (`GetBondEvents`)
     *   **Usage:** Same past+future windows; flattens the `oneof` event details (`CouponDetails`/`AmortizationDetails`/`OfferDetails`) into a `models.BondEvent` with `Kind` ∈ {Coupon, Amortization, Offer}. Surfaced only in the bond profile. `Future*` requests take no date interval; all SDK pointer/wrapper fields are formatted nil-safe (`formatDate`, `formatDecimalOpt`, `formatInt32Value`).
+
+19.  **Session Token Details / Expiry**
+    *   **Service:** `AuthServiceClient`
+    *   **Method:** `TokenDetails`
+    *   **File:** `api/client.go` (`fetchTokenExpiry`, `TokenExpiry`, `GetAccounts`)
+    *   **Usage:** Returns the account list and the session token expiry. Must be called **without** the `Authorization` metadata header (use `getUnauthenticatedContext()`) — the token travels in the request body and sending both is rejected with `InvalidArgument: Token is invalid or malformed`.
 
 # Conductor Context
 
