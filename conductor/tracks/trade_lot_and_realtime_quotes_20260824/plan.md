@@ -52,7 +52,7 @@
   - Acceptance: race-детектор чист на unit + integration
 
 ## Phase 7: Верификация и финализация
-- [ ] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint`
+- [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint` (29ab820)
   - Acceptance: нет ошибок и предупреждений, линтер чистый
 - [ ] Task: Документация — CLAUDE.md (новый пункт «Realtime Quotes (SubscribeQuote)», TradeLotSize у GetAssetParams, стрим-мок в testserver, обновлённый список интеграционных файлов), CHANGELOG.md (2.18.1/2.19.0), README.md
   - Acceptance: документация соответствует реализации
