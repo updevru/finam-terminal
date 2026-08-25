@@ -150,6 +150,10 @@ type AssetParams struct {
 	ShortRiskRate      string
 	LongInitialMargin  string // formatted as "amount currency"
 	ShortInitialMargin string // formatted as "amount currency"
+	// TradeLotSize is the lot size the broker uses for trading operations
+	// (GetAssetParams.trade_lot_size, Trade API 2.18.1). Zero means the API has
+	// no value for this instrument and callers fall back to the asset lot size.
+	TradeLotSize int64
 }
 
 // TradingSession represents a single trading session window

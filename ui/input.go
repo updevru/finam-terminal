@@ -30,13 +30,21 @@ func setupInputHandlers(app *App) {
 
 	switchAccount := func(idx int) {
 		if idx >= 0 && idx < len(app.accounts) {
+			// Written under the lock: background loaders read selectedIdx to
+			// decide whether the quote stream owns this account.
+			app.dataMutex.Lock()
 			app.selectedIdx = idx
+			app.dataMutex.Unlock()
+
 			updateAccountList(app)
 
 			// Update view immediately with cached data
 			updatePositionsTable(app)
 			updateInfoPanel(app)
 			updateStatusBar(app)
+
+			// The stream follows the active account
+			app.recomputeStreamSymbols()
 
 			// Trigger fresh data load for active tab
 			accountID := app.accounts[idx].ID

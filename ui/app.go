@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"finam-terminal/models"
@@ -29,6 +30,14 @@ type APIClient interface {
 	SearchSecurities(query string) ([]models.SecurityInfo, error)
 	GetSnapshots(accountID string, symbols []string) (map[string]models.Quote, error)
 	GetLotSize(ticker string) float64
+	// EnsureLotSize resolves the lot size for a symbol, fetching it when the
+	// cache is cold. It performs network calls, so callers must run it off the
+	// event loop.
+	EnsureLotSize(accountID, symbol string) float64
+
+	// Realtime quotes (SubscribeQuote)
+	StartQuoteStream(onQuote func(models.Quote), onState func(up bool))
+	SetQuoteSymbols(symbols []string)
 	GetInstrumentName(key string) string
 
 	// History and Orders
@@ -75,6 +84,12 @@ type App struct {
 	// UI Components
 	header    *tview.TextView
 	statusBar *tview.TextView
+
+	// Realtime quote stream
+	quoteInboxMu     sync.Mutex
+	quoteInbox       map[string]*models.Quote
+	quoteFlushQueued bool
+	streamLive       atomic.Bool
 
 	// Profile overlay
 	profilePanel     *ProfilePanel
@@ -193,8 +208,6 @@ func (a *App) OpenOrderModalWithTicker(ticker string) {
 	a.orderModal.SetInstrument(ticker)
 	a.orderModal.SetQuantity(0)
 	a.orderModal.ResetOrderType()
-	lotSize := a.client.GetLotSize(ticker)
-	a.orderModal.SetLotSize(lotSize)
 	a.orderModal.SetDisplayName(a.client.GetInstrumentName(ticker))
 
 	// Fetch current price via snapshots (same as positions list)
@@ -215,10 +228,69 @@ func (a *App) OpenOrderModalWithTicker(ticker string) {
 			}
 		}
 	}
+	// GetSnapshots resolves the symbol and warms the lot caches as a side
+	// effect, so read the lot size after it rather than before.
+	a.orderModal.SetLotSize(a.client.GetLotSize(ticker))
 	a.orderModal.SetPrice(price)
+
+	// A cold instrument (opened straight from search) still needs a fetch.
+	a.warmLotSizeAsync(accountID, ticker, func(lot float64) {
+		a.applyOrderModalLot(ticker, lot)
+	})
 
 	a.pages.ShowPage("modal")
 	a.app.SetFocus(a.orderModal.Form)
+}
+
+// warmLotSizeAsync resolves the lot size for a symbol off the event loop and
+// applies it back on the UI thread. The apply callback runs inside
+// QueueUpdateDraw, so it must not block.
+func (a *App) warmLotSizeAsync(accountID, symbol string, apply func(lot float64)) {
+	if a.client == nil || accountID == "" || symbol == "" {
+		return
+	}
+
+	go func() {
+		lot := a.client.EnsureLotSize(accountID, symbol)
+		if lot <= 0 {
+			return
+		}
+
+		// QueueUpdateDraw blocks forever once the app has stopped.
+		select {
+		case <-a.stopChan:
+			return
+		default:
+		}
+
+		a.app.QueueUpdateDraw(func() {
+			apply(lot)
+		})
+	}()
+}
+
+// applyOrderModalLot updates the order modal's lot size, but only while the
+// modal still shows the instrument the lot was resolved for.
+func (a *App) applyOrderModalLot(symbol string, lot float64) {
+	if lot <= 0 || a.orderModal.GetInstrument() != symbol {
+		return
+	}
+	a.orderModal.SetLotSize(lot)
+}
+
+// applyModifyModalLot updates the lot size of the modify-order modal and
+// re-derives the pre-filled lot count from the order's share quantity — but
+// only while the user has not edited the quantity field.
+func (a *App) applyModifyModalLot(symbol string, lot, shares, prefilledLots float64) {
+	if lot <= 0 || a.orderModal.GetInstrument() != symbol {
+		return
+	}
+
+	untouched := a.orderModal.GetQuantity() == prefilledLots
+	a.orderModal.SetLotSize(lot)
+	if untouched && shares > 0 {
+		a.orderModal.SetQuantity(shares / lot)
+	}
 }
 
 // IsModalOpen returns true if the order modal is currently open
@@ -495,14 +567,23 @@ func (a *App) ShowModifyOrderModal() {
 	a.orderModal.SetLotSize(lotSize)
 
 	// Set quantity (parse from string)
+	var shares, prefilledLots float64
 	if qty, err := parseFloat(order.Quantity); err == nil && qty > 0 {
+		shares = qty
 		// Convert shares to lots if lot size is known
 		if lotSize > 0 {
-			a.orderModal.SetQuantity(qty / lotSize)
+			prefilledLots = qty / lotSize
 		} else {
-			a.orderModal.SetQuantity(qty)
+			prefilledLots = qty
 		}
+		a.orderModal.SetQuantity(prefilledLots)
 	}
+
+	// A corrected lot size re-derives the pre-filled lots, unless the user has
+	// already edited the field.
+	a.warmLotSizeAsync(accountID, order.Symbol, func(lot float64) {
+		a.applyModifyModalLot(order.Symbol, lot, shares, prefilledLots)
+	})
 
 	// Set prices based on order type
 	switch modalType {
@@ -646,6 +727,9 @@ func (a *App) Run() error {
 	// Start background refresh
 	go a.backgroundRefresh()
 
+	// Start realtime quotes; polling stays as the fallback
+	a.startQuoteStream()
+
 	return a.app.SetRoot(a.pages, true).EnableMouse(false).Run()
 }
 
@@ -693,10 +777,11 @@ func (a *App) OpenOrderModal() {
 		a.orderModal.SetLotSize(lotSize)
 
 		// Try to get current price from positions
+		accountID := ""
 		a.dataMutex.RLock()
 		if a.selectedIdx < len(a.accounts) {
-			accID := a.accounts[a.selectedIdx].ID
-			for _, pos := range a.positions[accID] {
+			accountID = a.accounts[a.selectedIdx].ID
+			for _, pos := range a.positions[accountID] {
 				if pos.Ticker == symbol {
 					if p, err := parseFloat(pos.CurrentPrice); err == nil {
 						a.orderModal.SetPrice(p)
@@ -706,6 +791,11 @@ func (a *App) OpenOrderModal() {
 			}
 		}
 		a.dataMutex.RUnlock()
+
+		// Positions are usually warm, so this is a no-op most of the time.
+		a.warmLotSizeAsync(accountID, symbol, func(lot float64) {
+			a.applyOrderModalLot(symbol, lot)
+		})
 	} else {
 		a.orderModal.SetLotSize(0)
 		a.orderModal.SetPrice(0)
@@ -813,6 +903,8 @@ func (a *App) OpenProfileForSymbol(symbol string) {
 	}
 	a.dataMutex.RUnlock()
 
+	a.recomputeStreamSymbols()
+
 	if accountID != "" {
 		a.loadProfileAsync(accountID, symbol, a.profileTimeframe)
 	}
@@ -822,6 +914,7 @@ func (a *App) OpenProfileForSymbol(symbol string) {
 func (a *App) CloseProfile() {
 	a.profileOpen = false
 	a.profileSymbol = ""
+	a.recomputeStreamSymbols()
 	a.pages.SwitchToPage("main")
 	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
 }

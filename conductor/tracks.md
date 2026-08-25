@@ -145,4 +145,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Link: [./tracks/corporate_actions_and_trade_enrichment_20260713/](./tracks/corporate_actions_and_trade_enrichment_20260713/)*
 *Spec: [./tracks/corporate_actions_and_trade_enrichment_20260713/spec.md](./tracks/corporate_actions_and_trade_enrichment_20260713/spec.md)*
 *Plan: [./tracks/corporate_actions_and_trade_enrichment_20260713/plan.md](./tracks/corporate_actions_and_trade_enrichment_20260713/plan.md)*
-*Phases: 5 | Tasks: 21*
+
+
+---
+
+
+- [ ] **Track: Finam API 2.18.1/2.19.0 — корректный лот заявок (trade_lot_size) и realtime-котировки (SubscribeQuote)**
+
+*Link: [./tracks/trade_lot_and_realtime_quotes_20260824/](./tracks/trade_lot_and_realtime_quotes_20260824/)*
+*Spec: [./tracks/trade_lot_and_realtime_quotes_20260824/spec.md](./tracks/trade_lot_and_realtime_quotes_20260824/spec.md)*
+*Plan: [./tracks/trade_lot_and_realtime_quotes_20260824/plan.md](./tracks/trade_lot_and_realtime_quotes_20260824/plan.md)*
+*Phases: 7 | Tasks: 22*
