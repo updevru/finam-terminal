@@ -161,9 +161,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 ---
 
 
-- [ ] **Track: Автообновление терминала — фоновая проверка релизов GitHub, индикатор в шапке и self-update с перезапуском**
+- [x] **Track: Автообновление терминала — фоновая проверка релизов GitHub, индикатор в шапке и self-update с перезапуском**
 
 *Link: [./tracks/auto_update_20260825/](./tracks/auto_update_20260825/)*
 *Spec: [./tracks/auto_update_20260825/spec.md](./tracks/auto_update_20260825/spec.md)*
 *Plan: [./tracks/auto_update_20260825/plan.md](./tracks/auto_update_20260825/plan.md)*
 *Phases: 7 | Tasks: 21*
+*Status: ✅ Completed 2026-08-25 (ручная проверка подтверждена на windows/amd64)*
