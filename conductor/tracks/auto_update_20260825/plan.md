@@ -47,7 +47,7 @@
 
 > Примечание (отклонение от исходного плана): задача «Интеграция в `main.go`» перенесена сюда из Фазы 4: она вызывает `ui.NewUpdatePromptApp`, `App.SetUpdateAvailable` и `App.UpdateRequested()`, которые создаются только в Фазе 5. Объём работ не изменён.
 
-## Phase 6: CI — контрольные суммы релиза
+## Phase 6: CI — контрольные суммы релиза [checkpoint: 52201db]
 - [x] Task: `.github/workflows/release.yml` — шаг генерации `checksums.txt` (`sha256sum finam-terminal-* > checksums.txt` в `dist/`) перед `softprops/action-gh-release`; проверка синтаксисом (`actionlint`/`yq`) и вручную по логике job
   - Acceptance: `files: dist/*` включает `checksums.txt`; формат строк совпадает с парсером из фазы 3 (17e5486)
 
