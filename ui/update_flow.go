@@ -35,14 +35,14 @@ var (
 // writable — and returned, so the caller can decide to carry on starting the
 // terminal as usual.
 func RunUpdateFlow(rel *updater.Release) (string, error) {
-	fmt.Fprintf(updateOutput, "\n\x1b[36mОбновление до %s\x1b[0m\n", rel.TagName)
+	_, _ = fmt.Fprintf(updateOutput, "\n\x1b[36mОбновление до %s\x1b[0m\n", rel.TagName)
 
 	err := selfUpdateFunc(context.Background(), rel, func(done, total int64) {
-		fmt.Fprintf(updateOutput, "\r%s ", renderProgressBar(done, total))
+		_, _ = fmt.Fprintf(updateOutput, "\r%s ", renderProgressBar(done, total))
 	})
 
 	// Always close the transient progress line before printing the outcome.
-	fmt.Fprint(updateOutput, "\r\033[K")
+	_, _ = fmt.Fprint(updateOutput, "\r\033[K")
 
 	if err != nil {
 		printUpdateError(err)
@@ -55,19 +55,19 @@ func RunUpdateFlow(rel *updater.Release) (string, error) {
 		return "", pathErr
 	}
 
-	fmt.Fprintf(updateOutput, "\x1b[32m[OK]\x1b[0m Установлена версия %s, перезапуск...\n", rel.TagName)
+	_, _ = fmt.Fprintf(updateOutput, "\x1b[32m[OK]\x1b[0m Установлена версия %s, перезапуск...\n", rel.TagName)
 	return exePath, nil
 }
 
 // printUpdateError explains a failed update without dumping a raw Go error at
 // the user, and points at the install script when self-update is impossible.
 func printUpdateError(err error) {
-	fmt.Fprintf(updateOutput, "\x1b[31m[ОШИБКА]\x1b[0m Обновление не выполнено: %v\n", err)
+	_, _ = fmt.Fprintf(updateOutput, "\x1b[31m[ОШИБКА]\x1b[0m Обновление не выполнено: %v\n", err)
 
 	if errors.Is(err, updater.ErrNotWritable) {
-		fmt.Fprintf(updateOutput, "         Обновите вручную: %s\n", updater.ManualUpdateCommand())
+		_, _ = fmt.Fprintf(updateOutput, "         Обновите вручную: %s\n", updater.ManualUpdateCommand())
 	}
-	fmt.Fprintf(updateOutput, "         Программа продолжит работу в текущей версии.\n")
+	_, _ = fmt.Fprintf(updateOutput, "         Программа продолжит работу в текущей версии.\n")
 }
 
 // renderProgressBar draws a single-line download progress bar. With a known

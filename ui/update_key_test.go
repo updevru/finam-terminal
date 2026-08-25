@@ -20,7 +20,7 @@ func pressRune(app *App, r rune) *tcell.EventKey {
 func TestUpdateKeyOpensModalWhenUpdateAvailable(t *testing.T) {
 	for _, r := range []rune{'u', 'U', 'г', 'Г'} {
 		t.Run(string(r), func(t *testing.T) {
-			asReleaseBuild(t, "v0.13.0")
+			asReleaseBuild(t)
 			app := NewApp(&mockClient{}, nil)
 			app.SetUpdateAvailable("v0.14.0")
 
@@ -37,7 +37,7 @@ func TestUpdateKeyOpensModalWhenUpdateAvailable(t *testing.T) {
 // TestUpdateKeyWithoutUpdateShowsStatus verifies U reports "up to date" in the
 // status bar instead of opening an empty dialog.
 func TestUpdateKeyWithoutUpdateShowsStatus(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 
 	if res := pressRune(app, 'u'); res != nil {
@@ -54,7 +54,7 @@ func TestUpdateKeyWithoutUpdateShowsStatus(t *testing.T) {
 // TestUpdateModalConfirmSetsFlagAndStops verifies confirming the modal records
 // the request so main.go can act on it after the TUI exits.
 func TestUpdateModalConfirmSetsFlagAndStops(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 	app.SetUpdateAvailable("v0.14.0")
 	app.OpenUpdateModal()
@@ -73,7 +73,7 @@ func TestUpdateModalConfirmSetsFlagAndStops(t *testing.T) {
 // TestUpdateModalCancelKeepsRunning verifies dismissing the modal changes
 // nothing but the visible page.
 func TestUpdateModalCancelKeepsRunning(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 	app.SetUpdateAvailable("v0.14.0")
 	app.OpenUpdateModal()
@@ -91,7 +91,7 @@ func TestUpdateModalCancelKeepsRunning(t *testing.T) {
 // TestUpdateModalEscapeCloses verifies Esc dismisses the update modal instead
 // of quitting the application.
 func TestUpdateModalEscapeCloses(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 	app.SetUpdateAvailable("v0.14.0")
 	app.OpenUpdateModal()
@@ -113,7 +113,7 @@ func TestUpdateModalEscapeCloses(t *testing.T) {
 // TestUpdateKeyDoesNotShadowExistingBindings guards the keys already bound on
 // the main screen against a regression from the new binding.
 func TestUpdateKeyDoesNotShadowExistingBindings(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 	app.SetUpdateAvailable("v0.14.0")
 

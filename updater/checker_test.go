@@ -13,7 +13,7 @@ import (
 
 // releaseServer starts a test server that always answers with the latest
 // release payload and reports how many times it was asked.
-func releaseServer(t *testing.T, body string) func() int {
+func releaseServer(t *testing.T) func() int {
 	t.Helper()
 	var mu sync.Mutex
 	calls := 0
@@ -21,7 +21,7 @@ func releaseServer(t *testing.T, body string) func() int {
 		mu.Lock()
 		calls++
 		mu.Unlock()
-		_, _ = w.Write([]byte(body))
+		_, _ = w.Write([]byte(latestReleaseJSON))
 	}))
 	t.Cleanup(srv.Close)
 	withAPIBase(t, srv.URL)
@@ -65,7 +65,7 @@ func TestShouldCheck(t *testing.T) {
 func TestRunSkipsNonRelease(t *testing.T) {
 	dir := t.TempDir()
 	withStateDir(t, dir)
-	calls := releaseServer(t, latestReleaseJSON)
+	calls := releaseServer(t)
 
 	for _, current := range []string{"dev", "dev (a1b2c3d)", ""} {
 		called := false
@@ -87,7 +87,7 @@ func TestRunSkipsNonRelease(t *testing.T) {
 // is not repeated on the next launch.
 func TestRunFreshStateSkipsRequest(t *testing.T) {
 	withStateDir(t, t.TempDir())
-	calls := releaseServer(t, latestReleaseJSON)
+	calls := releaseServer(t)
 
 	if err := SaveState(State{LastCheck: time.Now(), LatestVersion: "v0.13.0"}); err != nil {
 		t.Fatalf("seed state: %v", err)
@@ -114,7 +114,7 @@ func TestRunStaleStateChecksAndSaves(t *testing.T) {
 	dir := t.TempDir()
 	withStateDir(t, dir)
 
-	calls := releaseServer(t, latestReleaseJSON)
+	calls := releaseServer(t)
 
 	if err := SaveState(State{LastCheck: time.Now().Add(-48 * time.Hour)}); err != nil {
 		t.Fatalf("seed state: %v", err)
@@ -170,7 +170,7 @@ func TestRunStaleStateChecksAndSaves(t *testing.T) {
 // release does not fire the callback again.
 func TestCheckOnceNotifiesOncePerVersion(t *testing.T) {
 	withStateDir(t, t.TempDir())
-	calls := releaseServer(t, latestReleaseJSON)
+	calls := releaseServer(t)
 
 	var notified []string
 	c := &checker{current: "v0.13.0", onNewVersion: func(latest string) {
@@ -196,7 +196,7 @@ func TestCheckOnceNotifiesOncePerVersion(t *testing.T) {
 // asked to downgrade, while the check result is still cached.
 func TestCheckOnceIgnoresOlderRelease(t *testing.T) {
 	withStateDir(t, t.TempDir())
-	releaseServer(t, latestReleaseJSON)
+	releaseServer(t)
 
 	called := false
 	c := &checker{current: "v0.15.0", onNewVersion: func(string) { called = true }}
@@ -254,7 +254,7 @@ func TestCheckOnceNetworkFailureKeepsState(t *testing.T) {
 // the application shuts down.
 func TestRunStopsOnContextCancel(t *testing.T) {
 	withStateDir(t, t.TempDir())
-	releaseServer(t, latestReleaseJSON)
+	releaseServer(t)
 
 	if err := SaveState(State{LastCheck: time.Now()}); err != nil {
 		t.Fatalf("seed state: %v", err)

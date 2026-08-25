@@ -226,12 +226,6 @@ func headerLabel(current, latest string) string {
 	return fmt.Sprintf(" Finam Terminal %s [yellow]⚡ %s — нажмите U[-] ", label, latest)
 }
 
-// headerVersionLabel returns the running version as it should appear in the
-// header.
-func headerVersionLabel() string {
-	return versionLabel(version.String())
-}
-
 // versionLabel adds a leading "v" only for bare numeric versions like
 // "1.2.3" — released tags ("v1.2.3") and the "dev" sentinel are rendered
 // verbatim to avoid "vv1.2.3" or "vdev".

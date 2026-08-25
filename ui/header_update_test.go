@@ -7,13 +7,16 @@ import (
 	"finam-terminal/version"
 )
 
-// asReleaseBuild makes version.String() report a release tag for the duration
+// testReleaseTag is the version the indicator tests pretend to be running.
+const testReleaseTag = "v0.13.0"
+
+// asReleaseBuild makes version.String() report testReleaseTag for the duration
 // of a test, so the update indicator logic is exercised the way it behaves on
 // a real release build.
-func asReleaseBuild(t *testing.T, tag string) {
+func asReleaseBuild(t *testing.T) {
 	t.Helper()
 	prev := version.Version
-	version.Version = tag
+	version.Version = testReleaseTag
 	t.Cleanup(func() { version.Version = prev })
 }
 
@@ -61,7 +64,7 @@ func TestHeaderLabelWithUpdate(t *testing.T) {
 // TestSetUpdateAvailableRedrawsHeader verifies the setter stores the version
 // and repaints the header text.
 func TestSetUpdateAvailableRedrawsHeader(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 
 	before := app.header.GetText(true)
@@ -83,7 +86,7 @@ func TestSetUpdateAvailableRedrawsHeader(t *testing.T) {
 // TestSetUpdateAvailableIgnoresOlderVersion verifies a stale or bogus version
 // never lights the indicator.
 func TestSetUpdateAvailableIgnoresOlderVersion(t *testing.T) {
-	asReleaseBuild(t, "v0.13.0")
+	asReleaseBuild(t)
 	app := NewApp(&mockClient{}, nil)
 
 	app.SetUpdateAvailable("v0.0.1")
