@@ -20,9 +20,9 @@
   - Acceptance: тесты зелёные под `-race`, без `time.Sleep` в ожиданиях (каналы/подменяемые часы) (9f071da)
 
 ## Phase 3: Self-update — скачивание, целостность, подмена
-- [ ] Task: (Red→Green) `updater/asset.go` — `AssetName(goos, goarch)` для 4 поддерживаемых комбинаций + ошибка с текстом платформы для остальных; табличный тест, включая `linux/arm64` и `windows/arm64`
-  - Acceptance: имена совпадают с артефактами `.github/workflows/release.yml`
-- [ ] Task: (Red) Тесты скачивания `updater/download_test.go` на `httptest`: файл сохраняется во временный путь, `progress` получает монотонный прогресс, SHA256 из `checksums.txt` сверяется, подменённое тело → ошибка и удаление temp, отсутствующий `checksums.txt` → фоллбек на сверку размера, несовпадение размера → ошибка, отмена `ctx` посреди тела → ошибка и удаление temp
+- [x] Task: (Red→Green) `updater/asset.go` — `AssetName(goos, goarch)` для 4 поддерживаемых комбинаций + ошибка с текстом платформы для остальных; табличный тест, включая `linux/arm64` и `windows/arm64`
+  - Acceptance: имена совпадают с артефактами `.github/workflows/release.yml` (52f0c23)
+- [~] Task: (Red) Тесты скачивания `updater/download_test.go` на `httptest`: файл сохраняется во временный путь, `progress` получает монотонный прогресс, SHA256 из `checksums.txt` сверяется, подменённое тело → ошибка и удаление temp, отсутствующий `checksums.txt` → фоллбек на сверку размера, несовпадение размера → ошибка, отмена `ctx` посреди тела → ошибка и удаление temp
   - Acceptance: тесты компилируются и падают
 - [ ] Task: (Green) `updater/download.go` — потоковое скачивание с `io.MultiWriter`+`sha256`, парсер `checksums.txt`, фоллбек по размеру, `defer`-очистка temp, таймаут 5 минут
   - Acceptance: тесты фазы зелёные; временных файлов после прогона не остаётся
