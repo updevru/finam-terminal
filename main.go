@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -12,10 +13,16 @@ import (
 	"finam-terminal/models"
 	"finam-terminal/platform"
 	"finam-terminal/ui"
+	"finam-terminal/updater"
+	"finam-terminal/version"
 )
 
 func main() {
 	platform.EnableUTF8()
+
+	// Remove the backup left by a previous update (Windows cannot delete a
+	// running .exe, so it is cleaned up on the next launch instead).
+	updater.CleanupStaleBackup()
 
 	// Setup file logging
 	logFile, err := os.OpenFile("finam-terminal.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
@@ -32,6 +39,15 @@ func main() {
 	_ = accountIdx // Silence unused variable warning until feature is implemented
 
 	ui.PrintConsoleSplash()
+
+	// Offer the update the last background check found. The state is read from
+	// disk, so this costs no network round-trip and cannot delay the launch.
+	// It runs before connecting to the broker: there is no point authenticating
+	// if the process is about to restart.
+	latestVersion := pendingUpdate()
+	if offerPendingUpdate(latestVersion) {
+		return
+	}
 
 	var cfg *config.Config
 	var client *api.Client
@@ -118,9 +134,95 @@ func main() {
 
 	// Start TUI
 	app := ui.NewApp(client, accounts)
+
+	// Light the header indicator from the cache. Without this the indicator
+	// would stay dark for up to a day after a version is found, because the
+	// background checker only reports versions it discovers itself and skips
+	// the check entirely while the cache is fresh.
+	app.SetUpdateAvailable(latestVersion)
+
+	// Watch for new releases in the background. Run returns immediately on a
+	// dev build, so nothing here touches the network unless this is a release.
+	updateCtx, stopUpdateCheck := context.WithCancel(context.Background())
+	defer stopUpdateCheck()
+	go updater.Run(updateCtx, version.Version, app.NotifyUpdateAvailable)
+
 	if err := app.Run(); err != nil {
 		log.Fatalf("[ERROR] Application error: %v", err)
 	}
+	stopUpdateCheck()
+
+	// The user pressed U and confirmed: the TUI has released the terminal, so
+	// the binary can now replace itself and restart.
+	if app.UpdateRequested() {
+		if installUpdate() {
+			return
+		}
+	}
 
 	fmt.Println("[INFO] Goodbye!")
+}
+
+// pendingUpdate returns the newer release named by the cached check result,
+// or an empty string when the running build is current, is a development
+// build, or no usable cache exists.
+//
+// It reads the file only — no network — so it costs nothing at startup. The
+// result feeds both the startup dialog and the header indicator: the
+// background checker stays silent for a whole day after a successful check, so
+// the indicator cannot rely on its callback alone.
+func pendingUpdate() string {
+	if !updater.IsRelease(version.Version) {
+		return ""
+	}
+
+	state, err := updater.LoadState()
+	if err != nil || !updater.IsNewer(version.Version, state.LatestVersion) {
+		return ""
+	}
+	return state.LatestVersion
+}
+
+// offerPendingUpdate shows the startup dialog for the given release and
+// installs it if the user agrees.
+//
+// It reports whether the process is being replaced, in which case main must
+// return immediately. Every failure is reported to the user and then ignored:
+// a failed update must never keep the terminal from starting.
+func offerPendingUpdate(latest string) bool {
+	if latest == "" {
+		return false
+	}
+	if !ui.NewUpdatePromptApp(version.String(), latest).Run() {
+		return false
+	}
+	return installUpdate()
+}
+
+// installUpdate fetches the current release, replaces the binary and restarts
+// the process. It reports whether the restart was handed off; on any failure
+// it prints an explanation, pauses so the message can be read, and returns
+// false so the caller continues with a normal launch.
+func installUpdate() bool {
+	rel, err := updater.FetchLatestRelease(context.Background())
+	if err != nil {
+		fmt.Printf("\x1b[31m[ОШИБКА]\x1b[0m Не удалось получить сведения о релизе: %v\n", err)
+		fmt.Printf("         Обновите вручную: %s\n", updater.ManualUpdateCommand())
+		time.Sleep(2 * time.Second)
+		return false
+	}
+
+	exePath, err := ui.RunUpdateFlow(rel)
+	if err != nil {
+		time.Sleep(2 * time.Second)
+		return false
+	}
+
+	if err := updater.Restart(exePath); err != nil {
+		fmt.Printf("\x1b[33m[ВНИМАНИЕ]\x1b[0m Обновление установлено, но перезапустить не удалось: %v\n", err)
+		fmt.Printf("           Запустите программу заново.\n")
+		time.Sleep(2 * time.Second)
+		return false
+	}
+	return true
 }

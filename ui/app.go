@@ -91,6 +91,11 @@ type App struct {
 	quoteFlushQueued bool
 	streamLive       atomic.Bool
 
+	// Update availability
+	updateMu        sync.RWMutex
+	latestVersion   string
+	updateRequested atomic.Bool
+
 	// Profile overlay
 	profilePanel     *ProfilePanel
 	profileSymbol    string

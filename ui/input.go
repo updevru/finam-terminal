@@ -304,6 +304,15 @@ func setupInputHandlers(app *App) {
 			return event
 		}
 
+		// Update modal — Esc dismisses it, other keys reach its buttons
+		if app.IsUpdateModalOpen() {
+			if event.Key() == tcell.KeyEscape {
+				app.CloseUpdateModal()
+				return nil
+			}
+			return event
+		}
+
 		switch event.Key() {
 		case tcell.KeyF1:
 			// Switch to PortfolioView (already there, but for consistency)
@@ -352,6 +361,9 @@ func setupInputHandlers(app *App) {
 			return nil
 		case 's', 'S', 'ы', 'Ы':
 			app.OpenSearchModal()
+			return nil
+		case 'u', 'U', 'г', 'Г':
+			app.HandleUpdateKey()
 			return nil
 		}
 		return event

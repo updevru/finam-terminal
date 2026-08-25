@@ -64,6 +64,12 @@ jobs:
           pattern: finam-terminal-*
           merge-multiple: true
 
+      - name: Generate checksums
+        working-directory: dist
+        run: |
+          sha256sum finam-terminal-* > checksums.txt
+          cat checksums.txt
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:

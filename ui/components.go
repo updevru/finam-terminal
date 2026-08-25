@@ -2,6 +2,7 @@ package ui
 
 import (
 	"finam-terminal/models"
+	"finam-terminal/updater"
 	"finam-terminal/version"
 	"fmt"
 	"strconv"
@@ -202,17 +203,37 @@ func createAccountTable() *tview.Table {
 // "vv1.2.3" or "vdev".
 func createHeader() *tview.TextView {
 	h := tview.NewTextView().
-		SetText(fmt.Sprintf(" Finam Terminal %s ", headerVersionLabel())).
+		SetDynamicColors(true).
+		SetText(headerLabel(version.String(), "")).
 		SetTextAlign(tview.AlignCenter)
 	h.SetBackgroundColor(tcell.ColorDarkCyan)
 	h.SetTextColor(tcell.ColorWhite)
 	return h
 }
 
-// headerVersionLabel returns the version string as it should appear in the
-// header. Adds a leading "v" only for bare numeric versions like "1.2.3".
-func headerVersionLabel() string {
-	v := version.String()
+// headerLabel renders the header text for the running version and the latest
+// known release.
+//
+// Without a newer release the label is exactly what it has always been. When
+// latest is a genuinely newer release, a yellow "⚡ <version>" is appended so
+// both versions are visible at a glance; the caller must have dynamic colours
+// enabled on the header.
+//
+// The indicator is deliberately informational only — it carries no call to
+// action such as "press U". The header is part of the trading screen and must
+// stay quiet; the update itself is offered by the dialog shown at startup.
+func headerLabel(current, latest string) string {
+	label := versionLabel(current)
+	if !updater.IsNewer(current, latest) {
+		return fmt.Sprintf(" Finam Terminal %s ", label)
+	}
+	return fmt.Sprintf(" Finam Terminal %s [yellow]⚡ %s[-] ", label, latest)
+}
+
+// versionLabel adds a leading "v" only for bare numeric versions like
+// "1.2.3" — released tags ("v1.2.3") and the "dev" sentinel are rendered
+// verbatim to avoid "vv1.2.3" or "vdev".
+func versionLabel(v string) string {
 	if v == "" {
 		return ""
 	}

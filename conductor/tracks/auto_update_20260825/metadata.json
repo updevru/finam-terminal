@@ -1,0 +1,9 @@
+{
+  "id": "auto_update_20260825",
+  "title": "Автообновление терминала — фоновая проверка релизов GitHub, индикатор в шапке и self-update с перезапуском",
+  "type": "feature",
+  "status": "planned",
+  "created_at": "2026-08-25T00:00:00Z",
+  "phases": 7,
+  "total_tasks": 21
+}
