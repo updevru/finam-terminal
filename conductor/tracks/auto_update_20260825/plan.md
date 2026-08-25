@@ -34,7 +34,7 @@
   - Acceptance: `go build ./...` проходит для обеих веток (`GOOS=windows` и `GOOS=linux` кросс-сборка) (9907d47)
 - [x] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
   - Acceptance: вывод не ломает консоль при ошибке и при 100% (1162601)
-## Phase 5: UI — диалог, индикатор, горячая клавиша
+## Phase 5: UI — диалог, индикатор, горячая клавиша [checkpoint: 748920a]
 - [x] Task: (Red→Green) `headerLabel(current, latest)` в `ui/components.go` + `SetDynamicColors(true)` для шапки; тесты: без обновления — прежняя строка (включая правило префикса `v`), с обновлением — `⚡` и номер новой версии
   - Acceptance: существующие тесты `ui/header_test.go` зелёные без правок ожиданий для случая «обновления нет» (7eb0368)
 - [x] Task: `ui/update_prompt.go` — `NewUpdatePromptApp(current, latest)` (tview-модалка по образцу `NewSetupApp`, `Run() bool`, дефолт и `Esc` → «Продолжить») + тест выбора кнопок без реального терминала
