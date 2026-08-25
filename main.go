@@ -44,7 +44,8 @@ func main() {
 	// disk, so this costs no network round-trip and cannot delay the launch.
 	// It runs before connecting to the broker: there is no point authenticating
 	// if the process is about to restart.
-	if offerPendingUpdate() {
+	latestVersion := pendingUpdate()
+	if offerPendingUpdate(latestVersion) {
 		return
 	}
 
@@ -134,6 +135,12 @@ func main() {
 	// Start TUI
 	app := ui.NewApp(client, accounts)
 
+	// Light the header indicator from the cache. Without this the indicator
+	// would stay dark for up to a day after a version is found, because the
+	// background checker only reports versions it discovers itself and skips
+	// the check entirely while the cache is fresh.
+	app.SetUpdateAvailable(latestVersion)
+
 	// Watch for new releases in the background. Run returns immediately on a
 	// dev build, so nothing here touches the network unless this is a release.
 	updateCtx, stopUpdateCheck := context.WithCancel(context.Background())
@@ -156,23 +163,37 @@ func main() {
 	fmt.Println("[INFO] Goodbye!")
 }
 
-// offerPendingUpdate shows the startup dialog when the cached check result
-// names a newer release, and installs it if the user agrees.
+// pendingUpdate returns the newer release named by the cached check result,
+// or an empty string when the running build is current, is a development
+// build, or no usable cache exists.
 //
-// It reports whether the process is being replaced, in which case main must
-// return immediately. Every failure is reported to the user and then ignored:
-// a failed update must never keep the terminal from starting.
-func offerPendingUpdate() bool {
+// It reads the file only — no network — so it costs nothing at startup. The
+// result feeds both the startup dialog and the header indicator: the
+// background checker stays silent for a whole day after a successful check, so
+// the indicator cannot rely on its callback alone.
+func pendingUpdate() string {
 	if !updater.IsRelease(version.Version) {
-		return false
+		return ""
 	}
 
 	state, err := updater.LoadState()
 	if err != nil || !updater.IsNewer(version.Version, state.LatestVersion) {
+		return ""
+	}
+	return state.LatestVersion
+}
+
+// offerPendingUpdate shows the startup dialog for the given release and
+// installs it if the user agrees.
+//
+// It reports whether the process is being replaced, in which case main must
+// return immediately. Every failure is reported to the user and then ignored:
+// a failed update must never keep the terminal from starting.
+func offerPendingUpdate(latest string) bool {
+	if latest == "" {
 		return false
 	}
-
-	if !ui.NewUpdatePromptApp(version.String(), state.LatestVersion).Run() {
+	if !ui.NewUpdatePromptApp(version.String(), latest).Run() {
 		return false
 	}
 	return installUpdate()
