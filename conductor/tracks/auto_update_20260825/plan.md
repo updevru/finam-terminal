@@ -35,9 +35,9 @@
 - [x] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
   - Acceptance: вывод не ломает консоль при ошибке и при 100% (1162601)
 ## Phase 5: UI — диалог, индикатор, горячая клавиша
-- [ ] Task: (Red→Green) `headerLabel(current, latest)` в `ui/components.go` + `SetDynamicColors(true)` для шапки; тесты: без обновления — прежняя строка (включая правило префикса `v`), с обновлением — `⚡` и номер новой версии
-  - Acceptance: существующие тесты `ui/header_test.go` зелёные без правок ожиданий для случая «обновления нет»
-- [ ] Task: `ui/update_prompt.go` — `NewUpdatePromptApp(current, latest)` (tview-модалка по образцу `NewSetupApp`, `Run() bool`, дефолт и `Esc` → «Продолжить») + тест выбора кнопок без реального терминала
+- [x] Task: (Red→Green) `headerLabel(current, latest)` в `ui/components.go` + `SetDynamicColors(true)` для шапки; тесты: без обновления — прежняя строка (включая правило префикса `v`), с обновлением — `⚡` и номер новой версии
+  - Acceptance: существующие тесты `ui/header_test.go` зелёные без правок ожиданий для случая «обновления нет» (7eb0368)
+- [~] Task: `ui/update_prompt.go` — `NewUpdatePromptApp(current, latest)` (tview-модалка по образцу `NewSetupApp`, `Run() bool`, дефолт и `Esc` → «Продолжить») + тест выбора кнопок без реального терминала
   - Acceptance: обе версии видны в тексте; выбор корректно возвращается вызывающему
 - [ ] Task: `App.SetUpdateAvailable(latest)` + модалка по клавише `u/U/г/Г` в главном экране (`ui/input.go`), флаг `updateRequested` + `UpdateRequested()`, сообщение в статус-баре при отсутствии обновления; unit-тесты: сеттер перерисовывает шапку, подтверждение ставит флаг и останавливает приложение, клавиша без обновления не открывает модалку
   - Acceptance: тесты зелёные под `-race`; клавиша не конфликтует с существующими биндингами
