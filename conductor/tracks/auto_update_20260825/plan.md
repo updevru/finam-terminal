@@ -32,11 +32,8 @@
 ## Phase 4: Перезапуск и подключение к main.go
 - [x] Task: (Red→Green) `updater/restart_unix.go` / `restart_windows.go` (build-теги в стиле `platform/console_*.go`): `Restart(exePath)` через подменяемую переменную-хук; тест проверяет переданные путь/аргументы/окружение без реального exec
   - Acceptance: `go build ./...` проходит для обеих веток (`GOOS=windows` и `GOOS=linux` кросс-сборка) (9907d47)
-- [~] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
-  - Acceptance: вывод не ломает консоль при ошибке и при 100%
-- [ ] Task: Интеграция в `main.go`: `CleanupStaleBackup()` в начале; после сплэша — `LoadState` + диалог при `IsNewer` + `go updater.Run(...)`; после `app.Run()` — обработка `app.UpdateRequested()`; ошибки обновления не прерывают запуск (сообщение + пауза + обычный старт)
-  - Acceptance: `go run main.go` на dev-сборке ведёт себя ровно как раньше — ни файла, ни сетевых запросов, ни задержек
-
+- [x] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
+  - Acceptance: вывод не ломает консоль при ошибке и при 100% (1162601)
 ## Phase 5: UI — диалог, индикатор, горячая клавиша
 - [ ] Task: (Red→Green) `headerLabel(current, latest)` в `ui/components.go` + `SetDynamicColors(true)` для шапки; тесты: без обновления — прежняя строка (включая правило префикса `v`), с обновлением — `⚡` и номер новой версии
   - Acceptance: существующие тесты `ui/header_test.go` зелёные без правок ожиданий для случая «обновления нет»
@@ -44,6 +41,11 @@
   - Acceptance: обе версии видны в тексте; выбор корректно возвращается вызывающему
 - [ ] Task: `App.SetUpdateAvailable(latest)` + модалка по клавише `u/U/г/Г` в главном экране (`ui/input.go`), флаг `updateRequested` + `UpdateRequested()`, сообщение в статус-баре при отсутствии обновления; unit-тесты: сеттер перерисовывает шапку, подтверждение ставит флаг и останавливает приложение, клавиша без обновления не открывает модалку
   - Acceptance: тесты зелёные под `-race`; клавиша не конфликтует с существующими биндингами
+
+- [ ] Task: Интеграция в `main.go`: `CleanupStaleBackup()` в начале; после сплэша — `LoadState` + диалог при `IsNewer` + `go updater.Run(...)`; после `app.Run()` — обработка `app.UpdateRequested()`; ошибки обновления не прерывают запуск (сообщение + пауза + обычный старт)
+  - Acceptance: `go run main.go` на dev-сборке ведёт себя ровно как раньше — ни файла, ни сетевых запросов, ни задержек
+
+> Примечание (отклонение от исходного плана): задача «Интеграция в `main.go`» перенесена сюда из Фазы 4: она вызывает `ui.NewUpdatePromptApp`, `App.SetUpdateAvailable` и `App.UpdateRequested()`, которые создаются только в Фазе 5. Объём работ не изменён.
 
 ## Phase 6: CI — контрольные суммы релиза
 - [ ] Task: `.github/workflows/release.yml` — шаг генерации `checksums.txt` (`sha256sum finam-terminal-* > checksums.txt` в `dist/`) перед `softprops/action-gh-release`; проверка синтаксисом (`actionlint`/`yq`) и вручную по логике job
