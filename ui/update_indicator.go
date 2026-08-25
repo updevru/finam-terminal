@@ -12,15 +12,15 @@ import (
 // updateModalPage is the tview page name of the in-app update modal.
 const updateModalPage = "update_modal"
 
-// SetUpdateAvailable records that a newer release is available and repaints
-// the header so the ⚡ indicator lights up.
+// SetUpdateAvailable records that a newer release is available.
 //
-// It is safe to call from any goroutine, but the caller is responsible for
-// running it on the tview event loop (QueueUpdateDraw) when the application is
-// already running — this method only guards its own state.
+// Nothing on screen changes: the header stays quiet by design, and the user
+// learns about the new version from the dialog shown at the next startup. The
+// stored version is what the U hotkey offers to install.
 //
 // A version that is not genuinely newer than the running one (a stale cache, a
-// dev build, a malformed tag) is ignored, so the indicator can never lie.
+// dev build, a malformed tag) is ignored, so the terminal can never offer a
+// downgrade.
 func (a *App) SetUpdateAvailable(latest string) {
 	if !updater.IsNewer(version.String(), latest) {
 		return
@@ -29,16 +29,13 @@ func (a *App) SetUpdateAvailable(latest string) {
 	a.updateMu.Lock()
 	a.latestVersion = latest
 	a.updateMu.Unlock()
-
-	a.refreshHeader()
 }
 
-// NotifyUpdateAvailable is the goroutine-safe entry point for the background
-// update checker: it marshals SetUpdateAvailable onto the tview event loop so
-// the header repaints safely while the terminal is running.
+// NotifyUpdateAvailable is the entry point for the background update checker,
+// which calls it from its own goroutine.
 //
-// Notifications that arrive after the application stopped are dropped —
-// QueueUpdateDraw blocks forever once the event loop is gone.
+// Notifications arriving after the application stopped are dropped: by then
+// nobody is left to act on them.
 func (a *App) NotifyUpdateAvailable(latest string) {
 	select {
 	case <-a.stopChan:
@@ -46,9 +43,7 @@ func (a *App) NotifyUpdateAvailable(latest string) {
 	default:
 	}
 
-	a.app.QueueUpdateDraw(func() {
-		a.SetUpdateAvailable(latest)
-	})
+	a.SetUpdateAvailable(latest)
 }
 
 // LatestVersion returns the newest release the application knows about, or an
@@ -65,14 +60,6 @@ func (a *App) LatestVersion() string {
 // the TUI owns the terminal.
 func (a *App) UpdateRequested() bool {
 	return a.updateRequested.Load()
-}
-
-// refreshHeader repaints the header from the current version state.
-func (a *App) refreshHeader() {
-	if a.header == nil {
-		return
-	}
-	a.header.SetText(headerLabel(version.String(), a.LatestVersion()))
 }
 
 // OpenUpdateModal shows the in-app update dialog. It is a no-op when no newer
