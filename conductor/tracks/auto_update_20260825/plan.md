@@ -30,9 +30,9 @@
   - Acceptance: тесты зелёные на текущей ОС; при любой ошибке исходный файл остаётся байт-в-байт прежним (ee1a4d9)
 
 ## Phase 4: Перезапуск и подключение к main.go
-- [ ] Task: (Red→Green) `updater/restart_unix.go` / `restart_windows.go` (build-теги в стиле `platform/console_*.go`): `Restart(exePath)` через подменяемую переменную-хук; тест проверяет переданные путь/аргументы/окружение без реального exec
-  - Acceptance: `go build ./...` проходит для обеих веток (`GOOS=windows` и `GOOS=linux` кросс-сборка)
-- [ ] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
+- [x] Task: (Red→Green) `updater/restart_unix.go` / `restart_windows.go` (build-теги в стиле `platform/console_*.go`): `Restart(exePath)` через подменяемую переменную-хук; тест проверяет переданные путь/аргументы/окружение без реального exec
+  - Acceptance: `go build ./...` проходит для обеих веток (`GOOS=windows` и `GOOS=linux` кросс-сборка) (9907d47)
+- [~] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
   - Acceptance: вывод не ломает консоль при ошибке и при 100%
 - [ ] Task: Интеграция в `main.go`: `CleanupStaleBackup()` в начале; после сплэша — `LoadState` + диалог при `IsNewer` + `go updater.Run(...)`; после `app.Run()` — обработка `app.UpdateRequested()`; ошибки обновления не прерывают запуск (сообщение + пауза + обычный старт)
   - Acceptance: `go run main.go` на dev-сборке ведёт себя ровно как раньше — ни файла, ни сетевых запросов, ни задержек
