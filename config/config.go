@@ -39,6 +39,32 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
+// userConfigDirName is the single place the ~/.finam-cli directory name is
+// spelled. Everything that persists user state (the token .env, the update
+// check cache) must resolve its path through the helpers below.
+const userConfigDirName = ".finam-cli"
+
+// UserConfigDir returns the per-user configuration directory (~/.finam-cli),
+// where the API token .env and the update check cache live. The directory is
+// not created — callers that write into it are expected to MkdirAll first.
+//
+// The error from os.UserHomeDir is propagated: a caller without a home
+// directory (a locked-down service account, for example) must decide for
+// itself whether that is fatal.
+func UserConfigDir() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	return userConfigDirIn(home), nil
+}
+
+// userConfigDirIn builds the config directory path under an explicit home
+// directory. Tests use it to work against a temporary home.
+func userConfigDirIn(homeDir string) string {
+	return filepath.Join(homeDir, userConfigDirName)
+}
+
 // FindToken searches for the API token in ~/.finam-cli/.env and ./.env
 func FindToken() (string, string) {
 	home, _ := os.UserHomeDir()
@@ -48,7 +74,7 @@ func FindToken() (string, string) {
 func findTokenInternal(homeDir, localPath string) (string, string) {
 	// 1. Check home directory
 	if homeDir != "" {
-		homeEnv := filepath.Join(homeDir, ".finam-cli", ".env")
+		homeEnv := filepath.Join(userConfigDirIn(homeDir), ".env")
 		if env, err := godotenv.Read(homeEnv); err == nil {
 			if token, ok := env["FINAM_API_TOKEN"]; ok && token != "" {
 				return token, homeEnv
@@ -76,7 +102,7 @@ func SaveTokenToUserHome(token string) error {
 }
 
 func saveTokenInternal(homeDir, token string) error {
-	dir := filepath.Join(homeDir, ".finam-cli")
+	dir := userConfigDirIn(homeDir)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return err
 	}
