@@ -32,9 +32,21 @@ The project follows a clean modular structure:
     *   `input.go`: Keyboard input handlers for all views (navigation, shortcuts, order actions).
     *   `modal.go`: Order placement modal with dynamic fields for Market/Limit/Stop/TP/SL+TP order types.
     *   `utils.go`: UI utility functions (number formatting, account ID masking).
+    *   `update_prompt.go`: pre-TUI dialog (`NewUpdatePromptApp(current, latest).Run() bool`) shown after the splash and before `RunStartupSteps`. Every non-explicit path (Esc, default focus, a draw failure) resolves to "continue".
+    *   `update_flow.go`: `RunUpdateFlow(rel)` — console progress bar in the `RunStartupSteps` style, readable Russian errors including `ManualUpdateCommand()` on `ErrNotWritable`. Returns the executable path to restart.
+    *   `update_indicator.go`: `SetUpdateAvailable`/`NotifyUpdateAvailable` (the goroutine-safe variant that marshals onto the event loop and drops notifications after `Stop()`), `LatestVersion`, the `U`-key modal lifecycle, and `ConfirmUpdate`/`UpdateRequested` — the flag `main.go` acts on after `app.Run()` returns, since the process cannot replace itself while tview owns the terminal.
 *   **`config/`**: Handles loading environment variables from `.env` or system environment.
 *   **`models/`**: Shared data structures used across the application to represent accounts, quotes, positions, trades, and orders. Key fields include `LotSize` and `Name` for instrument metadata. `AssetParams.TradeLotSize` (int64, 2.18.1) carries the broker's trade lot; 0 means the API has no value. `AccountInfo.LoadError` is set when an account fails to load from the broker. `AccountInfo.DailyPnL` holds the daily P&L value. `Order` includes extended fields for stop/limit prices, conditions, validity, and SL/TP quantities, plus `TriggeredOrderID` (the exchange order a stop spawned, 2.17.0). `Trade` carries `AccruedInterest` and `Currency` (bond НКД + price currency, 2.16.0). Corporate-action calendar types `Dividend`, `Split`, and `BondEvent` (flat pre-formatted strings; `BondEvent.Kind` ∈ {Coupon, Amortization, Offer} selects the populated detail group) are surfaced via `InstrumentProfile.Dividends`/`Splits`/`BondEvents`.
 *   **`version/`**: Build-time version metadata. Exposes `Version`, `Commit`, and `BuildDate` as **package-level vars** (not consts — the linker can only override vars via `-ldflags -X`). `String()` returns the display string used by the UI header: a release tag verbatim (`v1.2.3`), or a dev build with VCS info (`dev (a1b2c3d)` or `dev (a1b2c3d, dirty)`), falling back through `runtime/debug.ReadBuildInfo()` when no commit is injected. `Info()` returns the raw tuple for diagnostics.
+*   **`updater/`**: Self-update machinery, standard library only (no new `go.mod` dependency). Gated entirely on `updater.IsRelease(version.Version)` — a `dev` build performs no request, writes no file and shows nothing.
+    *   `semver.go`: `IsRelease`, `Compare`, `IsNewer` — a hand-rolled semver parser (optional `v` prefix, pre-release below its release, build metadata ignored). `IsNewer` returns false unless **both** sides are release versions, so a dev build is never nagged and a locally-newer build is never asked to downgrade.
+    *   `state.go`: `State` + `LoadState`/`SaveState` over `~/.finam-cli/update.json` (same directory as the token `.env`, resolved via `config.UserConfigDir()`). Written atomically (temp + rename); a missing, empty or corrupt file degrades to the zero state with a `[WARN]` so a bad cache can never block startup.
+    *   `github.go`: `Release`/`Asset` + `FetchLatestRelease` against `/repos/updevru/finam-terminal/releases/latest`. Unauthenticated (60 req/h/IP vs one check per day), 10s timeout, `apiBaseURL` is a package var so tests point it at `httptest`.
+    *   `checker.go`: `ShouldCheck(state, now)` (24h window, zero time = due) and `Run(ctx, current, onNewVersion)` — the background loop. A failed check deliberately does **not** advance `LastCheck`.
+    *   `asset.go`: `AssetName(goos, goarch)` mirroring the `release.yml` build matrix; platforms outside it (`linux/arm64`, `windows/arm64`) return an error naming the platform.
+    *   `download.go`: streaming download through `io.MultiWriter(file, sha256)`, verified against `checksums.txt` (parser handles both the `␠␠` and `␠*` sha256sum separators) with a fallback to the asset size for releases predating it. 5 minute timeout; the partial file is removed on every failure path.
+    *   `apply.go`: `SelfUpdate` (resolve exe → `ensureWritable` → download to `.finam-terminal-update-<pid>.tmp` in the exe's own directory → verify → `chmod 0755` on Unix → replace), `replaceExecutable` (`exe→exe.old`, `tmp→exe`, rollback on failure; the backup is removed on Unix and left for `CleanupStaleBackup` on Windows), and `ManualUpdateCommand()`. **Invariant: on any failure the existing binary is byte-for-byte unchanged.**
+    *   `restart.go` + `restart_unix.go`/`restart_windows.go`: `Restart(exePath)` — `syscall.Exec` on Unix (same PID and terminal), child process + exit on Windows. Build tags follow `platform/console_*.go`; the exec call sits behind the `execRestart` var so tests assert argv/env without replacing the process.
 
 ## Getting Started
 
@@ -175,6 +187,7 @@ The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
 
 *   `api/`: gRPC client wrapper.
     *   `testserver/`: Mock gRPC server for integration tests (bufconn-based, all 6 Finam services).
+*   `updater/`: Update check + self-update (semver, state cache, GitHub client, scheduler, download, apply, restart).
 *   `config/`: Configuration loader.
 *   `models/`: Data types.
 *   `ui/`: TUI implementation (views, controllers).
@@ -295,6 +308,12 @@ The CI workflow (`.github/workflows/ci.yml`) has 4 jobs:
     *   **Method:** `SubscribeQuote` (server stream)
     *   **File:** `api/quote_stream.go` (`StartQuoteStream`, `SetQuoteSymbols`, `runQuoteStream`, `mergeQuote`), `ui/stream.go` (consumption)
     *   **Usage:** Replaces the N+1 `LastQuote` poll for the active account. `SetQuoteSymbols` declares the desired symbol set (normalized: `@`-filtered, deduped, sorted) and never blocks the UI thread; changing it cancels the current subscription and resubscribes without reporting an outage, while a real drop reconnects with 1s→30s backoff. Liveness is claimed only after the first received message (gRPC opens streams lazily), and `resp.Error` is logged as a warning without ending the stream. `getStreamContext` carries the current token with no unary timeout. `Quote.is_data_snapshot` decides the merge: a snapshot replaces the remembered state, an increment overwrites only its non-nil fields. While the stream is live the UI stops polling quotes for the active account and never replaces the cached quote map; inactive accounts and chart bars keep polling.
+
+22.  **Update Check (GitHub Releases)**
+    *   **Service:** GitHub REST API (not gRPC)
+    *   **Endpoint:** `GET https://api.github.com/repos/updevru/finam-terminal/releases/latest`
+    *   **File:** `updater/github.go` (`FetchLatestRelease`), `updater/checker.go` (`Run`, `ShouldCheck`)
+    *   **Usage:** Background check once per 24h for release builds only; the result is cached in `~/.finam-cli/update.json`. Unauthenticated, 10s timeout, `[WARN]`-logged on any failure and retried on the normal schedule. `main.go` reads the cache at startup (no network) to decide whether to show the update dialog.
 
 21.  **Session Token Details / Expiry**
     *   **Service:** `AuthServiceClient`

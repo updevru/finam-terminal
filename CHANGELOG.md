@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.15.0] - 2026-08-25
+
+### Added
+- **Auto Update**: the terminal now checks GitHub Releases once a day in the background, lights a `⚡` indicator with the new version in the header, and can download, verify and install the update, restarting itself — from the startup dialog or the new `U` hotkey (`auto_update`).
+- **`updater` package**: standard-library only — semver comparison, the `~/.finam-cli/update.json` state cache, the GitHub Releases client, the daily scheduler, verified asset download and the atomic binary replacement with rollback (`auto_update`).
+- **Release checksums**: `checksums.txt` is now generated and published with every release, and the self-update verifies the downloaded binary against it (falling back to the asset size for older releases) (`auto_update`).
+- **`config.UserConfigDir()`**: the `~/.finam-cli` path is now resolved in one place, shared by the token `.env` and the update cache (`auto_update`).
+
+### Changed
+- **Header**: renders through the new `headerLabel` helper with dynamic colours; the text is unchanged when no update is available (`auto_update`).
+
 ## [v0.14.0] - 2026-08-25
 
 ### Added
