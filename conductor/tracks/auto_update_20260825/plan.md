@@ -22,9 +22,9 @@
 ## Phase 3: Self-update — скачивание, целостность, подмена
 - [x] Task: (Red→Green) `updater/asset.go` — `AssetName(goos, goarch)` для 4 поддерживаемых комбинаций + ошибка с текстом платформы для остальных; табличный тест, включая `linux/arm64` и `windows/arm64`
   - Acceptance: имена совпадают с артефактами `.github/workflows/release.yml` (52f0c23)
-- [~] Task: (Red) Тесты скачивания `updater/download_test.go` на `httptest`: файл сохраняется во временный путь, `progress` получает монотонный прогресс, SHA256 из `checksums.txt` сверяется, подменённое тело → ошибка и удаление temp, отсутствующий `checksums.txt` → фоллбек на сверку размера, несовпадение размера → ошибка, отмена `ctx` посреди тела → ошибка и удаление temp
-  - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) `updater/download.go` — потоковое скачивание с `io.MultiWriter`+`sha256`, парсер `checksums.txt`, фоллбек по размеру, `defer`-очистка temp, таймаут 5 минут
+- [x] Task: (Red) Тесты скачивания `updater/download_test.go` на `httptest`: файл сохраняется во временный путь, `progress` получает монотонный прогресс, SHA256 из `checksums.txt` сверяется, подменённое тело → ошибка и удаление temp, отсутствующий `checksums.txt` → фоллбек на сверку размера, несовпадение размера → ошибка, отмена `ctx` посреди тела → ошибка и удаление temp
+  - Acceptance: тесты компилируются и падают (52def78)
+- [~] Task: (Green) `updater/download.go` — потоковое скачивание с `io.MultiWriter`+`sha256`, парсер `checksums.txt`, фоллбек по размеру, `defer`-очистка temp, таймаут 5 минут
   - Acceptance: тесты фазы зелёные; временных файлов после прогона не остаётся
 - [ ] Task: (Red→Green) `updater/apply.go` — `SelfUpdate` (реальный путь через `os.Executable`+`EvalSymlinks`, проба записи → `ErrNotWritable` с командой ручного обновления, `chmod 0755` на Unix) + `replaceExecutable` (`exe→exe.old`, `tmp→exe`, откат при сбое) + `CleanupStaleBackup`; тесты на временном каталоге с бутафорским «бинарником»: успешная подмена, откат при неудаче второго rename, отказ по правам, чистка `.old`
   - Acceptance: тесты зелёные на текущей ОС; при любой ошибке исходный файл остаётся байт-в-байт прежним
