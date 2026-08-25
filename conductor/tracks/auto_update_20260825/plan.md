@@ -12,8 +12,8 @@
   - Acceptance: тесты зелёные; существующие тесты `config` не сломаны; путь совпадает с каталогом `.env` (4221e98)
 
 ## Phase 2: Проверка обновлений (GitHub API + планировщик)
-- [ ] Task: (Red) `updater/github_test.go` на `httptest`: разбор `tag_name`/`html_url`/`published_at`/`assets`, выбор ассета по имени, 404/500/невалидный JSON → ошибка, соблюдение таймаута и заголовков `Accept`/`User-Agent`
-  - Acceptance: тесты компилируются и падают
+- [x] Task: (Red) `updater/github_test.go` на `httptest`: разбор `tag_name`/`html_url`/`published_at`/`assets`, выбор ассета по имени, 404/500/невалидный JSON → ошибка, соблюдение таймаута и заголовков `Accept`/`User-Agent`
+  - Acceptance: тесты компилируются и падают (e01e33b)
 - [ ] Task: (Green) `updater/github.go` — `Release`/`Asset`, `FetchLatestRelease(ctx)`, подменяемый `apiBaseURL`, таймаут 10 с, единый `[WARN]`-лог ошибок
   - Acceptance: тесты фазы зелёные; сеть в тестах не используется
 - [ ] Task: (Red→Green) `updater/checker.go` — `ShouldCheck(state, now)` (сутки, нулевое время → true) и `Run(ctx, current, onNewVersion)`; тесты: свежее состояние → запросов нет, просроченное → один запрос + сохранение состояния, найденная новая версия → ровно один вызов колбэка (повторная проверка той же версии — без дубля), `!IsRelease(current)` → мгновенный возврат без запросов и без файла, `ctx.Done()` останавливает цикл
