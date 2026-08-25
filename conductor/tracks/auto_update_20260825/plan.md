@@ -11,7 +11,7 @@
 - [x] Task: (Red→Green) `config.UserConfigDir()` (экспортированный каталог `~/.finam-cli`, переиспользован в `saveTokenInternal`) + `updater/state.go`: `LoadState`/`SaveState`; тесты через подменяемый каталог: отсутствующий файл → нулевое состояние без ошибки, битый JSON → нулевое состояние + `[WARN]`, круговая запись/чтение, атомарность (temp+rename, после записи в каталоге нет `.tmp`)
   - Acceptance: тесты зелёные; существующие тесты `config` не сломаны; путь совпадает с каталогом `.env` (4221e98)
 
-## Phase 2: Проверка обновлений (GitHub API + планировщик)
+## Phase 2: Проверка обновлений (GitHub API + планировщик) [checkpoint: f9832f0]
 - [x] Task: (Red) `updater/github_test.go` на `httptest`: разбор `tag_name`/`html_url`/`published_at`/`assets`, выбор ассета по имени, 404/500/невалидный JSON → ошибка, соблюдение таймаута и заголовков `Accept`/`User-Agent`
   - Acceptance: тесты компилируются и падают (e01e33b)
 - [x] Task: (Green) `updater/github.go` — `Release`/`Asset`, `FetchLatestRelease(ctx)`, подменяемый `apiBaseURL`, таймаут 10 с, единый `[WARN]`-лог ошибок
