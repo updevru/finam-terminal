@@ -33,6 +33,24 @@ func (a *App) SetUpdateAvailable(latest string) {
 	a.refreshHeader()
 }
 
+// NotifyUpdateAvailable is the goroutine-safe entry point for the background
+// update checker: it marshals SetUpdateAvailable onto the tview event loop so
+// the header repaints safely while the terminal is running.
+//
+// Notifications that arrive after the application stopped are dropped —
+// QueueUpdateDraw blocks forever once the event loop is gone.
+func (a *App) NotifyUpdateAvailable(latest string) {
+	select {
+	case <-a.stopChan:
+		return
+	default:
+	}
+
+	a.app.QueueUpdateDraw(func() {
+		a.SetUpdateAvailable(latest)
+	})
+}
+
 // LatestVersion returns the newest release the application knows about, or an
 // empty string when the running version is up to date.
 func (a *App) LatestVersion() string {
