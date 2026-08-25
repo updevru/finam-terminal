@@ -260,6 +260,33 @@ func TestParseChecksums(t *testing.T) {
 	}
 }
 
+// TestParseChecksumsMatchesReleaseWorkflowFormat pins the parser to the exact
+// output of `sha256sum finam-terminal-*` as run by the release workflow.
+//
+// GNU coreutils separates the digest from the name with two spaces in text
+// mode and with " *" in binary mode (which is what it defaults to on Windows);
+// the release job may produce either, so both must parse.
+func TestParseChecksumsMatchesReleaseWorkflowFormat(t *testing.T) {
+	const (
+		sumA = "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+		sumB = "3e23e8160039594a33894f6564e1b1348bbd7a0088d42c4acb73eeaed59c009d"
+	)
+
+	for _, sep := range []string{"  ", " *"} {
+		input := sumA + sep + "finam-terminal-linux-amd64\n" +
+			sumB + sep + "finam-terminal-windows-amd64.exe\n"
+
+		got := parseChecksums([]byte(input))
+
+		if got["finam-terminal-linux-amd64"] != sumA {
+			t.Errorf("separator %q: linux sum = %q, want %q", sep, got["finam-terminal-linux-amd64"], sumA)
+		}
+		if got["finam-terminal-windows-amd64.exe"] != sumB {
+			t.Errorf("separator %q: windows sum = %q, want %q", sep, got["finam-terminal-windows-amd64.exe"], sumB)
+		}
+	}
+}
+
 // assertNoLeftovers fails when a failed download left a file behind.
 func assertNoLeftovers(t *testing.T, dir string) {
 	t.Helper()
