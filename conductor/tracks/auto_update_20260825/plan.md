@@ -6,8 +6,8 @@
 ## Phase 1: Ядро — версии и файл состояния
 - [x] Task: (Red) Тесты `updater/semver_test.go`: `IsRelease` (`v0.14.0`/`0.14.0` → true; `dev`, `dev (a1b2c3d)`, `""`, мусор → false), `Compare` (мажор/минор/патч, префикс `v` опционален, `v1.0.0-rc1` < `v1.0.0`), `IsNewer` (новее → true; равные, downgrade, нерелизная сторона → false)
   - Acceptance: тесты компилируются и падают, фиксируя таблицу сравнений (5cbc6f0)
-- [ ] Task: (Green) `updater/semver.go` — парсер semver без внешних зависимостей + `IsRelease`/`Compare`/`IsNewer` с GoDoc
-  - Acceptance: тесты фазы зелёные; `go vet ./updater/...` чист
+- [x] Task: (Green) `updater/semver.go` — парсер semver без внешних зависимостей + `IsRelease`/`Compare`/`IsNewer` с GoDoc
+  - Acceptance: тесты фазы зелёные; `go vet ./updater/...` чист (5801d07)
 - [ ] Task: (Red→Green) `config.UserConfigDir()` (экспортированный каталог `~/.finam-cli`, переиспользован в `saveTokenInternal`) + `updater/state.go`: `LoadState`/`SaveState`; тесты через подменяемый каталог: отсутствующий файл → нулевое состояние без ошибки, битый JSON → нулевое состояние + `[WARN]`, круговая запись/чтение, атомарность (temp+rename, после записи в каталоге нет `.tmp`)
   - Acceptance: тесты зелёные; существующие тесты `config` не сломаны; путь совпадает с каталогом `.env`
 
