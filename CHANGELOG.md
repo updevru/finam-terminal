@@ -8,13 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.15.0] - 2026-08-25
 
 ### Added
-- **Auto Update**: the terminal now checks GitHub Releases once a day in the background and offers to install a newer version at the next launch, downloading, verifying and installing it before restarting itself. The running screen stays untouched — no header indicator, no popups over the trading interface; the same dialog is available on demand via the `U` hotkey (`auto_update`).
+- **Auto Update**: the terminal now checks GitHub Releases once a day in the background, shows the available version next to the running one in the header as `⚡ vX.Y.Z`, and offers to download, verify and install it at the next launch before restarting itself. The indicator is informational only — no popups over the trading interface — and the same dialog is available on demand via the `U` hotkey (`auto_update`).
 - **`updater` package**: standard-library only — semver comparison, the `~/.finam-cli/update.json` state cache, the GitHub Releases client, the daily scheduler, verified asset download and the atomic binary replacement with rollback (`auto_update`).
 - **Release checksums**: `checksums.txt` is now generated and published with every release, and the self-update verifies the downloaded binary against it (falling back to the asset size for older releases) (`auto_update`).
 - **`config.UserConfigDir()`**: the `~/.finam-cli` path is now resolved in one place, shared by the token `.env` and the update cache (`auto_update`).
 
 ### Changed
-- **Header**: renders through the new `headerLabel` helper; the text is the application name and the running version, and never changes at runtime (`auto_update`).
+- **Header**: renders through the new `headerLabel` helper with dynamic colours; the text is unchanged when no update is available, and gains a `⚡ <version>` segment when one is (`auto_update`).
 
 ## [v0.14.0] - 2026-08-25
 

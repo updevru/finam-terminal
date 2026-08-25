@@ -12,15 +12,15 @@ import (
 // updateModalPage is the tview page name of the in-app update modal.
 const updateModalPage = "update_modal"
 
-// SetUpdateAvailable records that a newer release is available.
+// SetUpdateAvailable records that a newer release is available and repaints
+// the header so the ⚡ indicator and the new version number appear.
 //
-// Nothing on screen changes: the header stays quiet by design, and the user
-// learns about the new version from the dialog shown at the next startup. The
-// stored version is what the U hotkey offers to install.
+// It is safe to call from any goroutine, but the caller is responsible for
+// running it on the tview event loop (QueueUpdateDraw) when the application is
+// already running — this method only guards its own state.
 //
 // A version that is not genuinely newer than the running one (a stale cache, a
-// dev build, a malformed tag) is ignored, so the terminal can never offer a
-// downgrade.
+// dev build, a malformed tag) is ignored, so the indicator can never lie.
 func (a *App) SetUpdateAvailable(latest string) {
 	if !updater.IsNewer(version.String(), latest) {
 		return
@@ -29,13 +29,16 @@ func (a *App) SetUpdateAvailable(latest string) {
 	a.updateMu.Lock()
 	a.latestVersion = latest
 	a.updateMu.Unlock()
+
+	a.refreshHeader()
 }
 
-// NotifyUpdateAvailable is the entry point for the background update checker,
-// which calls it from its own goroutine.
+// NotifyUpdateAvailable is the goroutine-safe entry point for the background
+// update checker: it marshals SetUpdateAvailable onto the tview event loop so
+// the header repaints safely while the terminal is running.
 //
-// Notifications arriving after the application stopped are dropped: by then
-// nobody is left to act on them.
+// Notifications that arrive after the application stopped are dropped —
+// QueueUpdateDraw blocks forever once the event loop is gone.
 func (a *App) NotifyUpdateAvailable(latest string) {
 	select {
 	case <-a.stopChan:
@@ -43,7 +46,17 @@ func (a *App) NotifyUpdateAvailable(latest string) {
 	default:
 	}
 
-	a.SetUpdateAvailable(latest)
+	a.app.QueueUpdateDraw(func() {
+		a.SetUpdateAvailable(latest)
+	})
+}
+
+// refreshHeader repaints the header from the current version state.
+func (a *App) refreshHeader() {
+	if a.header == nil {
+		return
+	}
+	a.header.SetText(headerLabel(version.String(), a.LatestVersion()))
 }
 
 // LatestVersion returns the newest release the application knows about, or an
