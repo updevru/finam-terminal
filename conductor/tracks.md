@@ -156,3 +156,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Spec: [./tracks/trade_lot_and_realtime_quotes_20260824/spec.md](./tracks/trade_lot_and_realtime_quotes_20260824/spec.md)*
 *Plan: [./tracks/trade_lot_and_realtime_quotes_20260824/plan.md](./tracks/trade_lot_and_realtime_quotes_20260824/plan.md)*
 *Phases: 7 | Tasks: 22*
+
+
+---
+
+
+- [ ] **Track: Автообновление терминала — фоновая проверка релизов GitHub, индикатор в шапке и self-update с перезапуском**
+
+*Link: [./tracks/auto_update_20260825/](./tracks/auto_update_20260825/)*
+*Spec: [./tracks/auto_update_20260825/spec.md](./tracks/auto_update_20260825/spec.md)*
+*Plan: [./tracks/auto_update_20260825/plan.md](./tracks/auto_update_20260825/plan.md)*
+*Phases: 7 | Tasks: 21*
