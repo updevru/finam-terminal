@@ -29,7 +29,7 @@
 - [x] Task: (Red→Green) `updater/apply.go` — `SelfUpdate` (реальный путь через `os.Executable`+`EvalSymlinks`, проба записи → `ErrNotWritable` с командой ручного обновления, `chmod 0755` на Unix) + `replaceExecutable` (`exe→exe.old`, `tmp→exe`, откат при сбое) + `CleanupStaleBackup`; тесты на временном каталоге с бутафорским «бинарником»: успешная подмена, откат при неудаче второго rename, отказ по правам, чистка `.old`
   - Acceptance: тесты зелёные на текущей ОС; при любой ошибке исходный файл остаётся байт-в-байт прежним (ee1a4d9)
 
-## Phase 4: Перезапуск и подключение к main.go
+## Phase 4: Перезапуск и подключение к main.go [checkpoint: 713d0ee]
 - [x] Task: (Red→Green) `updater/restart_unix.go` / `restart_windows.go` (build-теги в стиле `platform/console_*.go`): `Restart(exePath)` через подменяемую переменную-хук; тест проверяет переданные путь/аргументы/окружение без реального exec
   - Acceptance: `go build ./...` проходит для обеих веток (`GOOS=windows` и `GOOS=linux` кросс-сборка) (9907d47)
 - [x] Task: `ui/update_flow.go` — `RunUpdateFlow(rel)`: консольный прогресс-бар в стиле `RunStartupSteps`, печать итога, понятный текст ошибок (включая команду ручной установки); unit-тест рендера прогресса на подменённом writer
