@@ -51,7 +51,7 @@
 - [x] Task: `.github/workflows/release.yml` — шаг генерации `checksums.txt` (`sha256sum finam-terminal-* > checksums.txt` в `dist/`) перед `softprops/action-gh-release`; проверка синтаксисом (`actionlint`/`yq`) и вручную по логике job
   - Acceptance: `files: dist/*` включает `checksums.txt`; формат строк совпадает с парсером из фазы 3 (17e5486)
 
-## Phase 7: Документация и верификация
+## Phase 7: Документация и верификация [checkpoint: ddadd3f]
 - [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint`, покрытие пакета `updater` > 80% (`make coverage`)
   - Acceptance: всё зелёное, покрытие подтверждено выводом `go tool cover -func` (441089d)
 - [x] Task: Руководство пользователя — новый `docs/user_manual/updates.md` (автопроверка раз в сутки, значок `⚡`, диалог при запуске, клавиша `U`, что происходит при обновлении, файл `~/.finam-cli/update.json`, ручное обновление install-скриптом, почему в dev/Docker проверки нет) + ссылки в `index.md`, упоминание индикатора в `interface-overview.md` и клавиши `U` в списках горячих клавиш
