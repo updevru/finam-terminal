@@ -3,6 +3,9 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
+
+	"finam-terminal/models"
 
 	"github.com/gdamore/tcell/v2"
 )
@@ -106,5 +109,51 @@ func TestInputHandler_IndexTableNavigatesTabs(t *testing.T) {
 
 	if got := app.portfolioView.TabbedView.ActiveTab; got != TabPositions {
 		t.Errorf("ActiveTab = %v, want TabPositions after → from Index", got)
+	}
+}
+
+// TestInputHandler_EnteringIndexTabLoadsOnce verifies opening the tab triggers
+// exactly one composition load and that coming back does not trigger another.
+func TestInputHandler_EnteringIndexTabLoadsOnce(t *testing.T) {
+	loaded := make(chan struct{}, 4)
+	mock := &mockClient{
+		GetIndexConstituentsFunc: func(string) ([]models.IndexConstituent, error) {
+			loaded <- struct{}{}
+			return testConstituents(), nil
+		},
+	}
+	app := NewApp(mock, nil)
+	setupInputHandlers(app)
+	app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
+	capture := app.app.GetInputCapture()
+
+	// Positions → History → Orders → Index
+	for range 3 {
+		capture(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone))
+	}
+
+	select {
+	case <-loaded:
+	case <-time.After(2 * time.Second):
+		t.Fatal("entering the Index tab did not load the composition")
+	}
+
+	// Wait for the load to be recorded before leaving and re-entering.
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		app.dataMutex.RLock()
+		done := app.indexLoaded
+		app.dataMutex.RUnlock()
+		if done || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	capture(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone)) // → Positions
+	capture(tcell.NewEventKey(tcell.KeyLeft, 0, tcell.ModNone))  // → Index again
+
+	if n := mock.GetIndexConstituentsCalls.Load(); n != 1 {
+		t.Errorf("composition loaded %d times, want 1 — re-entering the tab must reuse it", n)
 	}
 }

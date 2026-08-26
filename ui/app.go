@@ -99,6 +99,13 @@ type App struct {
 	latestVersion   string
 	updateRequested atomic.Bool
 
+	// Index tab (composition of the Moscow Exchange index)
+	indexConstituents []models.IndexConstituent
+	indexQuotes       map[string]*models.Quote // keyed by full symbol, account-independent
+	indexLoading      bool
+	indexLoaded       bool
+	indexLoadErr      string
+
 	// Profile overlay
 	profilePanel     *ProfilePanel
 	profileSymbol    string
@@ -130,6 +137,7 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		history:      make(map[string][]models.Trade),
 		activeOrders: make(map[string][]models.Order),
 		quotes:       make(map[string]map[string]*models.Quote),
+		indexQuotes:  make(map[string]*models.Quote),
 		selectedIdx:  0,
 		stopChan:     make(chan struct{}),
 		pages:        tview.NewPages(),

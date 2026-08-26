@@ -623,3 +623,160 @@ func updateStatusBar(app *App) {
 	app.statusBar.SetText(fmt.Sprintf(" %s | %s | Acc: %s | Pos: %d%s ",
 		shortcuts, now, maskAccountID(accountID), count, statusText))
 }
+
+// indexRowValues holds the rendered numbers of one Index tab row, already
+// formatted and coloured. Keeping the arithmetic in a pure function keeps the
+// division guard (a zero close) testable and out of the drawing code.
+type indexRowValues struct {
+	price     string
+	change    string
+	changePct string
+	volume    string
+	colour    tcell.Color
+}
+
+// noIndexData is what an empty cell shows: a dash, never "N/A" or a zero that
+// could be mistaken for a real flat price.
+const noIndexData = "—"
+
+// indexRowFromQuote renders one row's numbers.
+//
+// The session change comes straight from the broker (Quote.change = last -
+// close), so the previous close is derived as last - change rather than read
+// from a field that incremental stream updates may omit. A zero close means the
+// percentage is undefined — it renders as a dash, never NaN or Inf.
+func indexRowFromQuote(q *models.Quote) indexRowValues {
+	row := indexRowValues{
+		price:     noIndexData,
+		change:    noIndexData,
+		changePct: noIndexData,
+		volume:    noIndexData,
+		colour:    tcell.ColorWhite,
+	}
+	if q == nil {
+		return row
+	}
+
+	if last, err := parseFloat(q.Last); err == nil {
+		row.price = formatNumber(last, 2)
+
+		if change, err := parseFloat(q.Change); err == nil {
+			row.change = formatSignedNumber(change, 2)
+			switch {
+			case change > 0:
+				row.colour = tcell.ColorGreen
+			case change < 0:
+				row.colour = tcell.ColorRed
+			}
+
+			if closePrice := last - change; closePrice != 0 {
+				row.changePct = formatSignedNumber(change/closePrice*100, 2) + "%"
+			}
+		}
+	}
+
+	if volume, err := parseFloat(q.Volume); err == nil {
+		row.volume = formatNumber(volume, 0)
+	}
+
+	return row
+}
+
+// formatSignedNumber formats a value with an explicit + for a rise. Zero stays
+// unsigned, so a flat session does not read as a gain.
+func formatSignedNumber(val float64, decimals int) string {
+	s := formatNumber(val, decimals)
+	if val > 0 {
+		return "+" + s
+	}
+	return s
+}
+
+// updateIndexTable draws the Index tab from state already in memory. It never
+// calls the API: the composition is loaded by loadIndexAsync and the quotes
+// arrive from the stream or the fallback batch.
+func updateIndexTable(app *App) {
+	table := app.portfolioView.TabbedView.IndexTable
+	table.Clear()
+	table.SetTitle(fmt.Sprintf(" %s ", activeIndex().Name))
+
+	headers := []string{"Ticker", "Name", "Price", "Chg", "Chg%", "Weight", "Volume"}
+	headerStyle := tcell.StyleDefault.
+		Background(tcell.ColorDarkBlue).
+		Foreground(tcell.ColorWhite).
+		Bold(true)
+
+	for i, h := range headers {
+		align := tview.AlignRight
+		if i <= 1 {
+			align = tview.AlignLeft
+		}
+		table.SetCell(0, i, tview.NewTableCell(h).
+			SetStyle(headerStyle).
+			SetAlign(align).
+			SetExpansion(1))
+	}
+
+	app.dataMutex.RLock()
+	constituents := sortConstituents(app.indexConstituents)
+	loading, loadErr := app.indexLoading, app.indexLoadErr
+	quotes := make(map[string]*models.Quote, len(app.indexQuotes))
+	for symbol, q := range app.indexQuotes {
+		quotes[symbol] = q
+	}
+	app.dataMutex.RUnlock()
+
+	if len(constituents) == 0 {
+		message, colour := "No constituents", tcell.ColorGray
+		switch {
+		case loading:
+			message, colour = "Loading index constituents...", tcell.ColorYellow
+		case loadErr != "":
+			message, colour = fmt.Sprintf("%s — press R to retry", loadErr), tcell.ColorRed
+		}
+		table.SetCell(1, 0, tview.NewTableCell(message).
+			SetSelectable(false).
+			SetAlign(tview.AlignLeft).
+			SetTextColor(colour))
+		return
+	}
+
+	for i, c := range constituents {
+		row := i + 1
+		rowBg := tcell.ColorBlack
+		if i%2 == 0 {
+			rowBg = tcell.ColorDarkGray
+		}
+
+		values := indexRowFromQuote(quotes[c.Symbol])
+
+		// The weight is shown raw: the API's normalisation is undocumented (the
+		// values do not sum to 1), so rendering it as a percentage would state
+		// something we cannot verify. It is reliable for ordering, which is what
+		// the column is really for.
+		weight := noIndexData
+		if c.Weight != 0 {
+			weight = formatNumber(c.Weight, 4)
+		}
+
+		cells := []struct {
+			text   string
+			colour tcell.Color
+			align  int
+		}{
+			{c.Ticker, tcell.ColorLightYellow, tview.AlignLeft},
+			{c.Name, tcell.ColorWhite, tview.AlignLeft},
+			{values.price, tcell.ColorWhite, tview.AlignRight},
+			{values.change, values.colour, tview.AlignRight},
+			{values.changePct, values.colour, tview.AlignRight},
+			{weight, tcell.ColorLightGray, tview.AlignRight},
+			{values.volume, tcell.ColorWhite, tview.AlignRight},
+		}
+
+		for col, cell := range cells {
+			table.SetCell(row, col, tview.NewTableCell(cell.text).
+				SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(cell.colour)).
+				SetAlign(cell.align))
+		}
+	}
+}

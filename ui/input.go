@@ -12,6 +12,13 @@ func setupInputHandlers(app *App) {
 	}
 
 	refresh := func() {
+		// The Index tab is account-independent, so it refreshes before the
+		// account guard below — it works even with no account selected.
+		if app.portfolioView.TabbedView.ActiveTab == TabIndex {
+			app.portfolioView.TabbedView.IndexTable.Clear()
+			app.loadIndexAsync()
+			return
+		}
 		if app.selectedIdx < len(app.accounts) {
 			accountID := app.accounts[app.selectedIdx].ID
 			switch app.portfolioView.TabbedView.ActiveTab {
@@ -72,6 +79,13 @@ func setupInputHandlers(app *App) {
 		case TabIndex:
 			app.app.SetFocus(app.portfolioView.TabbedView.IndexTable)
 		}
+
+		// Same reason as in refresh: the Index tab has no account to wait for.
+		if tab == TabIndex {
+			updateIndexTable(app)
+			app.ensureIndexLoaded()
+		}
+
 		if app.selectedIdx >= len(app.accounts) {
 			return
 		}
