@@ -3,6 +3,9 @@
 package api
 
 import (
+	"fmt"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -342,50 +345,173 @@ func TestIntegration_QuoteStream_RecoversAfterNarrowingSymbols(t *testing.T) {
 	}
 }
 
-// TestIntegration_QuoteStream_AdaptsToTheBrokerSymbolLimit reproduces what the
-// real broker did during the first smoke test: it accepted the subscription and
-// then killed the stream with InvalidArgument "Maximum number of symbols
-// exceeded". The limit is undocumented, so the client has to find it by halving
-// what was refused until a subscription survives — and the caller's leading
-// symbols must be the ones that stay.
-func TestIntegration_QuoteStream_AdaptsToTheBrokerSymbolLimit(t *testing.T) {
+// TestIntegration_QuoteStream_ShardsAcrossParallelStreams verifies the design
+// the reconnaissance settled on: the broker's symbol limit applies per
+// subscription, not per connection, so a symbol set larger than one
+// subscription is spread across several parallel streams and every symbol is
+// still delivered.
+func TestIntegration_QuoteStream_ShardsAcrossParallelStreams(t *testing.T) {
 	client, ts := setupTestServer(t)
 	sink := newQuoteStreamSink()
 
-	const brokerLimit = 3
+	const brokerLimit = defaultQuoteShardSize
+	var mu sync.Mutex
+	seen := map[string]bool{}
+
 	ts.MarketData.SubscribeQuoteOverride = func(req *marketdata.SubscribeQuoteRequest, stream marketdata.MarketDataService_SubscribeQuoteServer) error {
 		if len(req.Symbols) > brokerLimit {
 			return status.Error(codes.InvalidArgument, "Maximum number of symbols exceeded.")
 		}
-		return stream.Send(&marketdata.SubscribeQuoteResponse{
-			Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(req.Symbols[0], true)},
-		})
+		mu.Lock()
+		for _, s := range req.Symbols {
+			seen[s] = true
+		}
+		mu.Unlock()
+
+		for _, s := range req.Symbols {
+			if err := stream.Send(&marketdata.SubscribeQuoteResponse{
+				Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(s, true)},
+			}); err != nil {
+				return err
+			}
+		}
+		<-stream.Context().Done()
+		return nil
 	}
 
 	sink.start(client)
 
-	// Priority order: the position first, then the index composition.
-	client.SetQuoteSymbols([]string{
-		"SBER@MISX",
-		"GAZP@MISX", "LKOH@MISX", "MOEX@MISX", "PLZL@MISX",
-		"ROSN@MISX", "TATN@MISX", "VTBR@MISX", "YDEX@MISX",
-	})
-
-	// No manual intervention: the client must negotiate its way down on its own.
-	q := sink.waitQuote(t, 10*time.Second)
-	if q.Symbol != "SBER@MISX" {
-		t.Errorf("first quote is for %q, want SBER@MISX — the leading symbol must survive truncation", q.Symbol)
+	// A composition the size of the real index: more than three subscriptions.
+	symbols := make([]string, 46)
+	for i := range symbols {
+		symbols[i] = fmt.Sprintf("T%02d@MISX", i)
 	}
+	client.SetQuoteSymbols(symbols)
+
 	sink.waitState(t, true, 10*time.Second)
 
-	symbols, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
-	if len(symbols) > brokerLimit {
-		t.Errorf("settled on %d symbols, want at most %d", len(symbols), brokerLimit)
+	// Every symbol must arrive, not just the first subscription's worth.
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		mu.Lock()
+		got := len(seen)
+		mu.Unlock()
+		if got == len(symbols) || time.Now().After(deadline) {
+			if got != len(symbols) {
+				t.Fatalf("only %d of %d symbols reached the broker across all streams", got, len(symbols))
+			}
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
 	}
-	if len(symbols) == 0 || symbols[0] != "SBER@MISX" {
-		t.Errorf("settled subscription = %v, want it to start with the highest-priority symbol", symbols)
+
+	if n := ts.MarketData.QuoteStreamCallCount.Load(); n < 4 {
+		t.Errorf("opened %d subscription(s), want at least 4 for 46 symbols at %d each", n, brokerLimit)
 	}
+
+	// Liveness is per shard and is only claimed once a shard has received data,
+	// so give the last shards a moment to report in.
+	deadline = time.Now().Add(10 * time.Second)
+	for {
+		live := client.SubscribedSymbols()
+		if len(live) == len(symbols) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("SubscribedSymbols reports %d live symbols, want all %d", len(live), len(symbols))
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// TestIntegration_QuoteStream_ReshardsWhenALimitIsRefused verifies the safety
+// net: if the broker refuses the measured shard size, the client renegotiates
+// and re-shards into smaller subscriptions on its own.
+func TestIntegration_QuoteStream_ReshardsWhenALimitIsRefused(t *testing.T) {
+	client, ts := setupTestServer(t)
+	sink := newQuoteStreamSink()
+
+	const brokerLimit = 4
+	ts.MarketData.SubscribeQuoteOverride = func(req *marketdata.SubscribeQuoteRequest, stream marketdata.MarketDataService_SubscribeQuoteServer) error {
+		if len(req.Symbols) > brokerLimit {
+			return status.Error(codes.InvalidArgument, "Maximum number of symbols exceeded.")
+		}
+		if err := stream.Send(&marketdata.SubscribeQuoteResponse{
+			Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(req.Symbols[0], true)},
+		}); err != nil {
+			return err
+		}
+		<-stream.Context().Done()
+		return nil
+	}
+
+	sink.start(client)
+
+	symbols := make([]string, 12)
+	for i := range symbols {
+		symbols[i] = fmt.Sprintf("S%02d@MISX", i)
+	}
+	client.SetQuoteSymbols(symbols)
+
+	sink.waitState(t, true, 10*time.Second)
+
 	if cap := client.QuoteSymbolCap(); cap <= 0 || cap > brokerLimit {
-		t.Errorf("discovered cap = %d, want a positive value no greater than %d", cap, brokerLimit)
+		t.Errorf("negotiated shard size = %d, want a positive value no greater than %d", cap, brokerLimit)
+	}
+
+	last, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
+	if len(last) > brokerLimit {
+		t.Errorf("a subscription still carried %d symbols, want at most %d", len(last), brokerLimit)
+	}
+}
+
+// TestIntegration_QuoteStream_OneShardFailingLeavesTheOthers verifies shard
+// isolation: a subscription that keeps failing must not stop the others from
+// delivering, which is what protects portfolio quotes from the index tab.
+func TestIntegration_QuoteStream_OneShardFailingLeavesTheOthers(t *testing.T) {
+	client, ts := setupTestServer(t)
+	sink := newQuoteStreamSink()
+
+	// The shard containing the poisoned symbol is refused; the rest work.
+	ts.MarketData.SubscribeQuoteOverride = func(req *marketdata.SubscribeQuoteRequest, stream marketdata.MarketDataService_SubscribeQuoteServer) error {
+		if slices.Contains(req.Symbols, "POISON@MISX") {
+			return status.Error(codes.Unavailable, "shard refused")
+		}
+		for _, s := range req.Symbols {
+			if err := stream.Send(&marketdata.SubscribeQuoteResponse{
+				Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(s, true)},
+			}); err != nil {
+				return err
+			}
+		}
+		<-stream.Context().Done()
+		return nil
+	}
+
+	sink.start(client)
+
+	symbols := make([]string, 0, defaultQuoteShardSize+2)
+	for i := range defaultQuoteShardSize {
+		symbols = append(symbols, fmt.Sprintf("OK%02d@MISX", i))
+	}
+	symbols = append(symbols, "POISON@MISX", "ALSOOK@MISX")
+	client.SetQuoteSymbols(symbols)
+
+	// The healthy shard still comes up and delivers.
+	sink.waitState(t, true, 10*time.Second)
+	q := sink.waitQuote(t, 10*time.Second)
+	if q.Symbol == "POISON@MISX" {
+		t.Errorf("received a quote from the failing shard: %q", q.Symbol)
+	}
+
+	live := client.SubscribedSymbols()
+	if len(live) == 0 {
+		t.Fatal("no symbols reported live while a healthy shard is delivering")
+	}
+	if slices.Contains(live, "POISON@MISX") {
+		t.Error("a shard that never came up is reported as live")
+	}
+	if !slices.Contains(live, "OK00@MISX") {
+		t.Errorf("the healthy shard is not reported live: %v", live)
 	}
 }

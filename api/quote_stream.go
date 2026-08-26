@@ -6,6 +6,7 @@ import (
 	"log"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"finam-terminal/models"
@@ -152,10 +153,10 @@ func (c *Client) SetQuoteSymbols(symbols []string) {
 	normalized := normalizeSymbols(symbols)
 
 	c.quoteMu.Lock()
-	// Compare what would actually be subscribed, not what was asked for: with a
-	// cap in force the tail of the list never reaches the broker, and reordering
-	// within the cap is not a change worth dropping a live stream over.
-	if sameSymbolSet(applySymbolCap(c.quoteSymbols, c.quoteSymbolCap), applySymbolCap(normalized, c.quoteSymbolCap)) {
+	// Order-insensitive: the same instruments split across streams differently
+	// are still the same coverage, and a reshuffle is not worth dropping live
+	// subscriptions over.
+	if sameSymbolSet(c.quoteSymbols, normalized) {
 		c.quoteMu.Unlock()
 		return
 	}
@@ -222,16 +223,6 @@ func reducedSymbolCap(attempted int) int {
 	return attempted / 2
 }
 
-// applySymbolCap truncates the subscription to what the broker accepts. A cap of
-// 0 means no limit has been discovered yet. Truncation is from the end, so the
-// caller's leading (highest priority) symbols are the ones that stay.
-func applySymbolCap(symbols []string, cap int) []string {
-	if cap <= 0 || len(symbols) <= cap {
-		return symbols
-	}
-	return symbols[:cap]
-}
-
 // getStreamContext returns a context for a long-lived stream: unlike
 // getContext it carries no timeout, but it does carry the current session
 // token, which is refreshed on every (re)subscribe.
@@ -245,105 +236,262 @@ func (c *Client) getStreamContext(parent context.Context) (context.Context, cont
 	return ctx, cancel
 }
 
-// runQuoteStream owns the SubscribeQuote subscription: it (re)subscribes when
-// the symbol set changes, reconnects with exponential backoff after a drop, and
-// stops when ctx is cancelled (Close).
+// defaultQuoteShardSize is how many symbols one subscription may carry.
+//
+// Measured against the real API on 2026-08-26: 15 symbols are accepted, 16 are
+// refused with InvalidArgument "Maximum number of symbols exceeded". The limit
+// applies **per subscription, not per connection** — three parallel 15-symbol
+// streams deliver 45 symbols at once — so a long symbol list becomes several
+// streams rather than a truncated one.
+const defaultQuoteShardSize = 15
+
+// maxQuoteShards bounds how many parallel subscriptions the client will open.
+// Five concurrent streams were verified to work; the cap leaves headroom while
+// stopping a pathological symbol list from spawning streams without limit. The
+// tail beyond it is dropped, and since the caller's order is priority order,
+// what survives is what matters most.
+const maxQuoteShards = 8
+
+// shardSymbols splits the desired set into subscriptions the broker accepts,
+// preserving order so the leading (highest priority) symbols land in the first
+// shard.
+func shardSymbols(symbols []string, size int) [][]string {
+	if size <= 0 {
+		size = defaultQuoteShardSize
+	}
+
+	var shards [][]string
+	for start := 0; start < len(symbols) && len(shards) < maxQuoteShards; start += size {
+		end := min(start+size, len(symbols))
+		shards = append(shards, symbols[start:end])
+	}
+
+	if dropped := len(symbols) - shardedCount(shards); dropped > 0 {
+		log.Printf("[WARN] Quote subscription capped at %d streams; dropping %d lowest-priority symbol(s)",
+			maxQuoteShards, dropped)
+	}
+	return shards
+}
+
+// shardedCount totals the symbols actually covered by the shards.
+func shardedCount(shards [][]string) int {
+	n := 0
+	for _, shard := range shards {
+		n += len(shard)
+	}
+	return n
+}
+
+// runQuoteStream supervises the subscriptions. It splits the desired symbol set
+// into shards the broker will accept and keeps one worker per shard, restarting
+// only the shards whose contents actually changed. It stops when ctx is
+// cancelled (Close).
 func (c *Client) runQuoteStream(ctx context.Context) {
 	log.Printf("[INFO] Quote stream manager started")
-	backoff := quoteStreamInitialBackoff
+	defer func() {
+		c.stopAllShards()
+		log.Printf("[INFO] Quote stream manager stopped")
+	}()
 
 	for {
 		if ctx.Err() != nil {
-			log.Printf("[INFO] Quote stream manager stopped")
 			return
 		}
 
 		desired := c.currentQuoteSymbols()
-		symbols := applySymbolCap(desired, c.currentSymbolCap())
-		if len(symbols) == 0 {
-			// Nothing to subscribe to: wait for a symbol change.
-			if !c.waitForQuoteWake(ctx) {
-				log.Printf("[INFO] Quote stream manager stopped")
-				return
+		c.reconcileShards(ctx, shardSymbols(desired, c.shardSize()))
+
+		if !c.waitForQuoteWake(ctx) {
+			return
+		}
+	}
+}
+
+// reconcileShards brings the running workers in line with the wanted shards:
+// unchanged shards are left alone, so a symbol change costs a reconnect only for
+// the subscriptions it actually affects.
+func (c *Client) reconcileShards(ctx context.Context, wanted [][]string) {
+	c.quoteMu.Lock()
+	running := c.quoteShards
+	c.quoteMu.Unlock()
+
+	keep := make([]*quoteShard, 0, len(wanted))
+	used := make([]bool, len(running))
+
+	for _, symbols := range wanted {
+		matched := false
+		for i, shard := range running {
+			if used[i] || !slices.Equal(shard.symbols, symbols) {
+				continue
 			}
+			used[i] = true
+			keep = append(keep, shard)
+			matched = true
+			break
+		}
+		if matched {
 			continue
 		}
+		keep = append(keep, c.startShard(ctx, symbols))
+	}
 
-		voluntary, dropped := c.runQuoteSubscription(ctx, desired, symbols)
+	c.quoteMu.Lock()
+	c.quoteShards = keep
+	c.quoteMu.Unlock()
+
+	for i, shard := range running {
+		if !used[i] {
+			shard.stop()
+		}
+	}
+
+	// Forget state for symbols no longer carried, so one re-added later starts
+	// from a fresh snapshot instead of merging into stale fields.
+	kept := make([]string, 0, shardedCount(wanted))
+	for _, shard := range keep {
+		kept = append(kept, shard.symbols...)
+	}
+	c.trimStreamQuotes(kept)
+
+	// Reconciliation is not itself a liveness event: a freshly started shard has
+	// not received anything yet, and reporting an outage for that would turn
+	// every symbol change into a false alarm. The exception is subscribing to
+	// nothing at all, which genuinely means no quotes are coming.
+	if len(keep) == 0 {
+		c.refreshStreamState()
+	}
+}
+
+// quoteShard is one subscription: a fixed symbol set, its own worker goroutine
+// and its own reconnect cycle, so one failing shard cannot take the others down.
+type quoteShard struct {
+	symbols []string
+	cancel  context.CancelFunc
+	live    atomic.Bool
+}
+
+func (s *quoteShard) stop() {
+	if s.cancel != nil {
+		s.cancel()
+	}
+}
+
+// startShard launches the worker for one subscription.
+func (c *Client) startShard(parent context.Context, symbols []string) *quoteShard {
+	ctx, cancel := context.WithCancel(parent)
+	shard := &quoteShard{symbols: symbols, cancel: cancel}
+
+	go c.runShard(ctx, shard)
+	return shard
+}
+
+// runShard keeps one subscription alive, reconnecting with exponential backoff
+// after a drop and renegotiating the shard size if the broker refuses it.
+func (c *Client) runShard(ctx context.Context, shard *quoteShard) {
+	backoff := quoteStreamInitialBackoff
+
+	for {
+		// A cancelled shard was retired by the supervisor, not dropped by the
+		// broker. It goes quiet without reporting an outage; liveness is left to
+		// the shard that replaced it.
 		if ctx.Err() != nil {
-			log.Printf("[INFO] Quote stream manager stopped")
+			shard.live.Store(false)
+			return
+		}
+
+		voluntary, dropped := c.runQuoteSubscription(ctx, shard)
+		if ctx.Err() != nil {
+			shard.live.Store(false)
 			return
 		}
 		if voluntary {
-			// Symbol change: resubscribe immediately, no backoff, no outage.
-			backoff = quoteStreamInitialBackoff
-			continue
+			// The shard size was renegotiated; the supervisor re-shards.
+			return
 		}
 		if !dropped {
 			continue
 		}
 
 		if !sleepOrDone(ctx, backoff) {
-			log.Printf("[INFO] Quote stream manager stopped")
+			shard.live.Store(false)
 			return
 		}
 		backoff = nextBackoff(backoff)
 	}
 }
 
-// runQuoteSubscription opens one subscription and consumes it until it ends.
-// It reports whether the end was voluntary (a symbol change cancelled it) and
-// whether the stream was dropped (so the caller backs off before retrying).
-func (c *Client) runQuoteSubscription(ctx context.Context, desired, symbols []string) (voluntary, dropped bool) {
+// stopAllShards cancels every worker.
+func (c *Client) stopAllShards() {
+	c.quoteMu.Lock()
+	shards := c.quoteShards
+	c.quoteShards = nil
+	c.quoteMu.Unlock()
+
+	for _, shard := range shards {
+		shard.stop()
+	}
+}
+
+// shardSize is the current per-subscription symbol budget: the measured default
+// unless the broker has refused it, in which case the negotiated cap wins.
+func (c *Client) shardSize() int {
+	if cap := c.currentSymbolCap(); cap > 0 {
+		return cap
+	}
+	return defaultQuoteShardSize
+}
+
+// runQuoteSubscription opens one shard's subscription and consumes it until it
+// ends. It reports whether the end was voluntary (the shard size was
+// renegotiated, so the supervisor should re-shard) and whether the stream was
+// dropped (so the caller backs off before retrying).
+func (c *Client) runQuoteSubscription(ctx context.Context, shard *quoteShard) (voluntary, dropped bool) {
+	symbols := shard.symbols
+
 	subCtx, subCancel := c.getStreamContext(ctx)
 	defer subCancel()
-
-	c.quoteMu.Lock()
-	c.quoteSubCancel = subCancel
-	c.quoteMu.Unlock()
 
 	stream, err := c.marketDataClient.SubscribeQuote(subCtx, &marketdata.SubscribeQuoteRequest{
 		Symbols: symbols,
 	})
 	if err != nil {
-		if c.quoteSymbolsChanged(desired) {
-			return true, false
-		}
 		if ctx.Err() != nil {
 			return false, false
 		}
 		if c.reduceSymbolCap(err, len(symbols)) {
-			// Too many symbols: resubscribe immediately with fewer. This is a
-			// negotiation, not an outage, so liveness is left untouched.
+			// Too many symbols for one subscription: the supervisor re-shards
+			// into smaller pieces. A negotiation, not an outage.
+			c.wakeQuoteManager()
 			return true, false
 		}
 		c.logGRPCError("MarketDataService", "SubscribeQuote", err, fmt.Sprintf("Symbols: %v", symbols))
-		c.setQuoteStreamState(false)
+		shard.live.Store(false)
+		c.refreshStreamState()
 		return false, true
 	}
 
 	log.Printf("[DEBUG] Quote stream subscribed to %d symbol(s): %v", len(symbols), symbols)
-	c.trimStreamQuotes(symbols)
 
 	for {
 		resp, recvErr := stream.Recv()
 		if recvErr != nil {
-			if c.quoteSymbolsChanged(desired) {
-				return true, false
-			}
 			if ctx.Err() != nil {
 				return false, false
 			}
 			if c.reduceSymbolCap(recvErr, len(symbols)) {
+				c.wakeQuoteManager()
 				return true, false
 			}
-			log.Printf("[WARN] Quote stream disconnected: %v. Reconnecting...", recvErr)
-			c.setQuoteStreamState(false)
+			log.Printf("[WARN] Quote stream (%d symbols) disconnected: %v. Reconnecting...", len(symbols), recvErr)
+			shard.live.Store(false)
+			c.refreshStreamState()
 			return false, true
 		}
 
-		// The stream is proven alive only by data: gRPC opens streams lazily.
-		c.setQuoteStreamState(true)
+		// The shard is proven alive only by data: gRPC opens streams lazily.
+		if !shard.live.Swap(true) {
+			c.refreshStreamState()
+		}
 
 		if resp.Error != nil {
 			log.Printf("[WARN] Quote stream reported an error: code=%d %s", resp.Error.Code, resp.Error.Description)
@@ -355,9 +503,42 @@ func (c *Client) runQuoteSubscription(ctx context.Context, desired, symbols []st
 	}
 }
 
-// reduceSymbolCap shrinks the subscription when the broker says it carried too
-// many symbols, and reports whether it did. The broker never states the limit,
-// so the client halves what was just refused until a subscription survives.
+// wakeQuoteManager nudges the supervisor to re-evaluate the sharding.
+func (c *Client) wakeQuoteManager() {
+	c.quoteMu.Lock()
+	wake := c.quoteWake
+	c.quoteMu.Unlock()
+
+	if wake != nil {
+		select {
+		case wake <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// refreshStreamState recomputes overall liveness from the shards. The stream
+// counts as up while any shard is delivering; consumers that need to know
+// whether a particular instrument is covered ask SubscribedSymbols instead.
+func (c *Client) refreshStreamState() {
+	c.quoteMu.Lock()
+	shards := append([]*quoteShard(nil), c.quoteShards...)
+	c.quoteMu.Unlock()
+
+	up := false
+	for _, shard := range shards {
+		if shard.live.Load() {
+			up = true
+			break
+		}
+	}
+	c.setQuoteStreamState(up)
+}
+
+// reduceSymbolCap shrinks the per-subscription budget when the broker says a
+// shard carried too many symbols, and reports whether it did. The measured
+// limit is 15; this exists so an undocumented change to it cannot break the
+// terminal — the client halves what was refused until a subscription survives.
 func (c *Client) reduceSymbolCap(err error, attempted int) bool {
 	if !IsSymbolLimitError(err) {
 		return false
@@ -374,21 +555,21 @@ func (c *Client) reduceSymbolCap(err error, attempted int) bool {
 	c.quoteSymbolCap = next
 	c.quoteMu.Unlock()
 
-	log.Printf("[WARN] Broker refused a %d-symbol quote subscription (%v); retrying with at most %d",
+	log.Printf("[WARN] Broker refused a %d-symbol quote subscription (%v); resharding with at most %d per stream",
 		attempted, err, next)
 	return true
 }
 
-// currentSymbolCap returns the largest subscription size known to work, or 0
-// while no limit has been discovered.
+// currentSymbolCap returns the negotiated per-subscription limit, or 0 while the
+// measured default has not been contradicted.
 func (c *Client) currentSymbolCap() int {
 	c.quoteMu.Lock()
 	defer c.quoteMu.Unlock()
 	return c.quoteSymbolCap
 }
 
-// QuoteSymbolCap exposes the discovered subscription limit (0 = none hit yet) so
-// the UI can size what it asks for.
+// QuoteSymbolCap exposes the negotiated per-subscription limit (0 = the measured
+// default still holds).
 func (c *Client) QuoteSymbolCap() int { return c.currentSymbolCap() }
 
 // currentQuoteSymbols returns a copy of the desired symbol set.
@@ -398,21 +579,22 @@ func (c *Client) currentQuoteSymbols() []string {
 	return append([]string(nil), c.quoteSymbols...)
 }
 
-// SubscribedSymbols returns the symbols the stream is actually carrying — the
-// desired set after the broker's cap has been applied. The UI needs it to know
-// which rows are already live and which it has to fill another way.
+// SubscribedSymbols returns the symbols the stream is actually delivering right
+// now: the union of the shards that are live. A shard that has not come up, or
+// has dropped and is reconnecting, contributes nothing, so a caller can treat
+// the complement as "not covered" whatever the reason.
 func (c *Client) SubscribedSymbols() []string {
 	c.quoteMu.Lock()
-	defer c.quoteMu.Unlock()
-	return append([]string(nil), applySymbolCap(c.quoteSymbols, c.quoteSymbolCap)...)
-}
+	shards := append([]*quoteShard(nil), c.quoteShards...)
+	c.quoteMu.Unlock()
 
-// quoteSymbolsChanged reports whether the set that should be subscribed has
-// moved away from the one the current subscription was opened with.
-func (c *Client) quoteSymbolsChanged(symbols []string) bool {
-	c.quoteMu.Lock()
-	defer c.quoteMu.Unlock()
-	return !sameSymbolSet(applySymbolCap(c.quoteSymbols, c.quoteSymbolCap), applySymbolCap(symbols, c.quoteSymbolCap))
+	var out []string
+	for _, shard := range shards {
+		if shard.live.Load() {
+			out = append(out, shard.symbols...)
+		}
+	}
+	return out
 }
 
 // sameSymbolSet compares two symbol lists ignoring order, so a reshuffle that

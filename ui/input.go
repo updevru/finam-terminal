@@ -217,12 +217,6 @@ func setupInputHandlers(app *App) {
 	setupTableNavigation(app.portfolioView.TabbedView.OrdersTable)
 	setupTableNavigation(app.portfolioView.TabbedView.IndexTable)
 
-	// The stream carries a window of the composition, so scrolling has to move
-	// the window with it. Runs on the event loop, and the window is quantised,
-	// so this only resubscribes once per block of rows.
-	app.portfolioView.TabbedView.IndexTable.SetSelectionChangedFunc(func(int, int) {
-		app.recomputeStreamSymbols()
-	})
 
 	app.portfolioView.AccountTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {

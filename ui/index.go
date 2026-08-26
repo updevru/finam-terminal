@@ -335,36 +335,3 @@ func (a *App) selectedIndexSymbol() string {
 	return constituents[idx].Symbol
 }
 
-// indexStreamWindow is how many composition symbols the tab asks the stream for,
-// and indexWindowStep is how coarsely that window moves.
-//
-// The broker caps subscription size (undocumented — 46 symbols were refused
-// outright), so the tab asks only for a screenful rather than the whole index,
-// and the client narrows it further if even that is too much. The window start
-// is quantised so that holding an arrow key scrolls without resubscribing on
-// every row.
-const (
-	indexStreamWindow = 20
-	indexWindowStep   = 10
-)
-
-// indexWindowSymbols returns the slice of the composition the stream should
-// carry, given the table's current scroll offset. The offset is quantised, so
-// the set changes once per block of rows instead of once per keypress.
-func indexWindowSymbols(constituents []models.IndexConstituent, offset int) []string {
-	if len(constituents) == 0 {
-		return nil
-	}
-
-	start := max(offset, 0) / indexWindowStep * indexWindowStep
-	if start >= len(constituents) {
-		start = 0
-	}
-	end := min(start+indexStreamWindow, len(constituents))
-
-	symbols := make([]string, 0, end-start)
-	for _, c := range constituents[start:end] {
-		symbols = append(symbols, c.Symbol)
-	}
-	return symbols
-}

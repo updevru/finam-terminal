@@ -76,7 +76,8 @@ type Client struct {
 	quoteSubCancel   context.CancelFunc           // ends the current subscription (resubscribe)
 	quoteWake        chan struct{}                // nudges the manager after a symbol change
 	lastStreamQuotes map[string]*marketdata.Quote // last known full state per symbol
-	quoteSymbolCap   int                          // largest symbol count the broker accepts; 0 = not discovered yet
+	quoteSymbolCap   int                          // largest symbol count one subscription accepts; 0 = not discovered yet
+	quoteShards      []*quoteShard                // one subscription per shard of the symbol set
 }
 
 // NewClient creates a new Finam API client

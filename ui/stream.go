@@ -145,15 +145,48 @@ func (a *App) onStreamState(up bool) {
 // shouldSkipQuotePolling reports whether the poller must leave this account's
 // quotes to the stream.
 func (a *App) shouldSkipQuotePolling(accountID string) bool {
-	if !a.streamLive.Load() {
+	if !a.streamLive.Load() || a.client == nil {
 		return false
 	}
 
 	a.dataMutex.RLock()
-	defer a.dataMutex.RUnlock()
-
-	return a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) &&
+	isActive := a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) &&
 		a.accounts[a.selectedIdx].ID == accountID
+	positions := a.positions[accountID]
+	a.dataMutex.RUnlock()
+
+	if !isActive {
+		return false
+	}
+
+	// The subscription is sharded, so "the stream is up" no longer means every
+	// symbol is covered: one shard can be reconnecting while others deliver.
+	// Polling is skipped only for positions the stream is actually carrying.
+	return coveredByStream(positions, a.client.SubscribedSymbols())
+}
+
+// coveredByStream reports whether every position with a streamable symbol is in
+// the live set. Positions without a MIC never reach the stream, so they cannot
+// hold the check back.
+func coveredByStream(positions []models.Position, live []string) bool {
+	if len(positions) == 0 {
+		return true
+	}
+
+	covered := make(map[string]struct{}, len(live))
+	for _, s := range live {
+		covered[s] = struct{}{}
+	}
+
+	for _, p := range positions {
+		if !strings.Contains(p.Symbol, "@") {
+			continue
+		}
+		if _, ok := covered[p.Symbol]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // computeStreamSymbols returns the symbols the stream should carry: the active
@@ -161,10 +194,10 @@ func (a *App) shouldSkipQuotePolling(accountID string) bool {
 // Index tab is showing — a window of the index composition. Symbols without a
 // MIC are dropped (the stream only accepts ticker@mic) and duplicates removed.
 //
-// The result is in **priority order**, not sorted. The broker caps how many
-// symbols a subscription may carry (undocumented; 46 was refused during the
-// first smoke test), and the client truncates from the end, so portfolio
-// positions come first and the showcase tab takes whatever room is left.
+// The result is in **priority order**, not sorted. The broker caps a single
+// subscription at 15 symbols, so the client splits the set across parallel
+// streams and drops the tail if it ever runs out of streams; putting portfolio
+// positions first means they are never what gets dropped.
 //
 // The index symbols join and leave with the tab on purpose: an always-on
 // subscription to the whole composition would be a permanent cost for a view
@@ -212,12 +245,6 @@ func (a *App) recomputeStreamSymbols() {
 
 	indexActive := a.indexTabActive()
 
-	// Read on the event loop: the scroll offset lives in the widget tree.
-	indexWindowStart := 0
-	if indexActive {
-		indexWindowStart, _ = a.portfolioView.TabbedView.IndexTable.GetOffset()
-	}
-
 	a.dataMutex.Lock()
 	var positions []models.Position
 	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
@@ -226,9 +253,15 @@ func (a *App) recomputeStreamSymbols() {
 	// The guard latches for the session: once the composition is suspected of
 	// breaking the subscription it never rejoins it.
 	includeIndex := indexActive && !a.indexStreamDisabled
+	// The whole composition, not a window: the subscription is sharded across
+	// parallel streams, so 46 symbols cost four streams rather than a truncated
+	// one. Scrolling no longer changes the set, which also removes the churn a
+	// held arrow key used to cause.
 	var indexSymbols []string
 	if includeIndex {
-		indexSymbols = indexWindowSymbols(sortConstituents(a.indexConstituents), indexWindowStart)
+		for _, c := range sortConstituents(a.indexConstituents) {
+			indexSymbols = append(indexSymbols, c.Symbol)
+		}
 	}
 
 	// The guard's window is measured from the moment the composition actually

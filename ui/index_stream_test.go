@@ -182,59 +182,11 @@ func TestFlushQuoteInbox_OnlyKeepsIndexSymbols(t *testing.T) {
 	}
 }
 
-// TestIndexWindowSymbols verifies the tab asks only for a screenful of the
-// composition, and that the window moves in quantised blocks so holding an
-// arrow key does not resubscribe on every row.
-func TestIndexWindowSymbols(t *testing.T) {
-	constituents := manyConstituents()
-
-	tests := []struct {
-		name       string
-		offset     int
-		wantFirst  string
-		wantLen    int
-		wantSecond string
-	}{
-		{name: "top of the list", offset: 0, wantFirst: "TICK0@MISX", wantLen: indexStreamWindow},
-		{name: "within the first block does not move", offset: 7, wantFirst: "TICK0@MISX", wantLen: indexStreamWindow},
-		{name: "next block", offset: 10, wantFirst: "TICK10@MISX", wantLen: indexStreamWindow},
-		{name: "still the same block", offset: 19, wantFirst: "TICK10@MISX", wantLen: indexStreamWindow},
-		{name: "near the end is clamped", offset: 40, wantFirst: "TICK40@MISX", wantLen: 6},
-		{name: "negative offset is treated as the top", offset: -5, wantFirst: "TICK0@MISX", wantLen: indexStreamWindow},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := indexWindowSymbols(constituents, tt.offset)
-			if len(got) != tt.wantLen {
-				t.Fatalf("window length = %d, want %d (%v)", len(got), tt.wantLen, got)
-			}
-			if got[0] != tt.wantFirst {
-				t.Errorf("window starts at %q, want %q", got[0], tt.wantFirst)
-			}
-		})
-	}
-
-	if got := indexWindowSymbols(nil, 0); got != nil {
-		t.Errorf("empty composition returned %v, want nil", got)
-	}
-}
-
-// TestIndexWindowSymbols_NeverExceedsTheWindow guards the budget: whatever the
-// offset, the tab must not ask for the whole 46-symbol composition again.
-func TestIndexWindowSymbols_NeverExceedsTheWindow(t *testing.T) {
-	constituents := manyConstituents()
-
-	for offset := range 60 {
-		if got := indexWindowSymbols(constituents, offset); len(got) > indexStreamWindow {
-			t.Fatalf("offset %d produced %d symbols, want at most %d", offset, len(got), indexStreamWindow)
-		}
-	}
-}
-
-// TestRecomputeStreamSymbols_WindowFollowsScrolling verifies the live
-// subscription tracks the part of the index the user is actually looking at.
-func TestRecomputeStreamSymbols_WindowFollowsScrolling(t *testing.T) {
+// TestRecomputeStreamSymbols_CarriesTheWholeComposition verifies the tab now
+// subscribes to every constituent rather than a scrolling window: the broker's
+// limit is per subscription, so 46 symbols cost four parallel streams and the
+// set no longer changes as the user scrolls.
+func TestRecomputeStreamSymbols_CarriesTheWholeComposition(t *testing.T) {
 	var declared []string
 	mock := &mockClient{
 		SetQuoteSymbolsFunc: func(symbols []string) { declared = append([]string(nil), symbols...) },
@@ -245,18 +197,42 @@ func TestRecomputeStreamSymbols_WindowFollowsScrolling(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 
 	app.recomputeStreamSymbols()
-	if len(declared) != indexStreamWindow || declared[0] != "TICK0@MISX" {
-		t.Fatalf("initial window = %v, want %d symbols from the top", declared, indexStreamWindow)
+
+	if len(declared) != indexTestSize {
+		t.Fatalf("declared %d symbols, want the whole composition (%d)", len(declared), indexTestSize)
 	}
 
-	// Scroll down: tview stores the viewport offset on the table.
+	// Scrolling must not change the set any more.
+	before := append([]string(nil), declared...)
 	app.portfolioView.TabbedView.IndexTable.SetOffset(25, 0)
 	app.recomputeStreamSymbols()
 
-	if declared[0] != "TICK20@MISX" {
-		t.Errorf("window after scrolling starts at %q, want TICK20@MISX", declared[0])
+	if !slices.Equal(declared, before) {
+		t.Error("scrolling changed the subscribed set; it should be scroll-independent now")
 	}
-	if len(declared) > indexStreamWindow {
-		t.Errorf("window grew to %d symbols, want at most %d", len(declared), indexStreamWindow)
+}
+
+// TestRecomputeStreamSymbols_PositionsComeFirst verifies the priority order that
+// protects portfolio quotes: the client shards the list in order and drops the
+// tail if it ever runs out of streams.
+func TestRecomputeStreamSymbols_PositionsComeFirst(t *testing.T) {
+	var declared []string
+	mock := &mockClient{
+		SetQuoteSymbolsFunc: func(symbols []string) { declared = append([]string(nil), symbols...) },
+	}
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.positions["acc1"] = []models.Position{{Symbol: "MYPOS@MISX"}}
+	app.indexConstituents = manyConstituents()
+	app.indexLoaded = true
+	app.portfolioView.TabbedView.SetTab(TabIndex)
+
+	app.recomputeStreamSymbols()
+
+	if len(declared) == 0 || declared[0] != "MYPOS@MISX" {
+		t.Errorf("subscription starts with %v, want the position first", declared[:min(3, len(declared))])
+	}
+	if len(declared) != indexTestSize+1 {
+		t.Errorf("declared %d symbols, want the position plus the whole composition", len(declared))
 	}
 }

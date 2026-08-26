@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -248,19 +249,70 @@ func TestReducedSymbolCap(t *testing.T) {
 	}
 }
 
-// TestApplySymbolCap truncates from the end, so the caller's highest-priority
-// symbols survive.
-func TestApplySymbolCap(t *testing.T) {
-	symbols := []string{"SBER@TQBR", "GAZP@TQBR", "LKOH@TQBR", "MOEX@TQBR"}
+// TestShardSymbols verifies the desired set is split into subscriptions the
+// broker will accept. The measured limit is 15 symbols per subscription, and it
+// applies per subscription rather than per connection, so a long list becomes
+// several parallel streams instead of a truncated one.
+func TestShardSymbols(t *testing.T) {
+	symbols := make([]string, 46)
+	for i := range symbols {
+		symbols[i] = fmt.Sprintf("T%d@MISX", i)
+	}
 
-	if got := applySymbolCap(symbols, 0); len(got) != 4 {
-		t.Errorf("cap 0 (unknown) truncated to %d symbols, want all 4", len(got))
+	shards := shardSymbols(symbols, defaultQuoteShardSize)
+
+	if len(shards) != 4 {
+		t.Fatalf("46 symbols produced %d shards, want 4", len(shards))
 	}
-	got := applySymbolCap(symbols, 2)
-	if len(got) != 2 || got[0] != "SBER@TQBR" || got[1] != "GAZP@TQBR" {
-		t.Errorf("applySymbolCap(.., 2) = %v, want the first two", got)
+	total := 0
+	for i, shard := range shards {
+		if len(shard) > defaultQuoteShardSize {
+			t.Errorf("shard %d carries %d symbols, want at most %d", i, len(shard), defaultQuoteShardSize)
+		}
+		total += len(shard)
 	}
-	if got := applySymbolCap(symbols, 10); len(got) != 4 {
-		t.Errorf("a cap above the list length truncated to %d, want 4", len(got))
+	if total != len(symbols) {
+		t.Errorf("shards cover %d symbols, want all %d", total, len(symbols))
+	}
+
+	// Priority order is preserved across the split: the first shard holds the
+	// leading symbols, which is where positions live.
+	if shards[0][0] != "T0@MISX" {
+		t.Errorf("first shard starts with %q, want T0@MISX", shards[0][0])
+	}
+
+	if got := shardSymbols(nil, defaultQuoteShardSize); len(got) != 0 {
+		t.Errorf("no symbols produced %d shards, want none", len(got))
+	}
+	if got := shardSymbols(symbols[:5], defaultQuoteShardSize); len(got) != 1 || len(got[0]) != 5 {
+		t.Errorf("a short list produced %v, want a single shard of 5", got)
+	}
+}
+
+// TestShardSymbols_BoundsTheStreamCount verifies a very long list cannot spawn
+// unbounded parallel streams; the tail is dropped, and priority order means the
+// symbols that matter most are the ones kept.
+func TestShardSymbols_BoundsTheStreamCount(t *testing.T) {
+	symbols := make([]string, defaultQuoteShardSize*(maxQuoteShards+5))
+	for i := range symbols {
+		symbols[i] = fmt.Sprintf("T%d@MISX", i)
+	}
+
+	shards := shardSymbols(symbols, defaultQuoteShardSize)
+
+	if len(shards) != maxQuoteShards {
+		t.Errorf("produced %d shards, want the cap of %d", len(shards), maxQuoteShards)
+	}
+	if shards[0][0] != "T0@MISX" {
+		t.Errorf("first shard starts with %q, want the highest-priority symbol", shards[0][0])
+	}
+}
+
+// TestDefaultQuoteShardSize pins the measured limit. 15 symbols are accepted and
+// 16 are refused with "Maximum number of symbols exceeded" (measured against the
+// real API on 2026-08-26).
+func TestDefaultQuoteShardSize(t *testing.T) {
+	if defaultQuoteShardSize != 15 {
+		t.Errorf("defaultQuoteShardSize = %d, want 15 (the measured broker limit)", defaultQuoteShardSize)
 	}
 }

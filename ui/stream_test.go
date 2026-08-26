@@ -186,6 +186,53 @@ func TestShouldSkipQuotePolling(t *testing.T) {
 	}
 }
 
+// TestShouldSkipQuotePolling_RequiresTheSymbolsToBeLive verifies the precision
+// sharding demands: the subscription is split across parallel streams, so "the
+// stream is up" no longer means every position is covered. Polling resumes for
+// positions whose shard is not delivering.
+func TestShouldSkipQuotePolling_RequiresTheSymbolsToBeLive(t *testing.T) {
+	tests := []struct {
+		name string
+		live []string
+		want bool
+	}{
+		{name: "every position live", live: []string{"SBER@MISX", "GAZP@MISX"}, want: true},
+		{name: "one position's shard is down", live: []string{"SBER@MISX"}},
+		{name: "nothing live yet", live: nil},
+		{name: "extra symbols do not matter", live: []string{"GAZP@MISX", "LKOH@MISX", "SBER@MISX"}, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &mockClient{
+				SubscribedSymbolsFunc: func() []string { return tt.live },
+			}
+			app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+			app.selectedIdx = 0
+			app.positions["acc1"] = []models.Position{{Symbol: "SBER@MISX"}, {Symbol: "GAZP@MISX"}}
+			app.streamLive.Store(true)
+
+			if got := app.shouldSkipQuotePolling("acc1"); got != tt.want {
+				t.Errorf("shouldSkipQuotePolling() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestCoveredByStream_IgnoresUnstreamableSymbols verifies a position without a
+// MIC cannot hold the check back: the stream never accepts it, so waiting for it
+// would disable polling forever.
+func TestCoveredByStream_IgnoresUnstreamableSymbols(t *testing.T) {
+	positions := []models.Position{{Symbol: "SBER@MISX"}, {Symbol: "WEIRD"}}
+
+	if !coveredByStream(positions, []string{"SBER@MISX"}) {
+		t.Error("a bare ticker should not count as uncovered")
+	}
+	if !coveredByStream(nil, nil) {
+		t.Error("an account with no positions is trivially covered")
+	}
+}
+
 // TestRecomputeStreamSymbols_UsesActiveAccount verifies that switching accounts
 // re-declares the subscription with the new account's symbols.
 func TestRecomputeStreamSymbols_UsesActiveAccount(t *testing.T) {
