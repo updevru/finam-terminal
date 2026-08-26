@@ -108,6 +108,13 @@ type App struct {
 	indexLastPoll     time.Time // last fallback quote batch, drives the cooldown
 	indexPollDisabled bool      // set for the session once the broker rate-limits us
 
+	// Guard protecting the positions subscription: if the stream stops working
+	// only after the index composition joined it, the composition is dropped
+	// for the rest of the session and the tab falls back to batches.
+	indexStreamIncludedAt time.Time
+	indexStreamFailures   int
+	indexStreamDisabled   bool
+
 	// Profile overlay
 	profilePanel     *ProfilePanel
 	profileSymbol    string

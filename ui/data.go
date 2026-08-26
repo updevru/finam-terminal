@@ -386,6 +386,7 @@ func (a *App) backgroundRefresh() {
 			a.app.QueueUpdateDraw(func() {
 				// The Index tab is account-independent, and its fallback batch
 				// decides for itself whether it is allowed to run.
+				a.evaluateIndexStreamHealth()
 				a.pollIndexQuotesAsync(false)
 
 				// Prioritize the active account

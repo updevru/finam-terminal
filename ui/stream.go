@@ -4,6 +4,7 @@ import (
 	"log"
 	"slices"
 	"strings"
+	"time"
 
 	"finam-terminal/models"
 )
@@ -122,6 +123,19 @@ func (a *App) flushQuoteInbox() {
 // again on the next tick.
 func (a *App) onStreamState(up bool) {
 	a.streamLive.Store(up)
+
+	// A stream that only misbehaves once the index composition is part of the
+	// subscription is what the guard watches for. A healthy stream clears the
+	// suspicion outright.
+	a.dataMutex.Lock()
+	switch {
+	case up:
+		a.indexStreamFailures = 0
+	case !a.indexStreamIncludedAt.IsZero():
+		a.indexStreamFailures++
+	}
+	a.dataMutex.Unlock()
+
 	if up {
 		log.Printf("[INFO] Quote stream is live, quote polling paused for the active account")
 	} else {
@@ -194,19 +208,90 @@ func (a *App) recomputeStreamSymbols() {
 		return
 	}
 
-	a.dataMutex.RLock()
+	indexActive := a.indexTabActive()
+
+	a.dataMutex.Lock()
 	var positions []models.Position
 	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
 		positions = a.positions[a.accounts[a.selectedIdx].ID]
 	}
+	// The guard latches for the session: once the composition is suspected of
+	// breaking the subscription it never rejoins it.
+	includeIndex := indexActive && !a.indexStreamDisabled
 	indexSymbols := make([]string, 0, len(a.indexConstituents))
-	for _, c := range a.indexConstituents {
-		indexSymbols = append(indexSymbols, c.Symbol)
+	if includeIndex {
+		for _, c := range a.indexConstituents {
+			indexSymbols = append(indexSymbols, c.Symbol)
+		}
 	}
-	a.dataMutex.RUnlock()
+
+	// The guard's window is measured from the moment the composition actually
+	// entered the subscription, so a long healthy session never trips it.
+	switch {
+	case includeIndex && len(indexSymbols) > 0 && a.indexStreamIncludedAt.IsZero():
+		a.indexStreamIncludedAt = time.Now()
+		a.indexStreamFailures = 0
+	case !includeIndex || len(indexSymbols) == 0:
+		a.indexStreamIncludedAt = time.Time{}
+		a.indexStreamFailures = 0
+	}
+	a.dataMutex.Unlock()
 
 	a.client.SetQuoteSymbols(computeStreamSymbols(
-		positions, a.profileOpen, a.profileSymbol, a.indexTabActive(), indexSymbols))
+		positions, a.profileOpen, a.profileSymbol, includeIndex, indexSymbols))
+}
+
+// indexStreamGuardWindow is how long the subscription is given to come up after
+// the index composition joined it. The composition roughly multiplies the
+// symbol count, and no limit on it is documented, so the terminal verifies
+// empirically rather than trusting that it is fine.
+const indexStreamGuardWindow = time.Minute
+
+// indexStreamMaxFailures is the alternative trigger: a subscription that keeps
+// connecting and dropping with the composition included is as broken as one
+// that never connects.
+const indexStreamMaxFailures = 3
+
+// shouldDisableIndexStream reports whether the index composition should be
+// dropped from the subscription to get the positions stream working again.
+func shouldDisableIndexStream(indexIncluded, streamUp bool, includedAt time.Time, failures int, now time.Time) bool {
+	if !indexIncluded || streamUp || includedAt.IsZero() {
+		return false
+	}
+	if failures >= indexStreamMaxFailures {
+		return true
+	}
+	return now.Sub(includedAt) >= indexStreamGuardWindow
+}
+
+// evaluateIndexStreamHealth trips the guard when the subscription has not
+// recovered since the composition joined it. Portfolio quotes are the terminal's
+// core function, so they win over the showcase tab, which keeps working on the
+// bounded fallback batch.
+func (a *App) evaluateIndexStreamHealth() {
+	a.dataMutex.Lock()
+	if a.indexStreamDisabled {
+		a.dataMutex.Unlock()
+		return
+	}
+	includedAt, failures := a.indexStreamIncludedAt, a.indexStreamFailures
+	indexIncluded := !includedAt.IsZero()
+	a.dataMutex.Unlock()
+
+	if !shouldDisableIndexStream(indexIncluded, a.streamLive.Load(), includedAt, failures, time.Now()) {
+		return
+	}
+
+	a.dataMutex.Lock()
+	a.indexStreamDisabled = true
+	a.indexStreamIncludedAt = time.Time{}
+	a.dataMutex.Unlock()
+
+	log.Printf("[WARN] Quote stream did not recover with the index composition subscribed; "+
+		"dropping index symbols for this session (failures: %d)", failures)
+
+	// Resubscribe immediately with the positions alone.
+	a.recomputeStreamSymbols()
 }
 
 // indexTabActive reports whether the Index tab is the one on screen. It is read

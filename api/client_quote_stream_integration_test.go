@@ -296,3 +296,46 @@ func TestIntegration_QuoteStream_InBandErrorKeepsStream(t *testing.T) {
 		t.Errorf("SubscribeQuote call count = %d, want 1: the stream must survive an in-band error", got)
 	}
 }
+
+// TestIntegration_QuoteStream_RecoversAfterNarrowingSymbols simulates a server
+// that refuses subscriptions above a symbol count — the undocumented risk of
+// adding the whole index composition to the existing stream. It proves the
+// recovery the UI guard relies on: once the wide set is replaced with the
+// narrow one, the positions stream comes back with no manual intervention.
+func TestIntegration_QuoteStream_RecoversAfterNarrowingSymbols(t *testing.T) {
+	client, ts := setupTestServer(t)
+	sink := newQuoteStreamSink()
+
+	const maxSymbols = 2
+	ts.MarketData.SubscribeQuoteOverride = func(req *marketdata.SubscribeQuoteRequest, stream marketdata.MarketDataService_SubscribeQuoteServer) error {
+		if len(req.Symbols) > maxSymbols {
+			return status.Errorf(codes.ResourceExhausted, "too many symbols: %d", len(req.Symbols))
+		}
+		return stream.Send(&marketdata.SubscribeQuoteResponse{
+			Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(req.Symbols[0], true)},
+		})
+	}
+
+	sink.start(client)
+
+	// The wide set (positions + index composition) is rejected outright. The
+	// stream never reports "down" here because it was never up — the client
+	// starts in the down state and only reports changes.
+	client.SetQuoteSymbols([]string{"SBER@MISX", "GAZP@MISX", "LKOH@MISX", "MOEX@MISX"})
+	waitQuoteStreamCalls(t, ts, 1, 5*time.Second)
+	sink.expectNoState(t, 500*time.Millisecond)
+
+	// The guard drops the index symbols; the positions alone must work again.
+	client.SetQuoteSymbols([]string{"SBER@MISX"})
+
+	q := sink.waitQuote(t, 5*time.Second)
+	if q.Symbol != "SBER@MISX" {
+		t.Errorf("quote symbol = %q, want SBER@MISX", q.Symbol)
+	}
+	sink.waitState(t, true, 5*time.Second)
+
+	symbols, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
+	if len(symbols) != 1 || symbols[0] != "SBER@MISX" {
+		t.Errorf("subscribed symbols after recovery = %v, want [SBER@MISX]", symbols)
+	}
+}
