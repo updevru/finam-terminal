@@ -640,6 +640,16 @@ type indexRowValues struct {
 	colour    tcell.Color
 }
 
+// indexColumnExpansion distributes the width left over after the content, per
+// Index column (Ticker, Name, Price, Chg, Chg%, Weight, Volume). Name absorbs
+// most of it because company names are the only genuinely variable-length
+// field; the numeric columns need only a little breathing room.
+//
+// Every cell carries its column's value, headers and data alike: tview derives
+// column widths from the rows currently visible, so expansion living on the
+// header alone collapses the table as soon as the header scrolls away.
+var indexColumnExpansion = [...]int{1, 8, 1, 1, 1, 1, 1}
+
 // noIndexData is what an empty cell shows: a dash, never "N/A" or a zero that
 // could be mistaken for a real flat price.
 const noIndexData = "—"
@@ -719,7 +729,7 @@ func updateIndexTable(app *App) {
 		table.SetCell(0, i, tview.NewTableCell(h).
 			SetStyle(headerStyle).
 			SetAlign(align).
-			SetExpansion(1))
+			SetExpansion(indexColumnExpansion[i]))
 	}
 
 	app.dataMutex.RLock()
@@ -781,7 +791,8 @@ func updateIndexTable(app *App) {
 		for col, cell := range cells {
 			table.SetCell(row, col, tview.NewTableCell(cell.text).
 				SetStyle(tcell.StyleDefault.Background(rowBg).Foreground(cell.colour)).
-				SetAlign(cell.align))
+				SetAlign(cell.align).
+				SetExpansion(indexColumnExpansion[col]))
 		}
 	}
 }

@@ -2,12 +2,14 @@ package ui
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"finam-terminal/models"
 
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
 // testConstituents is a small composition with weights deliberately out of
@@ -287,4 +289,109 @@ func TestIndexSymbols_ReturnsFullSymbols(t *testing.T) {
 			t.Errorf("symbol %q is not a full ticker@mic symbol", s)
 		}
 	}
+}
+
+// renderTable draws a table onto a simulation screen and returns the visible
+// lines. Rendering for real is the only way to check what the first smoke test
+// complained about: tview derives both the visible rows and the column widths
+// at draw time.
+func renderTable(t *testing.T, table *tview.Table, width, height int) []string {
+	t.Helper()
+
+	screen := tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("simulation screen init: %v", err)
+	}
+	defer screen.Fini()
+	screen.SetSize(width, height)
+
+	table.SetRect(0, 0, width, height)
+	// Twice: tview adjusts the scroll offset to reveal the selection while
+	// drawing, so the first pass renders the pre-scroll viewport.
+	table.Draw(screen)
+	table.Draw(screen)
+
+	lines := make([]string, height)
+	for y := range height {
+		var sb strings.Builder
+		for x := range width {
+			cell, _, _ := screen.Get(x, y)
+			sb.WriteString(cell)
+		}
+		lines[y] = strings.TrimRight(sb.String(), " ")
+	}
+	return lines
+}
+
+// TestIndexTable_HeaderStaysVisibleWhenScrolled guards the defect the first
+// smoke test found: with 46 rows the header scrolled off the top and the column
+// labels disappeared.
+func TestIndexTable_HeaderStaysVisibleWhenScrolled(t *testing.T) {
+	app := NewApp(&mockClient{}, nil)
+	app.indexConstituents = manyConstituents(46)
+	app.indexLoaded = true
+	updateIndexTable(app)
+
+	table := app.portfolioView.TabbedView.IndexTable
+	// Select a row far below the fold, as a user scrolling the list would.
+	table.Select(40, 0)
+
+	rendered := strings.Join(renderTable(t, table, 120, 20), "\n")
+
+	for _, header := range []string{"Ticker", "Name", "Price", "Chg", "Weight", "Volume"} {
+		if !strings.Contains(rendered, header) {
+			t.Errorf("column header %q is not on screen after scrolling to row 40:\n%s", header, rendered)
+		}
+	}
+	// And the list really did scroll: the first row is gone, so the header is
+	// on screen because it is pinned, not because nothing moved.
+	if strings.Contains(rendered, "TICK0 ") {
+		t.Errorf("the list did not scroll, so the header test proves nothing:\n%s", rendered)
+	}
+}
+
+// TestIndexTable_FillsAvailableWidth guards the other half of the same defect:
+// column widths are derived from the visible rows, so with expansion only on
+// the header the table collapsed to its content width once the header scrolled
+// away.
+func TestIndexTable_FillsAvailableWidth(t *testing.T) {
+	app := NewApp(&mockClient{}, nil)
+	app.indexConstituents = manyConstituents(46)
+	app.indexLoaded = true
+	updateIndexTable(app)
+
+	table := app.portfolioView.TabbedView.IndexTable
+	table.Select(40, 0)
+
+	const width = 120
+	lines := renderTable(t, table, width, 20)
+
+	widest := 0
+	for _, line := range lines {
+		if len(line) > widest {
+			widest = len(line)
+		}
+	}
+
+	// Content alone is far narrower than 120 columns; only expansion can get
+	// the table anywhere near the edge.
+	if widest < width*3/4 {
+		t.Errorf("widest rendered line is %d of %d columns — the table is not using the available width:\n%s",
+			widest, width, strings.Join(lines, "\n"))
+	}
+}
+
+// manyConstituents builds a composition long enough to scroll.
+func manyConstituents(n int) []models.IndexConstituent {
+	out := make([]models.IndexConstituent, n)
+	for i := range out {
+		out[i] = models.IndexConstituent{
+			Symbol: fmt.Sprintf("TICK%d@MISX", i),
+			Ticker: fmt.Sprintf("TICK%d", i),
+			Name:   fmt.Sprintf("Компания номер %d", i),
+			Sector: "Финансы",
+			Weight: float64(n-i) / 1000,
+		}
+	}
+	return out
 }

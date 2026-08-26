@@ -307,6 +307,10 @@ func createIndexTable() *tview.Table {
 	table.SetBackgroundColor(tcell.ColorBlack)
 	table.SetSelectable(true, false)
 	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
+	// The index is long enough to scroll, and tview only keeps fixed rows on
+	// screen — without this the column headers disappear as soon as the user
+	// scrolls past the first screenful.
+	table.SetFixed(1, 0)
 	return table
 }
 
