@@ -16,7 +16,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **User manual**: new page [«Вкладка Индекс»](docs/user_manual/index-tab.md) (`index_tab`).
 - **Mock server**: `MockAssetsServer.GetConstituents` with paginated fixtures and per-call error, empty and endless-cursor injection (`index_tab`).
 
+### Fixed
+- **Index tab header and width**: the header row is pinned (`SetFixed`) and every cell carries its column's expansion. tview derives both the visible rows and the column widths from the rows on screen, so scrolling the 46-row list used to take the column labels off screen and collapse the table to its content width (`index_tab`).
+- **Broker subscription symbol cap**: `SubscribeQuote` does limit how many symbols one subscription may carry — a 46-symbol subscription is refused with `InvalidArgument: Maximum number of symbols exceeded`. The client now discovers the limit by halving what was refused, truncating from the end of a priority-ordered list so portfolio positions are never dropped; the Index tab asks only for a 20-symbol window around the rows on screen, which moves as you scroll (`index_tab`).
+- **`GetQuotes` deadlines**: every `LastQuote` now carries its own deadline instead of the whole batch sharing one 30s context, which made the later symbols of a long batch fail with `DeadlineExceeded` while the broker was answering normally (`index_tab`).
+- **Index tab loading state**: entering the tab starts the composition load before drawing, so it reports `Loading` instead of `No constituents`, and fetches quotes as soon as the composition lands rather than waiting for the next background tick (`index_tab`).
+
 ### Changed
+- **Quote subscription order**: `SetQuoteSymbols` now preserves the caller's order rather than sorting, because that order is priority order for the broker's symbol cap. Resubscribe decisions compare the capped sets ignoring order, so a reshuffle that subscribes to the same instruments still costs nothing (`index_tab`).
 - **Tab navigation**: the tab set is now derived from a single `tabLabels` list instead of two hardcoded modulo-3 expressions, so ←/→ cycle all four tabs (`index_tab`).
 - **`GetQuotes`**: a rate-limited (`ResourceExhausted`) response now ends the batch and is returned to the caller instead of being logged per symbol and skipped — one refused call must not become dozens (`index_tab`).
 - **Closing an instrument profile** returns focus to the tab it was opened from, with the selection intact, instead of always to Positions (`index_tab`).
