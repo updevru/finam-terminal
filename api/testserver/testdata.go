@@ -75,12 +75,16 @@ func DefaultQuote(symbol string) *marketdata.Quote {
 			Last:   &decimal.Decimal{Value: "285.00"},
 			Bid:    &decimal.Decimal{Value: "284.90"},
 			Ask:    &decimal.Decimal{Value: "285.10"},
+			Close:  &decimal.Decimal{Value: "280.00"},
+			Change: &decimal.Decimal{Value: "5.00"},
 		},
 		"GAZP@TQBR": {
 			Symbol: "GAZP@TQBR",
 			Last:   &decimal.Decimal{Value: "160.30"},
 			Bid:    &decimal.Decimal{Value: "160.20"},
 			Ask:    &decimal.Decimal{Value: "160.40"},
+			Close:  &decimal.Decimal{Value: "162.00"},
+			Change: &decimal.Decimal{Value: "-1.70"},
 		},
 	}
 	if q, ok := quotes[symbol]; ok {

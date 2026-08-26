@@ -128,3 +128,54 @@ func TestQuoteToModel_FormatsAndFallsBack(t *testing.T) {
 		t.Errorf("Timestamp location = %v, want local", m.Timestamp.Location())
 	}
 }
+
+// TestQuoteToModel_MapsChange verifies that the session change (Trade API
+// Quote.change = last - close) reaches the model, and falls back to "N/A" when
+// the quote does not carry it.
+func TestQuoteToModel_MapsChange(t *testing.T) {
+	withChange := &marketdata.Quote{
+		Symbol: "SBER@MISX",
+		Last:   dec("290"),
+		Close:  dec("289"),
+		Change: dec("1.00"),
+	}
+
+	m := quoteToModel("SBER@MISX", withChange)
+	if m.Change != "1.00" {
+		t.Errorf("Change = %q, want 1.00", m.Change)
+	}
+
+	withoutChange := &marketdata.Quote{Symbol: "SBER@MISX", Last: dec("290")}
+	if m := quoteToModel("SBER@MISX", withoutChange); m.Change != "N/A" {
+		t.Errorf("Change = %q, want N/A for an absent field", m.Change)
+	}
+}
+
+// TestMergeQuote_IncrementKeepsChange guards the Index tab: an incremental
+// stream update that carries only Last must not drop the session change, so the
+// rendered row keeps showing Chg/Chg% between snapshots.
+func TestMergeQuote_IncrementKeepsChange(t *testing.T) {
+	prev := &marketdata.Quote{
+		Symbol:         "SBER@MISX",
+		Last:           dec("290"),
+		Close:          dec("289"),
+		Change:         dec("1.00"),
+		IsDataSnapshot: true,
+	}
+	increment := &marketdata.Quote{Symbol: "SBER@MISX", Last: dec("291")}
+
+	merged := mergeQuote(prev, increment)
+
+	if merged.Change.GetValue() != "1.00" {
+		t.Errorf("Change = %q, want 1.00 (kept from the snapshot)", merged.Change.GetValue())
+	}
+	if got := quoteToModel("SBER@MISX", merged); got.Change != "1.00" {
+		t.Errorf("model Change = %q, want 1.00", got.Change)
+	}
+
+	// A newer change overwrites it.
+	merged = mergeQuote(merged, &marketdata.Quote{Symbol: "SBER@MISX", Change: dec("2.00")})
+	if merged.Change.GetValue() != "2.00" {
+		t.Errorf("Change = %q, want 2.00 (from the increment)", merged.Change.GetValue())
+	}
+}

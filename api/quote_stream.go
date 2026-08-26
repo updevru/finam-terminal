@@ -31,6 +31,7 @@ func quoteToModel(symbol string, q *marketdata.Quote) *models.Quote {
 		High:         formatDecimal(q.High),
 		Low:          formatDecimal(q.Low),
 		Close:        formatDecimal(q.Close),
+		Change:       formatDecimal(q.Change),
 		OpenInterest: formatDecimal(q.OpenInterest),
 		Timestamp:    q.Timestamp.AsTime().Local(),
 	}

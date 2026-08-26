@@ -76,6 +76,7 @@ type Quote struct {
 	High         string
 	Low          string
 	Close        string
+	Change       string
 	OpenInterest string
 	Timestamp    time.Time
 }
