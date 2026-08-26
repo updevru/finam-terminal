@@ -222,3 +222,24 @@ func (a *App) pollIndexQuotesSync(manual, tabActive bool) bool {
 	// collected before the failure.
 	return err == nil || len(quotes) > 0
 }
+
+// selectedIndexSymbol returns the full symbol of the highlighted Index row, or
+// "" for the header row and a stale selection. It resolves through the rendered
+// (sorted) order, so the instrument that opens is always the one the user is
+// looking at.
+func (a *App) selectedIndexSymbol() string {
+	row, _ := a.portfolioView.TabbedView.IndexTable.GetSelection()
+	if row <= 0 {
+		return ""
+	}
+
+	a.dataMutex.RLock()
+	constituents := sortConstituents(a.indexConstituents)
+	a.dataMutex.RUnlock()
+
+	idx := row - 1
+	if idx >= len(constituents) {
+		return ""
+	}
+	return constituents[idx].Symbol
+}

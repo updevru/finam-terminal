@@ -941,7 +941,23 @@ func (a *App) CloseProfile() {
 	a.profileSymbol = ""
 	a.recomputeStreamSymbols()
 	a.pages.SwitchToPage("main")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	// Return to the tab the profile was opened from, with its selection intact.
+	a.app.SetFocus(a.activeTabTable())
+}
+
+// activeTabTable returns the table of the tab currently on screen.
+func (a *App) activeTabTable() *tview.Table {
+	tv := a.portfolioView.TabbedView
+	switch tv.ActiveTab {
+	case TabHistory:
+		return tv.HistoryTable
+	case TabOrders:
+		return tv.OrdersTable
+	case TabIndex:
+		return tv.IndexTable
+	default:
+		return tv.PositionsTable
+	}
 }
 
 // IsProfileOpen returns true if the profile overlay is currently shown.

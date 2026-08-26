@@ -156,6 +156,12 @@ func setupInputHandlers(app *App) {
 					app.OpenProfile()
 					return nil
 				}
+				if table == app.portfolioView.TabbedView.IndexTable {
+					if symbol := app.selectedIndexSymbol(); symbol != "" {
+						app.OpenProfileForSymbol(symbol)
+					}
+					return nil
+				}
 			case tcell.KeyDelete:
 				if table == app.portfolioView.TabbedView.OrdersTable {
 					app.ShowCancelConfirmation()
@@ -172,6 +178,13 @@ func setupInputHandlers(app *App) {
 			case 'a', 'A', 'ф', 'Ф':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenOrderModal()
+				}
+				if table == app.portfolioView.TabbedView.IndexTable {
+					// The composition carries full ticker@mic symbols, so the
+					// instrument goes through the existing order path unchanged.
+					if symbol := app.selectedIndexSymbol(); symbol != "" {
+						app.OpenOrderModalWithTicker(symbol)
+					}
 				}
 				return nil
 			case 'x', 'X', 'ч', 'Ч':
