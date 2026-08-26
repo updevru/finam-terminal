@@ -7,7 +7,7 @@
 - [x] Task: Одноразовый скрипт с реальным токеном (авторизация → bulk `Assets` → пробы `GetConstituents` для кандидатов и примеров из документации); результаты зафиксированы в spec.md, временный код удалён. Итог: `IMOEX@RTSX` — 46 компонентов (символы `SBER@MISX`, русские имена, сектора, веса); `IMOEX@MISX`/`MOEXBC@MISX` → NotFound; NDX/SPX работают, но вне скоупа; сам индекс в bulk-активах отсутствует → список индексов зашивается константой. (выполнено при создании трека 2026-08-26, без коммита)
   - Acceptance: spec.md обновлён фактами с реального API; выбран путь — состав из API, символ индекса константой
 
-## Phase 2: API-слой — состав индекса и Quote.Change
+## Phase 2: API-слой — состав индекса и Quote.Change [checkpoint: cc78628]
 - [x] Task: (Red→Green) `models.Quote.Change` + маппинг в `quoteToModel` (api/quote_stream.go:20-37); фикстуры `DefaultQuote()`/`DefaultStreamQuote()` в api/testserver/testdata.go дополнить `Change`; юнит-тесты: change маппится, nil → "N/A", инкремент стрима сохраняет Change (регресс `mergeQuote`) (e9db6b7)
   - Acceptance: тесты зелёные; существующие тесты quoteToModel/mergeQuote не сломаны
 - [x] Task: (Red) `MockAssetsServer.GetConstituents` (фикстура `DefaultConstituents()` — 2 страницы с `next_cursor`, поля symbol/name/sector/weight; `GetConstituentsError` для инъекции ошибок; счётчик вызовов) + падающие интеграционные тесты `client_index_integration_test.go`: полная выборка через пагинацию с сохранением порядка, маппинг weight/name/ticker (символ → тикер до `@`), повторный вызов в TTL → 0 RPC (счётчик), ошибка рефетча → прежний состав (stale-on-error), ошибка первой загрузки → error, пустой ответ → error и кеш не отравлен, защитный предел страниц (6153c60)
