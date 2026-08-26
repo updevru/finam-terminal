@@ -86,6 +86,10 @@ func setupInputHandlers(app *App) {
 			app.ensureIndexLoaded()
 		}
 
+		// The composition joins the subscription on entry and leaves it on exit,
+		// so an unwatched tab costs nothing.
+		app.recomputeStreamSymbols()
+
 		if app.selectedIdx >= len(app.accounts) {
 			return
 		}

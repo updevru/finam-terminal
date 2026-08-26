@@ -58,7 +58,8 @@ func TestComputeStreamSymbols(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := computeStreamSymbols(tt.positions, tt.profileOpen, tt.profileSymbol)
+			// The Index tab is covered separately in index_stream_test.go.
+			got := computeStreamSymbols(tt.positions, tt.profileOpen, tt.profileSymbol, false, nil)
 			if len(got) != len(tt.want) {
 				t.Fatalf("computeStreamSymbols() = %v, want %v", got, tt.want)
 			}

@@ -78,7 +78,26 @@ func (a *App) flushQuoteInbox() {
 			quotes[symbol] = q
 		}
 	}
+
+	// Index quotes are filed separately and independently of the account: the
+	// tab is a showcase, so it must render the same on any account and with
+	// none. Only symbols actually in the composition are kept, so the map never
+	// grows into a second copy of the account quotes.
+	indexTouched := false
+	for _, c := range a.indexConstituents {
+		if q, ok := inbox[c.Symbol]; ok {
+			if a.indexQuotes == nil {
+				a.indexQuotes = make(map[string]*models.Quote)
+			}
+			a.indexQuotes[c.Symbol] = q
+			indexTouched = true
+		}
+	}
 	a.dataMutex.Unlock()
+
+	if indexTouched && a.indexTabActive() {
+		updateIndexTable(a)
+	}
 
 	if accountID == "" {
 		return
@@ -125,12 +144,21 @@ func (a *App) shouldSkipQuotePolling(accountID string) bool {
 }
 
 // computeStreamSymbols returns the symbols the stream should carry: the active
-// account's positions plus the symbol of an open profile. Symbols without a MIC
-// are dropped (the stream only accepts ticker@mic), and the result is deduped
-// and sorted so an unchanged set compares equal.
-func computeStreamSymbols(positions []models.Position, profileOpen bool, profileSymbol string) []string {
-	symbols := make([]string, 0, len(positions)+1)
-	seen := make(map[string]struct{}, len(positions)+1)
+// account's positions, the symbol of an open profile, and — only while the
+// Index tab is showing — the index composition. Symbols without a MIC are
+// dropped (the stream only accepts ticker@mic), and the result is deduped and
+// sorted so an unchanged set compares equal.
+//
+// The index symbols join and leave with the tab on purpose: an always-on
+// subscription to the whole composition would be a permanent cost for a view
+// nobody is looking at.
+func computeStreamSymbols(positions []models.Position, profileOpen bool, profileSymbol string, indexActive bool, indexSymbols []string) []string {
+	capacity := len(positions) + 1
+	if indexActive {
+		capacity += len(indexSymbols)
+	}
+	symbols := make([]string, 0, capacity)
+	seen := make(map[string]struct{}, capacity)
 
 	add := func(symbol string) {
 		if !strings.Contains(symbol, "@") {
@@ -149,6 +177,11 @@ func computeStreamSymbols(positions []models.Position, profileOpen bool, profile
 	if profileOpen {
 		add(profileSymbol)
 	}
+	if indexActive {
+		for _, symbol := range indexSymbols {
+			add(symbol)
+		}
+	}
 
 	slices.Sort(symbols)
 	return symbols
@@ -166,7 +199,20 @@ func (a *App) recomputeStreamSymbols() {
 	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
 		positions = a.positions[a.accounts[a.selectedIdx].ID]
 	}
+	indexSymbols := make([]string, 0, len(a.indexConstituents))
+	for _, c := range a.indexConstituents {
+		indexSymbols = append(indexSymbols, c.Symbol)
+	}
 	a.dataMutex.RUnlock()
 
-	a.client.SetQuoteSymbols(computeStreamSymbols(positions, a.profileOpen, a.profileSymbol))
+	a.client.SetQuoteSymbols(computeStreamSymbols(
+		positions, a.profileOpen, a.profileSymbol, a.indexTabActive(), indexSymbols))
+}
+
+// indexTabActive reports whether the Index tab is the one on screen. It is read
+// from the view rather than tracked separately so the two can never disagree.
+func (a *App) indexTabActive() bool {
+	return a.portfolioView != nil &&
+		a.portfolioView.TabbedView != nil &&
+		a.portfolioView.TabbedView.ActiveTab == TabIndex
 }
