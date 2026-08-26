@@ -2,6 +2,7 @@ package ui
 
 import (
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -187,5 +188,70 @@ func TestOnStreamState_CountsFailuresWhileIndexSubscribed(t *testing.T) {
 	app.dataMutex.RUnlock()
 	if failures != 0 {
 		t.Errorf("failure count after the stream came up = %d, want 0", failures)
+	}
+}
+
+// TestIndexState_ConcurrentAccess hammers every path that touches the Index tab
+// state from several goroutines at once. It is the local stand-in for the race
+// detector on machines without a C toolchain: Go's runtime still panics on a
+// concurrent map write, which is the failure mode an unguarded indexQuotes or
+// indexConstituents would produce.
+//
+// The Index tab is kept inactive and the inbox flush is left until the end,
+// because both redraw tview widgets, which only ever run on the event loop. The
+// point here is the shared state behind them, not the drawing.
+func TestIndexState_ConcurrentAccess(t *testing.T) {
+	mock := &mockClient{
+		GetIndexConstituentsFunc: func(string) ([]models.IndexConstituent, error) {
+			return testConstituents(), nil
+		},
+		GetQuotesFunc: func(_ string, symbols []string) (map[string]*models.Quote, error) {
+			out := make(map[string]*models.Quote, len(symbols))
+			for _, s := range symbols {
+				out[s] = &models.Quote{Symbol: s, Last: "100.00", Change: "1.00"}
+			}
+			return out, nil
+		},
+		SetQuoteSymbolsFunc: func([]string) {},
+	}
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.positions["acc1"] = []models.Position{{Symbol: "SBER@MISX"}}
+
+	const workers = 8
+	const rounds = 40
+
+	var wg sync.WaitGroup
+	run := func(f func()) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range rounds {
+				f()
+			}
+		}()
+	}
+
+	for range workers {
+		run(func() { app.loadIndexSync() })
+		run(func() { app.pollIndexQuotesSync(true, false) })
+		run(func() { _ = app.indexSymbols() })
+		run(func() { app.recomputeStreamSymbols() })
+		run(func() { app.evaluateIndexStreamHealth() })
+		run(func() { app.onStreamState(false) })
+		run(func() { app.onStreamQuote(models.Quote{Symbol: "GAZP@MISX", Last: "290.00"}) })
+	}
+
+	wg.Wait()
+
+	// The flush is serial on purpose: it repaints tview widgets, which are
+	// owned by the event loop. Its shared-state bookkeeping is what the
+	// concurrent writers above have been feeding.
+	app.flushQuoteInbox()
+
+	app.dataMutex.RLock()
+	defer app.dataMutex.RUnlock()
+	if len(app.indexConstituents) != 3 {
+		t.Errorf("composition ended with %d constituents, want 3", len(app.indexConstituents))
 	}
 }

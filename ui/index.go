@@ -148,8 +148,13 @@ func shouldPollIndexQuotes(streamLive, tabActive, autoDisabled bool, lastPoll, n
 // repaints the tab. manual marks a user-initiated refresh (R), which ignores
 // the cooldown, the stream state and the rate-limit latch.
 func (a *App) pollIndexQuotesAsync(manual bool) {
+	// The active tab lives in the tview widget tree, which belongs to the event
+	// loop: it is read here, on the caller's thread, and handed to the worker
+	// rather than read from it.
+	tabActive := a.indexTabActive()
+
 	go func() {
-		if !a.pollIndexQuotesSync(manual) {
+		if !a.pollIndexQuotesSync(manual, tabActive) {
 			return
 		}
 		a.app.QueueUpdateDraw(func() {
@@ -163,8 +168,9 @@ func (a *App) pollIndexQuotesAsync(manual bool) {
 // pollIndexQuotesSync performs the fallback batch and reports whether it
 // actually ran. It blocks, so it belongs off the event loop; it is separate
 // from pollIndexQuotesAsync so tests can drive it without a running
-// application.
-func (a *App) pollIndexQuotesSync(manual bool) bool {
+// application. tabActive is passed in rather than read here, because the widget
+// tree it comes from belongs to the event loop.
+func (a *App) pollIndexQuotesSync(manual, tabActive bool) bool {
 	if a.client == nil {
 		return false
 	}
@@ -180,7 +186,7 @@ func (a *App) pollIndexQuotesSync(manual bool) bool {
 	if len(symbols) == 0 {
 		return false
 	}
-	if !manual && !shouldPollIndexQuotes(a.streamLive.Load(), a.indexTabActive(), autoDisabled, lastPoll, time.Now()) {
+	if !manual && !shouldPollIndexQuotes(a.streamLive.Load(), tabActive, autoDisabled, lastPoll, time.Now()) {
 		return false
 	}
 
