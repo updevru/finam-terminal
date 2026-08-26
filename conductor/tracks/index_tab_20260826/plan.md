@@ -12,7 +12,7 @@
   - Acceptance: тесты зелёные; существующие тесты quoteToModel/mergeQuote не сломаны
 - [x] Task: (Red) `MockAssetsServer.GetConstituents` (фикстура `DefaultConstituents()` — 2 страницы с `next_cursor`, поля symbol/name/sector/weight; `GetConstituentsError` для инъекции ошибок; счётчик вызовов) + падающие интеграционные тесты `client_index_integration_test.go`: полная выборка через пагинацию с сохранением порядка, маппинг weight/name/ticker (символ → тикер до `@`), повторный вызов в TTL → 0 RPC (счётчик), ошибка рефетча → прежний состав (stale-on-error), ошибка первой загрузки → error, пустой ответ → error и кеш не отравлен, защитный предел страниц (6153c60)
   - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) `models.IndexConstituent{Symbol, Ticker, Name, Sector, Weight}`; `Client.GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error)` — цикл пагинации (предел 10 страниц + [WARN]), кеш в памяти по символу индекса (TTL 24ч, stale-on-error), `logGRPCError`; метод в `ui.APIClient` + мок ui-тестов
+- [ ] Task: (Green) `models.IndexConstituent{Symbol, Ticker, Name, Sector, Weight}`; `Client.GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error)` — цикл пагинации (предел 10 страниц + [WARN]), кеш в памяти по символу индекса (TTL 24ч, stale-on-error), `logGRPCError`; метод в `ui.APIClient` + мок ui-тестов (40cbdd1)
   - Acceptance: тесты Phase 2 зелёные end-to-end (bufconn)
 
 ## Phase 3: Четвёртая вкладка UI
