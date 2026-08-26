@@ -15,7 +15,7 @@
 - [ ] Task: (Green) `models.IndexConstituent{Symbol, Ticker, Name, Sector, Weight}`; `Client.GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error)` — цикл пагинации (предел 10 страниц + [WARN]), кеш в памяти по символу индекса (TTL 24ч, stale-on-error), `logGRPCError`; метод в `ui.APIClient` + мок ui-тестов (40cbdd1)
   - Acceptance: тесты Phase 2 зелёные end-to-end (bufconn)
 
-## Phase 3: Четвёртая вкладка UI [checkpoint: PENDING]
+## Phase 3: Четвёртая вкладка UI [checkpoint: cdbd65d]
 - [x] Task: (Red) Тесты вкладки: цикл `nextTab`/`prevTab` проходит 4 вкладки (Positions→History→Orders→Index→Positions), `SetTab(TabIndex)` переключает страницу "index", заголовок содержит " Index ", фокус уходит в IndexTable (по образцу ui/portfolio_tabs_test.go, ui/input_handler_test.go) (5eb80b3)
   - Acceptance: тесты компилируются и падают
 - [x] Task: (Green) components.go: константа `TabIndex`, `IndexTable` в `TabbedView` + страница "index", `UpdateHeader` с 4 табами; input.go: заменить `% 3` на `tabCount` (len-based), ветки `TabIndex` в `switchToTab`/`refresh`, `setupTableNavigation(IndexTable)` (e2fe015)
