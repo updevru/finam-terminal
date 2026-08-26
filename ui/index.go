@@ -64,6 +64,10 @@ func (a *App) loadIndexAsync() {
 		a.app.QueueUpdateDraw(func() {
 			updateIndexTable(a)
 			a.recomputeStreamSymbols()
+			// With the stream live this is vetoed by the predicate; with it
+			// down, waiting for the next background tick would leave the tab
+			// blank for several seconds after the composition already arrived.
+			a.pollIndexQuotesAsync(false)
 		})
 	}()
 }

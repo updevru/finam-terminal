@@ -157,3 +157,31 @@ func TestInputHandler_EnteringIndexTabLoadsOnce(t *testing.T) {
 		t.Errorf("composition loaded %d times, want 1 — re-entering the tab must reuse it", n)
 	}
 }
+
+// TestInputHandler_EnteringIndexTabShowsLoading verifies the tab says it is
+// loading while the composition is being fetched. Drawing before starting the
+// load painted "No constituents" and left it there for the whole fetch, which
+// read as a broken tab.
+func TestInputHandler_EnteringIndexTabShowsLoading(t *testing.T) {
+	release := make(chan struct{})
+	mock := &mockClient{
+		GetIndexConstituentsFunc: func(string) ([]models.IndexConstituent, error) {
+			<-release // hold the load open so the loading state is observable
+			return testConstituents(), nil
+		},
+	}
+	app := NewApp(mock, nil)
+	setupInputHandlers(app)
+	app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
+	capture := app.app.GetInputCapture()
+
+	for range 3 {
+		capture(tcell.NewEventKey(tcell.KeyRight, 0, tcell.ModNone))
+	}
+	defer close(release)
+
+	got := app.portfolioView.TabbedView.IndexTable.GetCell(1, 0).Text
+	if !strings.Contains(got, "Loading") {
+		t.Errorf("first row on entry = %q, want it to report loading", got)
+	}
+}

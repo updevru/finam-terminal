@@ -85,8 +85,10 @@ func setupInputHandlers(app *App) {
 
 		// Same reason as in refresh: the Index tab has no account to wait for.
 		if tab == TabIndex {
-			updateIndexTable(app)
+			// Start the load first, then draw: the other order paints
+			// "No constituents" and leaves it there for the whole fetch.
 			app.ensureIndexLoaded()
+			updateIndexTable(app)
 			// With a live stream this is a no-op; with a dead one it fills the
 			// tab from a single bounded batch.
 			app.pollIndexQuotesAsync(false)
