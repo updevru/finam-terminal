@@ -51,6 +51,9 @@ type APIClient interface {
 	GetAssetParams(accountID string, symbol string) (*models.AssetParams, error)
 	GetSchedule(symbol string) ([]models.TradingSession, error)
 
+	// Index composition (GetConstituents, cached per session)
+	GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error)
+
 	// Corporate action calendars
 	GetDividends(symbol string) ([]models.Dividend, error)
 	GetSplits(symbol string) ([]models.Split, error)

@@ -12,6 +12,18 @@ import (
 
 const testIndexSymbol = "IMOEX@RTSX"
 
+// expireIndexCache backdates the cached composition so the next call is forced
+// to refetch. It lives with the tests because nothing in production ages the
+// cache by hand.
+func (c *Client) expireIndexCache(indexSymbol string) {
+	c.indexMu.Lock()
+	defer c.indexMu.Unlock()
+
+	entry := c.indexCache[indexSymbol]
+	entry.fetchedAt = time.Now().Add(-2 * indexCacheTTL)
+	c.indexCache[indexSymbol] = entry
+}
+
 // TestIntegration_GetIndexConstituents_Pagination verifies the full composition
 // is collected across pages, in API order, with the ticker derived from the
 // symbol and a nil weight tolerated.

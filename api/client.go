@@ -61,6 +61,10 @@ type Client struct {
 	securityCache       []models.SecurityInfo
 	assetMutex          sync.RWMutex
 
+	// Index composition cache (GetConstituents), keyed by index symbol.
+	indexMu    sync.RWMutex
+	indexCache map[string]indexCacheEntry
+
 	// Realtime quote stream (SubscribeQuote, Trade API 2.19.0)
 	quoteMu          sync.Mutex
 	quoteStarted     bool
@@ -116,6 +120,7 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 		assetMicCache:          make(map[string]string),
 		assetLotCache:          make(map[string]float64),
 		tradeLotCache:          make(map[string]float64),
+		indexCache:             make(map[string]indexCacheEntry),
 		instrumentNameCache:    make(map[string]string),
 		securityCache:          make([]models.SecurityInfo, 0),
 	}
