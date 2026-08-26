@@ -24,6 +24,7 @@ type mockClient struct {
 	EnsureLotSizeFunc     func(accountID, symbol string) float64
 	StartQuoteStreamFunc  func(onQuote func(models.Quote), onState func(up bool))
 	SetQuoteSymbolsFunc   func(symbols []string)
+	SubscribedSymbolsFunc func() []string
 	GetInstrumentNameFunc func(key string) string
 
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
@@ -109,6 +110,13 @@ func (m *mockClient) SetQuoteSymbols(symbols []string) {
 	if m.SetQuoteSymbolsFunc != nil {
 		m.SetQuoteSymbolsFunc(symbols)
 	}
+}
+
+func (m *mockClient) SubscribedSymbols() []string {
+	if m.SubscribedSymbolsFunc != nil {
+		return m.SubscribedSymbolsFunc()
+	}
+	return nil
 }
 
 func (m *mockClient) EnsureLotSize(accountID, symbol string) float64 {

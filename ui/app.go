@@ -38,6 +38,9 @@ type APIClient interface {
 	// Realtime quotes (SubscribeQuote)
 	StartQuoteStream(onQuote func(models.Quote), onState func(up bool))
 	SetQuoteSymbols(symbols []string)
+	// SubscribedSymbols reports what the stream actually carries, which can be
+	// fewer symbols than were asked for: the broker caps subscription size.
+	SubscribedSymbols() []string
 	GetInstrumentName(key string) string
 
 	// History and Orders

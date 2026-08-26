@@ -398,6 +398,15 @@ func (c *Client) currentQuoteSymbols() []string {
 	return append([]string(nil), c.quoteSymbols...)
 }
 
+// SubscribedSymbols returns the symbols the stream is actually carrying — the
+// desired set after the broker's cap has been applied. The UI needs it to know
+// which rows are already live and which it has to fill another way.
+func (c *Client) SubscribedSymbols() []string {
+	c.quoteMu.Lock()
+	defer c.quoteMu.Unlock()
+	return append([]string(nil), applySymbolCap(c.quoteSymbols, c.quoteSymbolCap)...)
+}
+
 // quoteSymbolsChanged reports whether the set that should be subscribed has
 // moved away from the one the current subscription was opened with.
 func (c *Client) quoteSymbolsChanged(symbols []string) bool {

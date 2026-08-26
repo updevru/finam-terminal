@@ -135,97 +135,183 @@ func sortConstituents(constituents []models.IndexConstituent) []models.IndexCons
 	return sorted
 }
 
-// shouldPollIndexQuotes decides whether an automatic fallback batch may run.
+// shouldPollIndexQuotes decides whether an automatic sweep may start.
 //
-// Every false here is a request the terminal does not send: a live stream
-// already delivers the quotes, a closed tab has nobody to show them to, the
-// cooldown bounds the rate, and autoDisabled latches after the broker has
-// already told us we are asking too often.
-func shouldPollIndexQuotes(streamLive, tabActive, autoDisabled bool, lastPoll, now time.Time) bool {
-	if streamLive || !tabActive || autoDisabled {
+// Note what is *not* here: stream liveness. The broker caps a subscription at
+// roughly ten symbols, so a live stream can never cover a 46-name index — the
+// sweep fills whatever the subscription leaves out and skips the rest. When the
+// stream happens to cover everything, the symbol list comes out empty and no
+// request is made anyway.
+func shouldPollIndexQuotes(tabActive, autoDisabled bool, lastPoll, now time.Time) bool {
+	if !tabActive || autoDisabled {
 		return false
 	}
 	return now.Sub(lastPoll) >= indexPollCooldown
 }
 
-// pollIndexQuotesAsync runs a fallback quote batch off the event loop and
-// repaints the tab. manual marks a user-initiated refresh (R), which ignores
-// the cooldown, the stream state and the rate-limit latch.
-func (a *App) pollIndexQuotesAsync(manual bool) {
-	// The active tab and the scroll offset live in the tview widget tree, which
-	// belongs to the event loop: both are read here, on the caller's thread, and
-	// handed to the worker rather than read from it.
-	tabActive := a.indexTabActive()
-	windowStart, _ := a.portfolioView.TabbedView.IndexTable.GetOffset()
+// indexSweepDelay paces the individual quote requests of a sweep.
+//
+// The broker's per-method budget is 200 requests a minute, but a burst is
+// refused long before that: firing 46 LastQuote calls back to back earned an
+// immediate "Too Many Requests". At this spacing a full 46-name sweep takes
+// about seven seconds and costs 46 requests a minute — comfortably inside the
+// budget at a rate the broker tolerates.
+// A var rather than a const so tests can drop the pacing; nothing in production
+// writes to it.
+var indexSweepDelay = 150 * time.Millisecond
 
-	go func() {
-		if !a.pollIndexQuotesSync(manual, tabActive, windowStart) {
-			return
+// indexSweepRedrawEvery is how often a running sweep repaints, so rows appear
+// progressively instead of all at the end.
+const indexSweepRedrawEvery = 8
+
+// uncoveredIndexSymbols returns the composition symbols the stream is not
+// carrying, in display order, so the sweep fills exactly the gaps.
+func uncoveredIndexSymbols(constituents []models.IndexConstituent, subscribed []string) []string {
+	live := make(map[string]struct{}, len(subscribed))
+	for _, s := range subscribed {
+		live[s] = struct{}{}
+	}
+
+	out := make([]string, 0, len(constituents))
+	for _, c := range constituents {
+		if _, ok := live[c.Symbol]; ok {
+			continue
 		}
-		a.app.QueueUpdateDraw(func() {
-			if a.indexTabActive() {
-				updateIndexTable(a)
-			}
-		})
-	}()
+		out = append(out, c.Symbol)
+	}
+	return out
 }
 
-// pollIndexQuotesSync performs the fallback batch and reports whether it
-// actually ran. It blocks, so it belongs off the event loop; it is separate
-// from pollIndexQuotesAsync so tests can drive it without a running
-// application. tabActive and windowStart are passed in rather than read here,
-// because the widget tree they come from belongs to the event loop.
-func (a *App) pollIndexQuotesSync(manual, tabActive bool, windowStart int) bool {
+// pollIndexQuotesAsync fills the rows the stream cannot carry, off the event
+// loop. manual marks a user-initiated refresh (R), which ignores the cooldown
+// and the rate-limit latch.
+func (a *App) pollIndexQuotesAsync(manual bool) {
+	// The active tab lives in the tview widget tree, which belongs to the event
+	// loop: it is read here, on the caller's thread, and handed to the worker
+	// rather than read from it.
+	tabActive := a.indexTabActive()
+
+	go a.sweepIndexQuotes(manual, tabActive)
+}
+
+// sweepIndexQuotes walks the uncovered symbols one request at a time, pacing
+// them so the burst never trips the broker's rate limit, and repaints as it
+// goes. It reports whether it made any request at all.
+//
+// It blocks, so it belongs off the event loop; it is separate from
+// pollIndexQuotesAsync so tests can drive it without a running application.
+func (a *App) sweepIndexQuotes(manual, tabActive bool) bool {
 	if a.client == nil {
 		return false
 	}
 
-	// Same window as the subscription: a batch over the whole composition is
-	// what the broker answered with "Too Many Requests" during the first smoke
-	// test, and rows off screen are not worth a request anyway.
 	a.dataMutex.RLock()
-	symbols := indexWindowSymbols(sortConstituents(a.indexConstituents), windowStart)
+	constituents := sortConstituents(a.indexConstituents)
 	lastPoll, autoDisabled := a.indexLastPoll, a.indexPollDisabled
 	a.dataMutex.RUnlock()
 
-	if len(symbols) == 0 {
+	if len(constituents) == 0 {
 		return false
 	}
-	if !manual && !shouldPollIndexQuotes(a.streamLive.Load(), tabActive, autoDisabled, lastPoll, time.Now()) {
+	if !manual && !shouldPollIndexQuotes(tabActive, autoDisabled, lastPoll, time.Now()) {
 		return false
 	}
 
-	// accountID is empty on purpose: the symbols are already full ticker@mic,
-	// so no account context is needed to resolve them.
-	quotes, err := a.client.GetQuotes("", symbols)
+	symbols := uncoveredIndexSymbols(constituents, a.client.SubscribedSymbols())
+	if len(symbols) == 0 {
+		// The stream covers the whole composition: nothing to ask for.
+		return false
+	}
 
 	a.dataMutex.Lock()
 	a.indexLastPoll = time.Now()
-	for symbol, q := range quotes {
-		if a.indexQuotes == nil {
-			a.indexQuotes = make(map[string]*models.Quote)
-		}
-		a.indexQuotes[symbol] = q
-	}
-	rateLimited := err != nil && api.IsRateLimited(err)
-	if rateLimited {
-		a.indexPollDisabled = true
-	}
 	a.dataMutex.Unlock()
 
-	switch {
-	case rateLimited:
-		// Latched for the session: the broker has told us we ask too often, so
-		// automation stops and only the manual key remains.
-		log.Printf("[WARN] Index quote batch was rate limited, automatic refresh is off for this session: %v", err)
-		a.SetStatus("Index quotes rate limited — press R to refresh manually", StatusError)
-	case err != nil:
-		log.Printf("[WARN] Index quote batch failed: %v", err)
+	fetched := 0
+	for i, symbol := range symbols {
+		if a.stopped() {
+			break
+		}
+		if i > 0 && !sleepUnlessStopped(a.stopChan, indexSweepDelay) {
+			break
+		}
+
+		// accountID is empty on purpose: the symbols are already full
+		// ticker@mic, so no account context is needed to resolve them.
+		quotes, err := a.client.GetQuotes("", []string{symbol})
+		if err != nil {
+			if api.IsRateLimited(err) {
+				a.dataMutex.Lock()
+				a.indexPollDisabled = true
+				a.dataMutex.Unlock()
+				log.Printf("[WARN] Index quote sweep was rate limited after %d request(s); "+
+					"automatic refresh is off for this session: %v", fetched, err)
+				a.SetStatus("Index quotes rate limited — press R to refresh manually", StatusError)
+				break
+			}
+			log.Printf("[WARN] Index quote for %s failed: %v", symbol, err)
+			continue
+		}
+
+		a.dataMutex.Lock()
+		for s, q := range quotes {
+			if a.indexQuotes == nil {
+				a.indexQuotes = make(map[string]*models.Quote)
+			}
+			a.indexQuotes[s] = q
+		}
+		a.dataMutex.Unlock()
+		fetched++
+
+		if fetched%indexSweepRedrawEvery == 0 {
+			a.redrawIndexTab()
+		}
 	}
 
-	// A partial batch is still worth drawing: GetQuotes returns whatever it
-	// collected before the failure.
-	return err == nil || len(quotes) > 0
+	if fetched > 0 {
+		a.redrawIndexTab()
+	}
+	return fetched > 0
+}
+
+// redrawIndexTab repaints the tab from a worker goroutine, if it is still the
+// one on screen and the application is still running.
+func (a *App) redrawIndexTab() {
+	if a.stopped() {
+		return
+	}
+	// Queued from a goroutine: QueueUpdateDraw blocks until the event loop picks
+	// it up, and a slow loop must not stall the sweep's pacing.
+	go a.app.QueueUpdateDraw(func() {
+		if a.indexTabActive() {
+			updateIndexTable(a)
+		}
+	})
+}
+
+// stopped reports whether the application is shutting down. A QueueUpdateDraw
+// after Stop() blocks its goroutine forever.
+func (a *App) stopped() bool {
+	select {
+	case <-a.stopChan:
+		return true
+	default:
+		return false
+	}
+}
+
+// sleepUnlessStopped waits for d, returning false if the application stopped
+// first.
+func sleepUnlessStopped(stop <-chan struct{}, d time.Duration) bool {
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+
+	select {
+	case <-stop:
+		return false
+	case <-timer.C:
+		return true
+	}
 }
 
 // selectedIndexSymbol returns the full symbol of the highlighted Index row, or
