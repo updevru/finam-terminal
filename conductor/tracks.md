@@ -168,3 +168,14 @@ This file tracks all major tracks for the project. Each track has its own detail
 *Plan: [./tracks/auto_update_20260825/plan.md](./tracks/auto_update_20260825/plan.md)*
 *Phases: 7 | Tasks: 21*
 *Status: ✅ Completed 2026-08-25 (ручная проверка подтверждена на windows/amd64)*
+
+
+---
+
+
+- [ ] **Track: Вкладка «Индекс» — витрина бумаг из индексов МосБиржи (IMOEX/MOEXBC)**
+
+*Link: [./tracks/index_tab_20260826/](./tracks/index_tab_20260826/)*
+*Spec: [./tracks/index_tab_20260826/spec.md](./tracks/index_tab_20260826/spec.md)*
+*Plan: [./tracks/index_tab_20260826/plan.md](./tracks/index_tab_20260826/plan.md)*
+*Phases: 6 | Tasks: 16*
