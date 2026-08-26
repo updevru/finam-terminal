@@ -40,9 +40,9 @@
   - Acceptance: тесты зелёные; модалка и профиль открываются с корректным инструментом с любой строки
 
 ## Phase 6: Документация и верификация
-- [ ] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint`
+- [x] Task: Полная авто-проверка — `go build ./...`, `go vet ./...`, `go test ./...`, `go test -tags=integration ./api/...`, `CGO_ENABLED=1 go test -race` (обе сюиты), `make lint` — всё зелёное, кроме `-race`: на машине нет C-компилятора (gcc/clang/zig отсутствуют), гейт остаётся за CI; вместо него локально прогнан стресс-тест конкурентного доступа
   - Acceptance: нет ошибок и предупреждений, линтер чистый
-- [ ] Task: Документация — CLAUDE.md (пункт «Index Constituents (GetConstituents)» в API Implementation Details, вкладка Index, расширение стрим-набора, мок в testserver), conductor/product.md (Key Features), CHANGELOG.md, README.md, docs/user_manual/ (страница вкладки Индекс: навигация, клавиши, поведение при недоступном стриме)
+- [~] Task: Документация — CLAUDE.md (пункт «Index Constituents (GetConstituents)» в API Implementation Details, вкладка Index, расширение стрим-набора, мок в testserver), conductor/product.md (Key Features), CHANGELOG.md, README.md, docs/user_manual/ (страница вкладки Индекс: навигация, клавиши, поведение при недоступном стриме)
   - Acceptance: документация соответствует реализации
 - [ ] Task: (Ручной смоук) Реальный ключ: вкладка показывает 46 бумаг IMOEX и наполняется ≤2с при живом стриме; в логе один `GetConstituents` за сессию и нет ResourceExhausted; Enter → профиль; A → модалка с корректным лотом; уход с вкладки → лог переподписки на набор позиций; обрыв сети → фоллбек и восстановление
   - Acceptance: пользователь подтверждает поведение
