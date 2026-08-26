@@ -328,7 +328,7 @@ func renderTable(t *testing.T, table *tview.Table, width, height int) []string {
 // labels disappeared.
 func TestIndexTable_HeaderStaysVisibleWhenScrolled(t *testing.T) {
 	app := NewApp(&mockClient{}, nil)
-	app.indexConstituents = manyConstituents(46)
+	app.indexConstituents = manyConstituents()
 	app.indexLoaded = true
 	updateIndexTable(app)
 
@@ -356,7 +356,7 @@ func TestIndexTable_HeaderStaysVisibleWhenScrolled(t *testing.T) {
 // away.
 func TestIndexTable_FillsAvailableWidth(t *testing.T) {
 	app := NewApp(&mockClient{}, nil)
-	app.indexConstituents = manyConstituents(46)
+	app.indexConstituents = manyConstituents()
 	app.indexLoaded = true
 	updateIndexTable(app)
 
@@ -381,8 +381,13 @@ func TestIndexTable_FillsAvailableWidth(t *testing.T) {
 	}
 }
 
-// manyConstituents builds a composition long enough to scroll.
-func manyConstituents(n int) []models.IndexConstituent {
+// indexTestSize is the size of the real IMOEX composition, which is what makes
+// the tab long enough to scroll and too large for one subscription.
+const indexTestSize = 46
+
+// manyConstituents builds a composition the size of the real index.
+func manyConstituents() []models.IndexConstituent {
+	const n = indexTestSize
 	out := make([]models.IndexConstituent, n)
 	for i := range out {
 		out[i] = models.IndexConstituent{

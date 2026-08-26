@@ -11,7 +11,9 @@ import (
 	"finam-terminal/models"
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -150,7 +152,10 @@ func (c *Client) SetQuoteSymbols(symbols []string) {
 	normalized := normalizeSymbols(symbols)
 
 	c.quoteMu.Lock()
-	if slices.Equal(c.quoteSymbols, normalized) {
+	// Compare what would actually be subscribed, not what was asked for: with a
+	// cap in force the tail of the list never reaches the broker, and reordering
+	// within the cap is not a change worth dropping a live stream over.
+	if sameSymbolSet(applySymbolCap(c.quoteSymbols, c.quoteSymbolCap), applySymbolCap(normalized, c.quoteSymbolCap)) {
 		c.quoteMu.Unlock()
 		return
 	}
@@ -171,7 +176,11 @@ func (c *Client) SetQuoteSymbols(symbols []string) {
 }
 
 // normalizeSymbols keeps only full symbols (ticker@mic — the stream rejects bare
-// tickers), removes duplicates and sorts, so two equal sets compare equal.
+// tickers) and removes duplicates, keeping the first occurrence.
+//
+// The caller's order is preserved because it is priority order: the broker caps
+// how many symbols one subscription may carry, and applySymbolCap truncates from
+// the end, so whatever the caller puts first is what survives.
 func normalizeSymbols(symbols []string) []string {
 	seen := make(map[string]struct{}, len(symbols))
 	out := make([]string, 0, len(symbols))
@@ -185,8 +194,42 @@ func normalizeSymbols(symbols []string) []string {
 		seen[s] = struct{}{}
 		out = append(out, s)
 	}
-	slices.Sort(out)
 	return out
+}
+
+// IsSymbolLimitError reports whether the broker refused a subscription because
+// it carried too many symbols.
+//
+// Finam documents no limit and returns no dedicated status code for it — the
+// stream simply ends with InvalidArgument and the message "Maximum number of
+// symbols exceeded." Matching on the phrase is unpleasant but it is the only
+// signal available, and the alternative (treating every InvalidArgument as a
+// symbol limit) would shrink the subscription for unrelated reasons.
+func IsSymbolLimitError(err error) bool {
+	if err == nil || status.Code(err) != codes.InvalidArgument {
+		return false
+	}
+	return strings.Contains(strings.ToLower(status.Convert(err).Message()), "maximum number of symbols")
+}
+
+// reducedSymbolCap halves the count that was just refused, so the client
+// converges on the broker's real limit in a handful of attempts (46 → 23 → 11 →
+// 5 → 2 → 1) without ever being told what it is. It never goes below one.
+func reducedSymbolCap(attempted int) int {
+	if attempted <= 2 {
+		return 1
+	}
+	return attempted / 2
+}
+
+// applySymbolCap truncates the subscription to what the broker accepts. A cap of
+// 0 means no limit has been discovered yet. Truncation is from the end, so the
+// caller's leading (highest priority) symbols are the ones that stay.
+func applySymbolCap(symbols []string, cap int) []string {
+	if cap <= 0 || len(symbols) <= cap {
+		return symbols
+	}
+	return symbols[:cap]
 }
 
 // getStreamContext returns a context for a long-lived stream: unlike
@@ -215,7 +258,8 @@ func (c *Client) runQuoteStream(ctx context.Context) {
 			return
 		}
 
-		symbols := c.currentQuoteSymbols()
+		desired := c.currentQuoteSymbols()
+		symbols := applySymbolCap(desired, c.currentSymbolCap())
 		if len(symbols) == 0 {
 			// Nothing to subscribe to: wait for a symbol change.
 			if !c.waitForQuoteWake(ctx) {
@@ -225,7 +269,7 @@ func (c *Client) runQuoteStream(ctx context.Context) {
 			continue
 		}
 
-		voluntary, dropped := c.runQuoteSubscription(ctx, symbols)
+		voluntary, dropped := c.runQuoteSubscription(ctx, desired, symbols)
 		if ctx.Err() != nil {
 			log.Printf("[INFO] Quote stream manager stopped")
 			return
@@ -250,7 +294,7 @@ func (c *Client) runQuoteStream(ctx context.Context) {
 // runQuoteSubscription opens one subscription and consumes it until it ends.
 // It reports whether the end was voluntary (a symbol change cancelled it) and
 // whether the stream was dropped (so the caller backs off before retrying).
-func (c *Client) runQuoteSubscription(ctx context.Context, symbols []string) (voluntary, dropped bool) {
+func (c *Client) runQuoteSubscription(ctx context.Context, desired, symbols []string) (voluntary, dropped bool) {
 	subCtx, subCancel := c.getStreamContext(ctx)
 	defer subCancel()
 
@@ -262,11 +306,16 @@ func (c *Client) runQuoteSubscription(ctx context.Context, symbols []string) (vo
 		Symbols: symbols,
 	})
 	if err != nil {
-		if c.quoteSymbolsChanged(symbols) {
+		if c.quoteSymbolsChanged(desired) {
 			return true, false
 		}
 		if ctx.Err() != nil {
 			return false, false
+		}
+		if c.reduceSymbolCap(err, len(symbols)) {
+			// Too many symbols: resubscribe immediately with fewer. This is a
+			// negotiation, not an outage, so liveness is left untouched.
+			return true, false
 		}
 		c.logGRPCError("MarketDataService", "SubscribeQuote", err, fmt.Sprintf("Symbols: %v", symbols))
 		c.setQuoteStreamState(false)
@@ -279,11 +328,14 @@ func (c *Client) runQuoteSubscription(ctx context.Context, symbols []string) (vo
 	for {
 		resp, recvErr := stream.Recv()
 		if recvErr != nil {
-			if c.quoteSymbolsChanged(symbols) {
+			if c.quoteSymbolsChanged(desired) {
 				return true, false
 			}
 			if ctx.Err() != nil {
 				return false, false
+			}
+			if c.reduceSymbolCap(recvErr, len(symbols)) {
+				return true, false
 			}
 			log.Printf("[WARN] Quote stream disconnected: %v. Reconnecting...", recvErr)
 			c.setQuoteStreamState(false)
@@ -303,6 +355,42 @@ func (c *Client) runQuoteSubscription(ctx context.Context, symbols []string) (vo
 	}
 }
 
+// reduceSymbolCap shrinks the subscription when the broker says it carried too
+// many symbols, and reports whether it did. The broker never states the limit,
+// so the client halves what was just refused until a subscription survives.
+func (c *Client) reduceSymbolCap(err error, attempted int) bool {
+	if !IsSymbolLimitError(err) {
+		return false
+	}
+
+	next := reducedSymbolCap(attempted)
+
+	c.quoteMu.Lock()
+	if c.quoteSymbolCap > 0 && c.quoteSymbolCap <= next {
+		// Already at or below this size; nothing more to learn here.
+		c.quoteMu.Unlock()
+		return false
+	}
+	c.quoteSymbolCap = next
+	c.quoteMu.Unlock()
+
+	log.Printf("[WARN] Broker refused a %d-symbol quote subscription (%v); retrying with at most %d",
+		attempted, err, next)
+	return true
+}
+
+// currentSymbolCap returns the largest subscription size known to work, or 0
+// while no limit has been discovered.
+func (c *Client) currentSymbolCap() int {
+	c.quoteMu.Lock()
+	defer c.quoteMu.Unlock()
+	return c.quoteSymbolCap
+}
+
+// QuoteSymbolCap exposes the discovered subscription limit (0 = none hit yet) so
+// the UI can size what it asks for.
+func (c *Client) QuoteSymbolCap() int { return c.currentSymbolCap() }
+
 // currentQuoteSymbols returns a copy of the desired symbol set.
 func (c *Client) currentQuoteSymbols() []string {
 	c.quoteMu.Lock()
@@ -310,12 +398,25 @@ func (c *Client) currentQuoteSymbols() []string {
 	return append([]string(nil), c.quoteSymbols...)
 }
 
-// quoteSymbolsChanged reports whether the desired set has moved away from the
-// one the current subscription was opened with.
+// quoteSymbolsChanged reports whether the set that should be subscribed has
+// moved away from the one the current subscription was opened with.
 func (c *Client) quoteSymbolsChanged(symbols []string) bool {
 	c.quoteMu.Lock()
 	defer c.quoteMu.Unlock()
-	return !slices.Equal(c.quoteSymbols, symbols)
+	return !sameSymbolSet(applySymbolCap(c.quoteSymbols, c.quoteSymbolCap), applySymbolCap(symbols, c.quoteSymbolCap))
+}
+
+// sameSymbolSet compares two symbol lists ignoring order, so a reshuffle that
+// subscribes to exactly the same instruments does not cost a reconnect.
+func sameSymbolSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	sortedA := append([]string(nil), a...)
+	sortedB := append([]string(nil), b...)
+	slices.Sort(sortedA)
+	slices.Sort(sortedB)
+	return slices.Equal(sortedA, sortedB)
 }
 
 // waitForQuoteWake blocks until the symbol set changes or the manager is

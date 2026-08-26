@@ -2,7 +2,6 @@ package ui
 
 import (
 	"log"
-	"slices"
 	"strings"
 	"time"
 
@@ -159,9 +158,13 @@ func (a *App) shouldSkipQuotePolling(accountID string) bool {
 
 // computeStreamSymbols returns the symbols the stream should carry: the active
 // account's positions, the symbol of an open profile, and — only while the
-// Index tab is showing — the index composition. Symbols without a MIC are
-// dropped (the stream only accepts ticker@mic), and the result is deduped and
-// sorted so an unchanged set compares equal.
+// Index tab is showing — a window of the index composition. Symbols without a
+// MIC are dropped (the stream only accepts ticker@mic) and duplicates removed.
+//
+// The result is in **priority order**, not sorted. The broker caps how many
+// symbols a subscription may carry (undocumented; 46 was refused during the
+// first smoke test), and the client truncates from the end, so portfolio
+// positions come first and the showcase tab takes whatever room is left.
 //
 // The index symbols join and leave with the tab on purpose: an always-on
 // subscription to the whole composition would be a permanent cost for a view
@@ -197,7 +200,6 @@ func computeStreamSymbols(positions []models.Position, profileOpen bool, profile
 		}
 	}
 
-	slices.Sort(symbols)
 	return symbols
 }
 
@@ -210,6 +212,12 @@ func (a *App) recomputeStreamSymbols() {
 
 	indexActive := a.indexTabActive()
 
+	// Read on the event loop: the scroll offset lives in the widget tree.
+	indexWindowStart := 0
+	if indexActive {
+		indexWindowStart, _ = a.portfolioView.TabbedView.IndexTable.GetOffset()
+	}
+
 	a.dataMutex.Lock()
 	var positions []models.Position
 	if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
@@ -218,11 +226,9 @@ func (a *App) recomputeStreamSymbols() {
 	// The guard latches for the session: once the composition is suspected of
 	// breaking the subscription it never rejoins it.
 	includeIndex := indexActive && !a.indexStreamDisabled
-	indexSymbols := make([]string, 0, len(a.indexConstituents))
+	var indexSymbols []string
 	if includeIndex {
-		for _, c := range a.indexConstituents {
-			indexSymbols = append(indexSymbols, c.Symbol)
-		}
+		indexSymbols = indexWindowSymbols(sortConstituents(a.indexConstituents), indexWindowStart)
 	}
 
 	// The guard's window is measured from the moment the composition actually

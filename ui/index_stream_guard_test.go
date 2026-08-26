@@ -234,7 +234,7 @@ func TestIndexState_ConcurrentAccess(t *testing.T) {
 
 	for range workers {
 		run(func() { app.loadIndexSync() })
-		run(func() { app.pollIndexQuotesSync(true, false) })
+		run(func() { app.pollIndexQuotesSync(true, false, 0) })
 		run(func() { _ = app.indexSymbols() })
 		run(func() { app.recomputeStreamSymbols() })
 		run(func() { app.evaluateIndexStreamHealth() })

@@ -148,13 +148,14 @@ func shouldPollIndexQuotes(streamLive, tabActive, autoDisabled bool, lastPoll, n
 // repaints the tab. manual marks a user-initiated refresh (R), which ignores
 // the cooldown, the stream state and the rate-limit latch.
 func (a *App) pollIndexQuotesAsync(manual bool) {
-	// The active tab lives in the tview widget tree, which belongs to the event
-	// loop: it is read here, on the caller's thread, and handed to the worker
-	// rather than read from it.
+	// The active tab and the scroll offset live in the tview widget tree, which
+	// belongs to the event loop: both are read here, on the caller's thread, and
+	// handed to the worker rather than read from it.
 	tabActive := a.indexTabActive()
+	windowStart, _ := a.portfolioView.TabbedView.IndexTable.GetOffset()
 
 	go func() {
-		if !a.pollIndexQuotesSync(manual, tabActive) {
+		if !a.pollIndexQuotesSync(manual, tabActive, windowStart) {
 			return
 		}
 		a.app.QueueUpdateDraw(func() {
@@ -168,18 +169,18 @@ func (a *App) pollIndexQuotesAsync(manual bool) {
 // pollIndexQuotesSync performs the fallback batch and reports whether it
 // actually ran. It blocks, so it belongs off the event loop; it is separate
 // from pollIndexQuotesAsync so tests can drive it without a running
-// application. tabActive is passed in rather than read here, because the widget
-// tree it comes from belongs to the event loop.
-func (a *App) pollIndexQuotesSync(manual, tabActive bool) bool {
+// application. tabActive and windowStart are passed in rather than read here,
+// because the widget tree they come from belongs to the event loop.
+func (a *App) pollIndexQuotesSync(manual, tabActive bool, windowStart int) bool {
 	if a.client == nil {
 		return false
 	}
 
+	// Same window as the subscription: a batch over the whole composition is
+	// what the broker answered with "Too Many Requests" during the first smoke
+	// test, and rows off screen are not worth a request anyway.
 	a.dataMutex.RLock()
-	symbols := make([]string, 0, len(a.indexConstituents))
-	for _, c := range a.indexConstituents {
-		symbols = append(symbols, c.Symbol)
-	}
+	symbols := indexWindowSymbols(sortConstituents(a.indexConstituents), windowStart)
 	lastPoll, autoDisabled := a.indexLastPoll, a.indexPollDisabled
 	a.dataMutex.RUnlock()
 
@@ -242,4 +243,38 @@ func (a *App) selectedIndexSymbol() string {
 		return ""
 	}
 	return constituents[idx].Symbol
+}
+
+// indexStreamWindow is how many composition symbols the tab asks the stream for,
+// and indexWindowStep is how coarsely that window moves.
+//
+// The broker caps subscription size (undocumented — 46 symbols were refused
+// outright), so the tab asks only for a screenful rather than the whole index,
+// and the client narrows it further if even that is too much. The window start
+// is quantised so that holding an arrow key scrolls without resubscribing on
+// every row.
+const (
+	indexStreamWindow = 20
+	indexWindowStep   = 10
+)
+
+// indexWindowSymbols returns the slice of the composition the stream should
+// carry, given the table's current scroll offset. The offset is quantised, so
+// the set changes once per block of rows instead of once per keypress.
+func indexWindowSymbols(constituents []models.IndexConstituent, offset int) []string {
+	if len(constituents) == 0 {
+		return nil
+	}
+
+	start := max(offset, 0) / indexWindowStep * indexWindowStep
+	if start >= len(constituents) {
+		start = 0
+	}
+	end := min(start+indexStreamWindow, len(constituents))
+
+	symbols := make([]string, 0, end-start)
+	for _, c := range constituents[start:end] {
+		symbols = append(symbols, c.Symbol)
+	}
+	return symbols
 }

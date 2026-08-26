@@ -176,9 +176,11 @@ func TestIntegration_QuoteStream_ResubscribesOnSymbolChange(t *testing.T) {
 	// A deliberate resubscribe is not an outage.
 	sink.expectNoState(t, 300*time.Millisecond)
 
+	// Caller order is preserved — it is priority order for the broker's symbol
+	// cap — so the assertion is on the set, not the sequence.
 	symbols, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
-	if len(symbols) != 2 || symbols[0] != "GAZP@TQBR" || symbols[1] != "SBER@TQBR" {
-		t.Errorf("subscribed symbols = %v, want sorted [GAZP@TQBR SBER@TQBR]", symbols)
+	if !sameSymbolSet(symbols, []string{"GAZP@TQBR", "SBER@TQBR"}) {
+		t.Errorf("subscribed symbols = %v, want both GAZP@TQBR and SBER@TQBR", symbols)
 	}
 	if got := ts.MarketData.QuoteStreamCallCount.Load(); got != 2 {
 		t.Errorf("SubscribeQuote call count = %d, want 2", got)
@@ -337,5 +339,53 @@ func TestIntegration_QuoteStream_RecoversAfterNarrowingSymbols(t *testing.T) {
 	symbols, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
 	if len(symbols) != 1 || symbols[0] != "SBER@MISX" {
 		t.Errorf("subscribed symbols after recovery = %v, want [SBER@MISX]", symbols)
+	}
+}
+
+// TestIntegration_QuoteStream_AdaptsToTheBrokerSymbolLimit reproduces what the
+// real broker did during the first smoke test: it accepted the subscription and
+// then killed the stream with InvalidArgument "Maximum number of symbols
+// exceeded". The limit is undocumented, so the client has to find it by halving
+// what was refused until a subscription survives — and the caller's leading
+// symbols must be the ones that stay.
+func TestIntegration_QuoteStream_AdaptsToTheBrokerSymbolLimit(t *testing.T) {
+	client, ts := setupTestServer(t)
+	sink := newQuoteStreamSink()
+
+	const brokerLimit = 3
+	ts.MarketData.SubscribeQuoteOverride = func(req *marketdata.SubscribeQuoteRequest, stream marketdata.MarketDataService_SubscribeQuoteServer) error {
+		if len(req.Symbols) > brokerLimit {
+			return status.Error(codes.InvalidArgument, "Maximum number of symbols exceeded.")
+		}
+		return stream.Send(&marketdata.SubscribeQuoteResponse{
+			Quote: []*marketdata.Quote{testserver.DefaultStreamQuote(req.Symbols[0], true)},
+		})
+	}
+
+	sink.start(client)
+
+	// Priority order: the position first, then the index composition.
+	client.SetQuoteSymbols([]string{
+		"SBER@MISX",
+		"GAZP@MISX", "LKOH@MISX", "MOEX@MISX", "PLZL@MISX",
+		"ROSN@MISX", "TATN@MISX", "VTBR@MISX", "YDEX@MISX",
+	})
+
+	// No manual intervention: the client must negotiate its way down on its own.
+	q := sink.waitQuote(t, 10*time.Second)
+	if q.Symbol != "SBER@MISX" {
+		t.Errorf("first quote is for %q, want SBER@MISX — the leading symbol must survive truncation", q.Symbol)
+	}
+	sink.waitState(t, true, 10*time.Second)
+
+	symbols, _ := ts.MarketData.LastQuoteStreamSymbols.Load().([]string)
+	if len(symbols) > brokerLimit {
+		t.Errorf("settled on %d symbols, want at most %d", len(symbols), brokerLimit)
+	}
+	if len(symbols) == 0 || symbols[0] != "SBER@MISX" {
+		t.Errorf("settled subscription = %v, want it to start with the highest-priority symbol", symbols)
+	}
+	if cap := client.QuoteSymbolCap(); cap <= 0 || cap > brokerLimit {
+		t.Errorf("discovered cap = %d, want a positive value no greater than %d", cap, brokerLimit)
 	}
 }

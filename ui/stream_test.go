@@ -16,19 +16,19 @@ func TestComputeStreamSymbols(t *testing.T) {
 		want          []string
 	}{
 		{
-			name: "positions only, sorted",
+			name: "positions in the order they are held",
 			positions: []models.Position{
 				{Symbol: "SBER@TQBR"},
 				{Symbol: "GAZP@TQBR"},
 			},
-			want: []string{"GAZP@TQBR", "SBER@TQBR"},
+			want: []string{"SBER@TQBR", "GAZP@TQBR"},
 		},
 		{
-			name:          "profile symbol is added",
+			name:          "profile symbol is added after the positions",
 			positions:     []models.Position{{Symbol: "SBER@TQBR"}},
 			profileOpen:   true,
 			profileSymbol: "LKOH@TQBR",
-			want:          []string{"LKOH@TQBR", "SBER@TQBR"},
+			want:          []string{"SBER@TQBR", "LKOH@TQBR"},
 		},
 		{
 			name:          "profile symbol already held",

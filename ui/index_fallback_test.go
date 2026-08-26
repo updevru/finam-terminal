@@ -70,7 +70,7 @@ func TestPollIndexQuotes_NotCalledWhileStreamLive(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 	app.streamLive.Store(true)
 
-	app.pollIndexQuotesSync(false, app.indexTabActive())
+	app.pollIndexQuotesSync(false, app.indexTabActive(), 0)
 
 	if n := calls.Load(); n != 0 {
 		t.Errorf("GetQuotes called %d time(s) with a live stream, want 0", n)
@@ -95,7 +95,7 @@ func TestPollIndexQuotes_BatchesWhenStreamDown(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 	app.streamLive.Store(false)
 
-	app.pollIndexQuotesSync(false, app.indexTabActive())
+	app.pollIndexQuotesSync(false, app.indexTabActive(), 0)
 
 	slices.Sort(gotSymbols)
 	want := []string{"GAZP@MISX", "LKOH@MISX", "SBER@MISX"}
@@ -133,12 +133,12 @@ func TestPollIndexQuotes_ManualBypassesCooldown(t *testing.T) {
 	app.streamLive.Store(false)
 	app.indexLastPoll = time.Now()
 
-	app.pollIndexQuotesSync(false, app.indexTabActive())
+	app.pollIndexQuotesSync(false, app.indexTabActive(), 0)
 	if n := calls.Load(); n != 0 {
 		t.Fatalf("automatic batch ran inside the cooldown (%d call(s))", n)
 	}
 
-	app.pollIndexQuotesSync(true, app.indexTabActive())
+	app.pollIndexQuotesSync(true, app.indexTabActive(), 0)
 	if n := calls.Load(); n != 1 {
 		t.Errorf("manual refresh made %d call(s), want 1", n)
 	}
@@ -161,7 +161,7 @@ func TestPollIndexQuotes_RateLimitDisablesAutoPolling(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 	app.streamLive.Store(false)
 
-	app.pollIndexQuotesSync(false, app.indexTabActive())
+	app.pollIndexQuotesSync(false, app.indexTabActive(), 0)
 
 	app.dataMutex.RLock()
 	disabled := app.indexPollDisabled
@@ -175,7 +175,7 @@ func TestPollIndexQuotes_RateLimitDisablesAutoPolling(t *testing.T) {
 	}
 
 	// Manual refresh remains available.
-	app.pollIndexQuotesSync(true, app.indexTabActive())
+	app.pollIndexQuotesSync(true, app.indexTabActive(), 0)
 	if n := calls.Load(); n != 2 {
 		t.Errorf("manual refresh after a rate limit made %d call(s) in total, want 2", n)
 	}
@@ -195,7 +195,7 @@ func TestPollIndexQuotes_OrdinaryErrorKeepsAutoPolling(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 	app.streamLive.Store(false)
 
-	app.pollIndexQuotesSync(false, app.indexTabActive())
+	app.pollIndexQuotesSync(false, app.indexTabActive(), 0)
 
 	app.dataMutex.RLock()
 	disabled := app.indexPollDisabled
@@ -219,7 +219,7 @@ func TestPollIndexQuotes_NoCompositionNoCall(t *testing.T) {
 	app.portfolioView.TabbedView.SetTab(TabIndex)
 	app.streamLive.Store(false)
 
-	app.pollIndexQuotesSync(true, app.indexTabActive())
+	app.pollIndexQuotesSync(true, app.indexTabActive(), 0)
 
 	if n := calls.Load(); n != 0 {
 		t.Errorf("GetQuotes called %d time(s) with no composition, want 0", n)

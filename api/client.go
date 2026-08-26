@@ -76,6 +76,7 @@ type Client struct {
 	quoteSubCancel   context.CancelFunc           // ends the current subscription (resubscribe)
 	quoteWake        chan struct{}                // nudges the manager after a symbol change
 	lastStreamQuotes map[string]*marketdata.Quote // last known full state per symbol
+	quoteSymbolCap   int                          // largest symbol count the broker accepts; 0 = not discovered yet
 }
 
 // NewClient creates a new Finam API client
@@ -994,9 +995,6 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 
 // GetQuotes returns quotes for multiple symbols
 func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error) {
-	ctx, cancel := c.getContext()
-	defer cancel()
-
 	quotes := make(map[string]*models.Quote)
 	for _, symbol := range symbols {
 		fullSymbol := c.getFullSymbol(symbol, accountID)
@@ -1004,9 +1002,11 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			continue
 		}
 
-		resp, err := c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{
-			Symbol: fullSymbol,
-		})
+		// One deadline per call, not one for the whole batch: a shared context
+		// meant that on a long batch the timeout was already spent by the time
+		// the later symbols were requested, and they failed with
+		// DeadlineExceeded even though the broker was answering fine.
+		resp, err := c.lastQuote(fullSymbol)
 		if err != nil {
 			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			// A rate limit ends the batch: asking for the remaining symbols would
@@ -1026,6 +1026,14 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 	}
 
 	return quotes, nil
+}
+
+// lastQuote performs one LastQuote call under its own deadline.
+func (c *Client) lastQuote(fullSymbol string) (*marketdata.QuoteResponse, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	return c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{Symbol: fullSymbol})
 }
 
 // SearchSecurities searches for securities by ticker or name
