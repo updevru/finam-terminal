@@ -35,7 +35,7 @@
 - [x] Task: Ревизия гонок: мутации `indexQuotes`/состава/флагов вкладки только на event loop под `dataMutex`; `CGO_ENABLED=1 go test -race ./...` и `-tags=integration ./api/...` (6f7aa9a — локально `-race` невозможен: на машине нет C-компилятора, гейт остаётся за CI; вместо него добавлен стресс-тест конкурентного доступа)
   - Acceptance: race-детектор чист на обеих сюитах
 
-## Phase 5: Действия с бумагой [checkpoint: PENDING]
+## Phase 5: Действия с бумагой [checkpoint: 7df52e7]
 - [x] Task: (Red→Green) `Enter` на строке → `OpenProfileForSymbol(symbol)` (возврат из профиля — обратно на вкладку Index с сохранённым выделением); `A`/`Ф` → `OpenOrderModalWithTicker(symbol)` (полный символ проходит существующий путь без изменений, лот прогревается `warmLotSizeAsync`); подсказки статус-бара для вкладки Index («A Buy  R Refresh», ui/render.go:604-619); тесты input-обработчиков и статус-бара (7a10aaa)
   - Acceptance: тесты зелёные; модалка и профиль открываются с корректным инструментом с любой строки
 
