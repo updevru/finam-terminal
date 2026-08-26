@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Index Tab**: a fourth tab showing the composition of the MOEX Index (IMOEX) — ticker, Russian name, price, session change (absolute and percent), weight and volume, sorted by weight. `Enter` opens the instrument profile and `A` the standard order modal, both through the existing paths with the correct trade lot. The tab is account-independent (`index_tab`).
+- **`AssetsService.GetConstituents`**: `Client.GetIndexConstituents` collects the index composition across the cursor pagination (guarded at 10 pages), caches it per index symbol for 24h, and keeps serving the previous composition when a refetch fails or comes back empty (stale-on-error). An empty response is treated as a failed load and never cached (`index_tab`).
+- **`models.Quote.Change`**: the broker's own session change (`quote.change` = last − close) is now mapped into the quote model. It arrives with every `LastQuote` response and every `SubscribeQuote` message, so the Index tab renders Chg and Chg% without a single extra API call (`index_tab`).
+- **Bounded quote fallback for the Index tab**: when the realtime stream is down, the composition is fetched in one `LastQuote` batch on tab entry and on `R`; automatic batches are spaced by at least 60s and only run while the tab is open. A `ResourceExhausted` answer turns automatic refresh off for the session, reports it in the status bar and leaves `R` working (`index_tab`).
+- **Positions-stream guard**: if the subscription does not come up within 60s of the index composition joining it (or drops three times), the index symbols are excluded for the rest of the session so portfolio quotes recover, and the tab falls back to batches (`index_tab`).
+- **User manual**: new page [«Вкладка Индекс»](docs/user_manual/index-tab.md) (`index_tab`).
+- **Mock server**: `MockAssetsServer.GetConstituents` with paginated fixtures and per-call error, empty and endless-cursor injection (`index_tab`).
+
+### Changed
+- **Tab navigation**: the tab set is now derived from a single `tabLabels` list instead of two hardcoded modulo-3 expressions, so ←/→ cycle all four tabs (`index_tab`).
+- **`GetQuotes`**: a rate-limited (`ResourceExhausted`) response now ends the batch and is returned to the caller instead of being logged per symbol and skipped — one refused call must not become dozens (`index_tab`).
+- **Closing an instrument profile** returns focus to the tab it was opened from, with the selection intact, instead of always to Positions (`index_tab`).
+
 ## [v0.15.0] - 2026-08-25
 
 ### Added

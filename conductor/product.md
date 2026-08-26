@@ -36,7 +36,8 @@ A Go-based Terminal User Interface (TUI) application designed to interact with t
     - **Positions Tab:** Detailed view of current positions including Symbol, Quantity, Average/Current Price, Daily P&L, Total Value, and Unrealized PnL.
     - **History Tab:** View of completed trades for the selected account with Operation, Instrument, Qty, Price, Total, an accrued-interest (`НКД`) column for bonds, and Time.
     - **Orders Tab:** Real-time list of active/pending orders with status, type, and execution details, marking a stop order and the exchange order it triggered with a `↳` cross-reference.
-    - **Seamless Navigation:** Use Left/Right arrows to cycle between Positions, History, and Orders; use Tab to switch focus between account selection and tables.
+    - **Index Tab:** Showcase of the MOEX Index (IMOEX) composition — ticker, Russian name, price, session change (absolute and percent), weight and volume, sorted by weight. Account-independent; quotes ride the existing realtime stream while the tab is open, with a rate-bounded batch fallback when it is not. `Enter` opens the instrument profile, `A` the standard order modal.
+    - **Seamless Navigation:** Use Left/Right arrows to cycle between Positions, History, Orders, and Index; use Tab to switch focus between account selection and tables.
 - **Instrument Profile:**
     - **Corporate Action Calendars:** The profile overlay shows dividend and split calendars for equities and coupon/amortization/offer calendars for bonds, so users no longer need third-party sites for payment and event schedules.
 - **Interactive TUI:** A responsive interface built with `tview`, featuring intuitive keyboard shortcuts for rapid navigation and data filtering.
