@@ -69,6 +69,8 @@ func setupInputHandlers(app *App) {
 			app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
 		case TabOrders:
 			app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+		case TabIndex:
+			app.app.SetFocus(app.portfolioView.TabbedView.IndexTable)
 		}
 		if app.selectedIdx >= len(app.accounts) {
 			return
@@ -93,12 +95,12 @@ func setupInputHandlers(app *App) {
 	}
 
 	nextTab := func() {
-		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % 3
+		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % TabCount()
 		switchToTab(TabType(next))
 	}
 
 	prevTab := func() {
-		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + 3) % 3
+		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + TabCount()) % TabCount()
 		switchToTab(TabType(prev))
 	}
 
@@ -174,6 +176,7 @@ func setupInputHandlers(app *App) {
 	setupTableNavigation(app.portfolioView.TabbedView.PositionsTable)
 	setupTableNavigation(app.portfolioView.TabbedView.HistoryTable)
 	setupTableNavigation(app.portfolioView.TabbedView.OrdersTable)
+	setupTableNavigation(app.portfolioView.TabbedView.IndexTable)
 
 	app.portfolioView.AccountTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
