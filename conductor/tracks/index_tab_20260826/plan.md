@@ -16,9 +16,9 @@
   - Acceptance: тесты Phase 2 зелёные end-to-end (bufconn)
 
 ## Phase 3: Четвёртая вкладка UI
-- [ ] Task: (Red) Тесты вкладки: цикл `nextTab`/`prevTab` проходит 4 вкладки (Positions→History→Orders→Index→Positions), `SetTab(TabIndex)` переключает страницу "index", заголовок содержит " Index ", фокус уходит в IndexTable (по образцу ui/portfolio_tabs_test.go, ui/input_handler_test.go)
+- [x] Task: (Red) Тесты вкладки: цикл `nextTab`/`prevTab` проходит 4 вкладки (Positions→History→Orders→Index→Positions), `SetTab(TabIndex)` переключает страницу "index", заголовок содержит " Index ", фокус уходит в IndexTable (по образцу ui/portfolio_tabs_test.go, ui/input_handler_test.go) (5eb80b3)
   - Acceptance: тесты компилируются и падают
-- [ ] Task: (Green) components.go: константа `TabIndex`, `IndexTable` в `TabbedView` + страница "index", `UpdateHeader` с 4 табами; input.go: заменить `% 3` на `tabCount` (len-based), ветки `TabIndex` в `switchToTab`/`refresh`, `setupTableNavigation(IndexTable)`
+- [~] Task: (Green) components.go: константа `TabIndex`, `IndexTable` в `TabbedView` + страница "index", `UpdateHeader` с 4 табами; input.go: заменить `% 3` на `tabCount` (len-based), ветки `TabIndex` в `switchToTab`/`refresh`, `setupTableNavigation(IndexTable)`
   - Acceptance: тесты предыдущей задачи зелёные; существующие тесты табов не сломаны
 - [ ] Task: (Red→Green) Константа `indexList = [{Symbol: "IMOEX@RTSX", Name: "Индекс МосБиржи"}]` + состояние вкладки в `App` (состав, карта `indexQuotes`, флаги загрузки/ошибки) + `loadIndexAsync` (goroutine → `GetIndexConstituents` → QueueUpdateDraw; вызывается при первом входе на вкладку и при `R` после ошибки) + рендер `updateIndexTable` (ui/render.go): заголовок с именем индекса; колонки Ticker | Name | Price | Chg | Chg% | Weight | Volume; сортировка по весу убыв. (без весов — по алфавиту); Chg%/Chg от `Quote.Change` и `close = last − change` с защитой от деления на ноль; формат Weight выбрать по факту данных (нормировка неочевидна — см. spec); зелёный/красный/нейтральный; «—» при отсутствии данных; состояния «Loading…» и «ошибка + повтор по R»; тесты рендера и загрузки
   - Acceptance: тесты зелёные; рендер использует только состояние в памяти, ни одного вызова клиента из рендера; повторный вход на вкладку не дёргает загрузку при живом кеше
