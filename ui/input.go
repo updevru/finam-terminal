@@ -17,6 +17,9 @@ func setupInputHandlers(app *App) {
 		if app.portfolioView.TabbedView.ActiveTab == TabIndex {
 			app.portfolioView.TabbedView.IndexTable.Clear()
 			app.loadIndexAsync()
+			// A manual refresh always fetches quotes, even inside the cooldown
+			// and after a rate limit turned automation off.
+			app.pollIndexQuotesAsync(true)
 			return
 		}
 		if app.selectedIdx < len(app.accounts) {
@@ -84,6 +87,9 @@ func setupInputHandlers(app *App) {
 		if tab == TabIndex {
 			updateIndexTable(app)
 			app.ensureIndexLoaded()
+			// With a live stream this is a no-op; with a dead one it fills the
+			// tab from a single bounded batch.
+			app.pollIndexQuotesAsync(false)
 		}
 
 		// The composition joins the subscription on entry and leaves it on exit,

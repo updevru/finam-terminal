@@ -1009,6 +1009,11 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 		})
 		if err != nil {
 			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
+			// A rate limit ends the batch: asking for the remaining symbols would
+			// only dig the caller deeper into the limit.
+			if IsRateLimited(err) {
+				return quotes, fmt.Errorf("quote request rate limit reached: %w", err)
+			}
 			continue
 		}
 

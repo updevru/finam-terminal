@@ -105,6 +105,8 @@ type App struct {
 	indexLoading      bool
 	indexLoaded       bool
 	indexLoadErr      string
+	indexLastPoll     time.Time // last fallback quote batch, drives the cooldown
+	indexPollDisabled bool      // set for the session once the broker rate-limits us
 
 	// Profile overlay
 	profilePanel     *ProfilePanel

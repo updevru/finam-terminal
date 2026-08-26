@@ -3,9 +3,14 @@
 package api
 
 import (
+	"context"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"finam-terminal/api/testserver"
+
+	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -176,5 +181,56 @@ func TestIntegration_GetIndexConstituents_PageLimit(t *testing.T) {
 func TestIntegration_GetIndexConstituents_TTL(t *testing.T) {
 	if indexCacheTTL != 24*time.Hour {
 		t.Errorf("indexCacheTTL = %v, want 24h", indexCacheTTL)
+	}
+}
+
+// TestIntegration_GetQuotes_RateLimitAbortsBatch verifies a ResourceExhausted
+// answer ends the batch instead of walking through the remaining symbols. The
+// Index tab's fallback asks for the whole composition at once, so continuing
+// past a rate limit would turn one refused call into dozens.
+func TestIntegration_GetQuotes_RateLimitAbortsBatch(t *testing.T) {
+	client, ts := setupTestServer(t)
+
+	var calls atomic.Int64
+	ts.MarketData.QuoteOverride = func(context.Context, *marketdata.QuoteRequest) (*marketdata.QuoteResponse, error) {
+		calls.Add(1)
+		return nil, status.Error(codes.ResourceExhausted, "rate limit exceeded")
+	}
+
+	symbols := []string{"SBER@MISX", "GAZP@MISX", "LKOH@MISX", "MOEX@MISX"}
+	quotes, err := client.GetQuotes("", symbols)
+
+	if err == nil {
+		t.Fatal("expected an error when the broker rate-limits the batch")
+	}
+	if !IsRateLimited(err) {
+		t.Errorf("IsRateLimited(%v) = false, want true", err)
+	}
+	if n := calls.Load(); n != 1 {
+		t.Errorf("made %d LastQuote call(s) after a rate limit, want 1 (the batch must stop)", n)
+	}
+	if len(quotes) != 0 {
+		t.Errorf("got %d quotes, want none", len(quotes))
+	}
+}
+
+// TestIntegration_GetQuotes_OrdinaryErrorSkipsSymbol verifies an ordinary
+// per-symbol failure still skips just that symbol, as before.
+func TestIntegration_GetQuotes_OrdinaryErrorSkipsSymbol(t *testing.T) {
+	client, ts := setupTestServer(t)
+
+	ts.MarketData.QuoteOverride = func(_ context.Context, req *marketdata.QuoteRequest) (*marketdata.QuoteResponse, error) {
+		if req.Symbol == "GAZP@TQBR" {
+			return nil, status.Error(codes.NotFound, "no such symbol")
+		}
+		return &marketdata.QuoteResponse{Symbol: req.Symbol, Quote: testserver.DefaultQuote("SBER@TQBR")}, nil
+	}
+
+	quotes, err := client.GetQuotes("", []string{"GAZP@TQBR", "SBER@TQBR"})
+	if err != nil {
+		t.Fatalf("GetQuotes error: %v", err)
+	}
+	if len(quotes) != 1 {
+		t.Errorf("got %d quotes, want 1 (the failing symbol is skipped, the other survives)", len(quotes))
 	}
 }

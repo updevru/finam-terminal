@@ -9,7 +9,16 @@ import (
 	"finam-terminal/models"
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/assets"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
+
+// IsRateLimited reports whether the broker refused a call because the caller
+// exceeded its request budget. The UI uses it to stop an automatic poll for the
+// rest of the session instead of walking into the limit again.
+func IsRateLimited(err error) bool {
+	return status.Code(err) == codes.ResourceExhausted
+}
 
 const (
 	// indexCacheTTL bounds how long a fetched index composition is reused. The

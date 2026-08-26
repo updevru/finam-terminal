@@ -3,9 +3,18 @@ package ui
 import (
 	"log"
 	"sort"
+	"time"
 
+	"finam-terminal/api"
 	"finam-terminal/models"
 )
+
+// indexPollCooldown is the minimum spacing between automatic fallback quote
+// batches. One batch is one LastQuote per component (46 for IMOEX), so at most
+// two batches a minute stays far inside the broker's 200-per-minute budget for
+// that method — and the batch only runs at all when the stream is down and the
+// tab is on screen.
+const indexPollCooldown = time.Minute
 
 // IndexInfo names one index the tab can show.
 //
@@ -120,4 +129,90 @@ func sortConstituents(constituents []models.IndexConstituent) []models.IndexCons
 		return sorted[i].Ticker < sorted[j].Ticker
 	})
 	return sorted
+}
+
+// shouldPollIndexQuotes decides whether an automatic fallback batch may run.
+//
+// Every false here is a request the terminal does not send: a live stream
+// already delivers the quotes, a closed tab has nobody to show them to, the
+// cooldown bounds the rate, and autoDisabled latches after the broker has
+// already told us we are asking too often.
+func shouldPollIndexQuotes(streamLive, tabActive, autoDisabled bool, lastPoll, now time.Time) bool {
+	if streamLive || !tabActive || autoDisabled {
+		return false
+	}
+	return now.Sub(lastPoll) >= indexPollCooldown
+}
+
+// pollIndexQuotesAsync runs a fallback quote batch off the event loop and
+// repaints the tab. manual marks a user-initiated refresh (R), which ignores
+// the cooldown, the stream state and the rate-limit latch.
+func (a *App) pollIndexQuotesAsync(manual bool) {
+	go func() {
+		if !a.pollIndexQuotesSync(manual) {
+			return
+		}
+		a.app.QueueUpdateDraw(func() {
+			if a.indexTabActive() {
+				updateIndexTable(a)
+			}
+		})
+	}()
+}
+
+// pollIndexQuotesSync performs the fallback batch and reports whether it
+// actually ran. It blocks, so it belongs off the event loop; it is separate
+// from pollIndexQuotesAsync so tests can drive it without a running
+// application.
+func (a *App) pollIndexQuotesSync(manual bool) bool {
+	if a.client == nil {
+		return false
+	}
+
+	a.dataMutex.RLock()
+	symbols := make([]string, 0, len(a.indexConstituents))
+	for _, c := range a.indexConstituents {
+		symbols = append(symbols, c.Symbol)
+	}
+	lastPoll, autoDisabled := a.indexLastPoll, a.indexPollDisabled
+	a.dataMutex.RUnlock()
+
+	if len(symbols) == 0 {
+		return false
+	}
+	if !manual && !shouldPollIndexQuotes(a.streamLive.Load(), a.indexTabActive(), autoDisabled, lastPoll, time.Now()) {
+		return false
+	}
+
+	// accountID is empty on purpose: the symbols are already full ticker@mic,
+	// so no account context is needed to resolve them.
+	quotes, err := a.client.GetQuotes("", symbols)
+
+	a.dataMutex.Lock()
+	a.indexLastPoll = time.Now()
+	for symbol, q := range quotes {
+		if a.indexQuotes == nil {
+			a.indexQuotes = make(map[string]*models.Quote)
+		}
+		a.indexQuotes[symbol] = q
+	}
+	rateLimited := err != nil && api.IsRateLimited(err)
+	if rateLimited {
+		a.indexPollDisabled = true
+	}
+	a.dataMutex.Unlock()
+
+	switch {
+	case rateLimited:
+		// Latched for the session: the broker has told us we ask too often, so
+		// automation stops and only the manual key remains.
+		log.Printf("[WARN] Index quote batch was rate limited, automatic refresh is off for this session: %v", err)
+		a.SetStatus("Index quotes rate limited — press R to refresh manually", StatusError)
+	case err != nil:
+		log.Printf("[WARN] Index quote batch failed: %v", err)
+	}
+
+	// A partial batch is still worth drawing: GetQuotes returns whatever it
+	// collected before the failure.
+	return err == nil || len(quotes) > 0
 }
