@@ -366,3 +366,50 @@ func symbolTicker(symbol string) string {
 	}
 	return symbol
 }
+
+// DefaultConstituents returns the IMOEX index composition as GetConstituents
+// delivers it: two pages, so the pagination loop is exercised even though the
+// real IMOEX fits in one. Page 1 (cursor 0) ends with next_cursor 2; page 2
+// (cursor 2) ends with next_cursor 0, marking the last page.
+//
+// Weights are deliberately out of order so a caller that sorts by weight is
+// distinguishable from one that keeps the API order.
+func DefaultConstituents(cursor int64) *assets.GetConstituentsResponse {
+	if cursor == 0 {
+		return &assets.GetConstituentsResponse{
+			Constituents: []*assets.Constituents{
+				{
+					Symbol: "SBER@MISX",
+					Name:   "Сбербанк",
+					Sector: "Финансы",
+					Weight: &decimal.Decimal{Value: "0.0080"},
+				},
+				{
+					Symbol: "GAZP@MISX",
+					Name:   "Газпром",
+					Sector: "Нефть и газ",
+					Weight: &decimal.Decimal{Value: "0.0120"},
+				},
+			},
+			NextCursor: 2,
+		}
+	}
+
+	return &assets.GetConstituentsResponse{
+		Constituents: []*assets.Constituents{
+			{
+				Symbol: "LKOH@MISX",
+				Name:   "ЛУКОЙЛ",
+				Sector: "Нефть и газ",
+				Weight: &decimal.Decimal{Value: "0.0100"},
+			},
+			{
+				// No weight: the mapping must tolerate a nil wrapper.
+				Symbol: "MOEX@MISX",
+				Name:   "МосБиржа",
+				Sector: "Финансы",
+			},
+		},
+		NextCursor: 0,
+	}
+}
