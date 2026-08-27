@@ -28,9 +28,19 @@ const (
 	TabPositions TabType = iota
 	TabHistory
 	TabOrders
+	TabIndex
 )
 
-// TabbedView manages a tabbed interface for positions, history, and orders
+// tabLabels is the single source of truth for the tab order: the header renders
+// it and the ←/→ cycle wraps on its length, so adding a tab is a one-line
+// change here rather than a hunt for hardcoded counts.
+var tabLabels = []string{" Positions ", " History ", " Orders ", " Index "}
+
+// TabCount is the number of tabs the ←/→ cycle walks.
+func TabCount() int { return len(tabLabels) }
+
+// TabbedView manages a tabbed interface for positions, history, orders and the
+// index showcase
 type TabbedView struct {
 	*tview.Flex
 	ActiveTab TabType
@@ -38,6 +48,7 @@ type TabbedView struct {
 	PositionsTable *tview.Table
 	HistoryTable   *tview.Table
 	OrdersTable    *tview.Table
+	IndexTable     *tview.Table
 	Content        *tview.Pages // To switch between tables
 	Header         *tview.TextView
 }
@@ -71,6 +82,7 @@ func NewTabbedView() *TabbedView {
 		PositionsTable: createPositionsTable(),
 		HistoryTable:   createHistoryTable(),
 		OrdersTable:    createOrdersTable(),
+		IndexTable:     createIndexTable(),
 		Content:        tview.NewPages(),
 		Header:         tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignCenter),
 	}
@@ -80,6 +92,7 @@ func NewTabbedView() *TabbedView {
 	tv.Content.AddPage("positions", tv.PositionsTable, true, true)
 	tv.Content.AddPage("history", tv.HistoryTable, true, false)
 	tv.Content.AddPage("orders", tv.OrdersTable, true, false)
+	tv.Content.AddPage("index", tv.IndexTable, true, false)
 
 	tv.AddItem(tv.Header, 1, 0, false)
 	tv.AddItem(tv.Content, 0, 1, true)
@@ -90,15 +103,14 @@ func NewTabbedView() *TabbedView {
 
 // UpdateHeader updates the visual representation of tabs
 func (tv *TabbedView) UpdateHeader() {
-	tabs := []string{" Positions ", " History ", " Orders "}
 	var headerText strings.Builder
-	for i, tab := range tabs {
+	for i, tab := range tabLabels {
 		if TabType(i) == tv.ActiveTab {
 			fmt.Fprintf(&headerText, "[black:yellow]%s[-]", tab)
 		} else {
 			fmt.Fprintf(&headerText, "[white:black]%s[-]", tab)
 		}
-		if i < len(tabs)-1 {
+		if i < len(tabLabels)-1 {
 			headerText.WriteString(" ")
 		}
 	}
@@ -115,6 +127,8 @@ func (tv *TabbedView) SetTab(tab TabType) {
 		tv.Content.SwitchToPage("history")
 	case TabOrders:
 		tv.Content.SwitchToPage("orders")
+	case TabIndex:
+		tv.Content.SwitchToPage("index")
 	}
 	tv.UpdateHeader()
 }
@@ -140,8 +154,7 @@ func (pv *PortfolioView) UpdateSummary(acc models.AccountInfo) {
 	if acc.LoadError != "" {
 		_, _ = fmt.Fprintf(pv.SummaryArea, " Account ID: %s\n", acc.ID)
 		_, _ = fmt.Fprintf(pv.SummaryArea, " Status:     [red]Unavailable[-]\n")
-		_, _ = fmt.Fprintf(pv.SummaryArea, " Error:      [red]%s[-]\n", acc.LoadError)
-		_, _ = fmt.Fprintf(pv.SummaryArea, "             Contact broker support\n")
+		_, _ = fmt.Fprintf(pv.SummaryArea, " [red]%s[-]\n", brokerDataError())
 		return
 	}
 
@@ -282,6 +295,21 @@ func createOrdersTable() *tview.Table {
 	table.SetBackgroundColor(tcell.ColorBlack)
 	table.SetSelectable(true, false)
 	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
+	return table
+}
+
+// createIndexTable creates the index constituents table
+func createIndexTable() *tview.Table {
+	table := tview.NewTable()
+	table.SetBorder(true)
+	table.SetTitle(" Index ")
+	table.SetBackgroundColor(tcell.ColorBlack)
+	table.SetSelectable(true, false)
+	table.SetSelectedStyle(tcell.StyleDefault.Background(tcell.ColorYellow).Foreground(tcell.ColorBlack))
+	// The index is long enough to scroll, and tview only keeps fixed rows on
+	// screen — without this the column headers disappear as soon as the user
+	// scrolls past the first screenful.
+	table.SetFixed(1, 0)
 	return table
 }
 

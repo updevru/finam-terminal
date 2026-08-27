@@ -61,6 +61,10 @@ type Client struct {
 	securityCache       []models.SecurityInfo
 	assetMutex          sync.RWMutex
 
+	// Index composition cache (GetConstituents), keyed by index symbol.
+	indexMu    sync.RWMutex
+	indexCache map[string]indexCacheEntry
+
 	// Realtime quote stream (SubscribeQuote, Trade API 2.19.0)
 	quoteMu          sync.Mutex
 	quoteStarted     bool
@@ -72,6 +76,8 @@ type Client struct {
 	quoteSubCancel   context.CancelFunc           // ends the current subscription (resubscribe)
 	quoteWake        chan struct{}                // nudges the manager after a symbol change
 	lastStreamQuotes map[string]*marketdata.Quote // last known full state per symbol
+	quoteSymbolCap   int                          // largest symbol count one subscription accepts; 0 = not discovered yet
+	quoteShards      []*quoteShard                // one subscription per shard of the symbol set
 }
 
 // NewClient creates a new Finam API client
@@ -116,6 +122,7 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 		assetMicCache:          make(map[string]string),
 		assetLotCache:          make(map[string]float64),
 		tradeLotCache:          make(map[string]float64),
+		indexCache:             make(map[string]indexCacheEntry),
 		instrumentNameCache:    make(map[string]string),
 		securityCache:          make([]models.SecurityInfo, 0),
 	}
@@ -129,6 +136,10 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 	refreshCtx, cancel := context.WithCancel(context.Background())
 	client.refreshCancel = cancel
 	go client.subscribeJwtRenewal(refreshCtx)
+
+	// The stream is the fast path; the watchdog is what survives a dropped
+	// stream or a sleeping machine.
+	go client.watchTokenExpiry(refreshCtx)
 
 	// Load asset MIC cache
 	if err := client.loadAssetCache(); err != nil {
@@ -451,6 +462,15 @@ func (c *Client) resolveAssetLot(ticker, fetchSymbol, accountID string) string {
 // (ticker@mic): the asset lot via GetAsset and the trade lot via GetAssetParams.
 // The tiers are independent — a failure in one does not block the other.
 func (c *Client) fetchLotSize(symbol string, accountID string) {
+	// Both GetAsset and GetAssetParams require an account: without one the broker
+	// answers InvalidArgument "Invalid arguments:account_id". Attempting them
+	// anyway costs two guaranteed failures per symbol, and since nothing gets
+	// cached it repeats on every call. Callers that only want a quote (the Index
+	// tab sweep) pass no account, and for them the lot is not needed at all.
+	if accountID == "" {
+		return
+	}
+
 	// Double-check under lock to avoid duplicate API calls from concurrent goroutines
 	c.assetMutex.RLock()
 	_, hasLot := c.assetLotCache[symbol]
@@ -989,9 +1009,6 @@ func (c *Client) GetAccountDetails(accountID string) (*models.AccountInfo, []mod
 
 // GetQuotes returns quotes for multiple symbols
 func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*models.Quote, error) {
-	ctx, cancel := c.getContext()
-	defer cancel()
-
 	quotes := make(map[string]*models.Quote)
 	for _, symbol := range symbols {
 		fullSymbol := c.getFullSymbol(symbol, accountID)
@@ -999,11 +1016,18 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 			continue
 		}
 
-		resp, err := c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{
-			Symbol: fullSymbol,
-		})
+		// One deadline per call, not one for the whole batch: a shared context
+		// meant that on a long batch the timeout was already spent by the time
+		// the later symbols were requested, and they failed with
+		// DeadlineExceeded even though the broker was answering fine.
+		resp, err := c.lastQuote(fullSymbol)
 		if err != nil {
 			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
+			// A rate limit ends the batch: asking for the remaining symbols would
+			// only dig the caller deeper into the limit.
+			if IsRateLimited(err) {
+				return quotes, fmt.Errorf("quote request rate limit reached: %w", err)
+			}
 			continue
 		}
 
@@ -1016,6 +1040,14 @@ func (c *Client) GetQuotes(accountID string, symbols []string) (map[string]*mode
 	}
 
 	return quotes, nil
+}
+
+// lastQuote performs one LastQuote call under its own deadline.
+func (c *Client) lastQuote(fullSymbol string) (*marketdata.QuoteResponse, error) {
+	ctx, cancel := c.getContext()
+	defer cancel()
+
+	return c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{Symbol: fullSymbol})
 }
 
 // SearchSecurities searches for securities by ticker or name
@@ -1498,9 +1530,6 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 		return nil, nil
 	}
 
-	ctx, cancel := c.getContext()
-	defer cancel()
-
 	quotes := make(map[string]models.Quote)
 	for _, ticker := range symbols {
 		fullSymbol := c.getFullSymbol(ticker, accountID)
@@ -1508,9 +1537,9 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			continue
 		}
 
-		resp, err := c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{
-			Symbol: fullSymbol,
-		})
+		// One deadline per call rather than one for the whole batch — see the
+		// note in GetQuotes.
+		resp, err := c.lastQuote(fullSymbol)
 		if err != nil {
 			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue

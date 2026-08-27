@@ -38,6 +38,9 @@ type APIClient interface {
 	// Realtime quotes (SubscribeQuote)
 	StartQuoteStream(onQuote func(models.Quote), onState func(up bool))
 	SetQuoteSymbols(symbols []string)
+	// SubscribedSymbols reports what the stream actually carries, which can be
+	// fewer symbols than were asked for: the broker caps subscription size.
+	SubscribedSymbols() []string
 	GetInstrumentName(key string) string
 
 	// History and Orders
@@ -50,6 +53,9 @@ type APIClient interface {
 	GetAssetInfo(accountID string, symbol string) (*models.AssetDetails, error)
 	GetAssetParams(accountID string, symbol string) (*models.AssetParams, error)
 	GetSchedule(symbol string) ([]models.TradingSession, error)
+
+	// Index composition (GetConstituents, cached per session)
+	GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error)
 
 	// Corporate action calendars
 	GetDividends(symbol string) ([]models.Dividend, error)
@@ -96,6 +102,27 @@ type App struct {
 	latestVersion   string
 	updateRequested atomic.Bool
 
+	// Index tab (composition of the Moscow Exchange index)
+	indexConstituents []models.IndexConstituent
+	indexQuotes       map[string]*models.Quote // keyed by full symbol, account-independent
+	indexLoading      bool
+	indexLoaded       bool
+	indexLoadErr      string
+	indexLastPoll     time.Time // last fallback quote batch, drives the cooldown
+	indexPollDisabled bool      // set for the session once the broker rate-limits us
+
+	// Guard protecting the positions subscription: if the stream stops working
+	// only after the index composition joined it, the composition is dropped
+	// for the rest of the session and the tab falls back to batches.
+	indexStreamIncludedAt time.Time
+	indexStreamFailures   int
+	// indexStreamProven records that the subscription has already come up while
+	// carrying the composition, which settles the question the guard exists to
+	// ask. Without it every recompute would restart the guard's clock and the
+	// next unrelated outage would still cost the tab its quotes.
+	indexStreamProven   bool
+	indexStreamDisabled bool
+
 	// Profile overlay
 	profilePanel     *ProfilePanel
 	profileSymbol    string
@@ -127,6 +154,7 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 		history:      make(map[string][]models.Trade),
 		activeOrders: make(map[string][]models.Order),
 		quotes:       make(map[string]map[string]*models.Quote),
+		indexQuotes:  make(map[string]*models.Quote),
 		selectedIdx:  0,
 		stopChan:     make(chan struct{}),
 		pages:        tview.NewPages(),
@@ -176,12 +204,14 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 // CloseCloseModal closes the close position modal
 func (a *App) CloseCloseModal() {
 	a.pages.HidePage("close_modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	// Overlays are reachable from every tab, so focus goes back to the tab
+	// that is actually on screen — not to a hidden table.
+	a.app.SetFocus(a.activeTabTable())
 }
 func (a *App) CloseOrderModal() {
 	a.orderModal.RestoreCallback()
 	a.pages.HidePage("modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	a.app.SetFocus(a.activeTabTable())
 }
 
 // OpenSearchModal opens the security search modal
@@ -199,7 +229,7 @@ func (a *App) OpenSearchModal() {
 // CloseSearchModal closes the security search modal
 func (a *App) CloseSearchModal() {
 	a.pages.HidePage("search_modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	a.app.SetFocus(a.activeTabTable())
 }
 
 // IsSearchModalOpen returns true if the search modal is currently open
@@ -921,7 +951,23 @@ func (a *App) CloseProfile() {
 	a.profileSymbol = ""
 	a.recomputeStreamSymbols()
 	a.pages.SwitchToPage("main")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	// Return to the tab the profile was opened from, with its selection intact.
+	a.app.SetFocus(a.activeTabTable())
+}
+
+// activeTabTable returns the table of the tab currently on screen.
+func (a *App) activeTabTable() *tview.Table {
+	tv := a.portfolioView.TabbedView
+	switch tv.ActiveTab {
+	case TabHistory:
+		return tv.HistoryTable
+	case TabOrders:
+		return tv.OrdersTable
+	case TabIndex:
+		return tv.IndexTable
+	default:
+		return tv.PositionsTable
+	}
 }
 
 // IsProfileOpen returns true if the profile overlay is currently shown.

@@ -75,12 +75,16 @@ func DefaultQuote(symbol string) *marketdata.Quote {
 			Last:   &decimal.Decimal{Value: "285.00"},
 			Bid:    &decimal.Decimal{Value: "284.90"},
 			Ask:    &decimal.Decimal{Value: "285.10"},
+			Close:  &decimal.Decimal{Value: "280.00"},
+			Change: &decimal.Decimal{Value: "5.00"},
 		},
 		"GAZP@TQBR": {
 			Symbol: "GAZP@TQBR",
 			Last:   &decimal.Decimal{Value: "160.30"},
 			Bid:    &decimal.Decimal{Value: "160.20"},
 			Ask:    &decimal.Decimal{Value: "160.40"},
+			Close:  &decimal.Decimal{Value: "162.00"},
+			Change: &decimal.Decimal{Value: "-1.70"},
 		},
 	}
 	if q, ok := quotes[symbol]; ok {
@@ -361,4 +365,51 @@ func symbolTicker(symbol string) string {
 		}
 	}
 	return symbol
+}
+
+// DefaultConstituents returns the IMOEX index composition as GetConstituents
+// delivers it: two pages, so the pagination loop is exercised even though the
+// real IMOEX fits in one. Page 1 (cursor 0) ends with next_cursor 2; page 2
+// (cursor 2) ends with next_cursor 0, marking the last page.
+//
+// Weights are deliberately out of order so a caller that sorts by weight is
+// distinguishable from one that keeps the API order.
+func DefaultConstituents(cursor int64) *assets.GetConstituentsResponse {
+	if cursor == 0 {
+		return &assets.GetConstituentsResponse{
+			Constituents: []*assets.Constituents{
+				{
+					Symbol: "SBER@MISX",
+					Name:   "Сбербанк",
+					Sector: "Финансы",
+					Weight: &decimal.Decimal{Value: "0.0080"},
+				},
+				{
+					Symbol: "GAZP@MISX",
+					Name:   "Газпром",
+					Sector: "Нефть и газ",
+					Weight: &decimal.Decimal{Value: "0.0120"},
+				},
+			},
+			NextCursor: 2,
+		}
+	}
+
+	return &assets.GetConstituentsResponse{
+		Constituents: []*assets.Constituents{
+			{
+				Symbol: "LKOH@MISX",
+				Name:   "ЛУКОЙЛ",
+				Sector: "Нефть и газ",
+				Weight: &decimal.Decimal{Value: "0.0100"},
+			},
+			{
+				// No weight: the mapping must tolerate a nil wrapper.
+				Symbol: "MOEX@MISX",
+				Name:   "МосБиржа",
+				Sector: "Финансы",
+			},
+		},
+		NextCursor: 0,
+	}
 }

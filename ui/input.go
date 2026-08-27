@@ -12,6 +12,16 @@ func setupInputHandlers(app *App) {
 	}
 
 	refresh := func() {
+		// The Index tab is account-independent, so it refreshes before the
+		// account guard below — it works even with no account selected.
+		if app.portfolioView.TabbedView.ActiveTab == TabIndex {
+			app.portfolioView.TabbedView.IndexTable.Clear()
+			app.loadIndexAsync()
+			// A manual refresh always fetches quotes, even inside the cooldown
+			// and after a rate limit turned automation off.
+			app.pollIndexQuotesAsync(true)
+			return
+		}
 		if app.selectedIdx < len(app.accounts) {
 			accountID := app.accounts[app.selectedIdx].ID
 			switch app.portfolioView.TabbedView.ActiveTab {
@@ -69,7 +79,25 @@ func setupInputHandlers(app *App) {
 			app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
 		case TabOrders:
 			app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
+		case TabIndex:
+			app.app.SetFocus(app.portfolioView.TabbedView.IndexTable)
 		}
+
+		// Same reason as in refresh: the Index tab has no account to wait for.
+		if tab == TabIndex {
+			// Start the load first, then draw: the other order paints
+			// "No constituents" and leaves it there for the whole fetch.
+			app.ensureIndexLoaded()
+			updateIndexTable(app)
+			// With a live stream this is a no-op; with a dead one it fills the
+			// tab from a single bounded batch.
+			app.pollIndexQuotesAsync(false)
+		}
+
+		// The composition joins the subscription on entry and leaves it on exit,
+		// so an unwatched tab costs nothing.
+		app.recomputeStreamSymbols()
+
 		if app.selectedIdx >= len(app.accounts) {
 			return
 		}
@@ -93,12 +121,12 @@ func setupInputHandlers(app *App) {
 	}
 
 	nextTab := func() {
-		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % 3
+		next := (int(app.portfolioView.TabbedView.ActiveTab) + 1) % TabCount()
 		switchToTab(TabType(next))
 	}
 
 	prevTab := func() {
-		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + 3) % 3
+		prev := (int(app.portfolioView.TabbedView.ActiveTab) - 1 + TabCount()) % TabCount()
 		switchToTab(TabType(prev))
 	}
 
@@ -130,6 +158,12 @@ func setupInputHandlers(app *App) {
 					app.OpenProfile()
 					return nil
 				}
+				if table == app.portfolioView.TabbedView.IndexTable {
+					if symbol := app.selectedIndexSymbol(); symbol != "" {
+						app.OpenProfileForSymbol(symbol)
+					}
+					return nil
+				}
 			case tcell.KeyDelete:
 				if table == app.portfolioView.TabbedView.OrdersTable {
 					app.ShowCancelConfirmation()
@@ -146,6 +180,13 @@ func setupInputHandlers(app *App) {
 			case 'a', 'A', 'ф', 'Ф':
 				if table == app.portfolioView.TabbedView.PositionsTable {
 					app.OpenOrderModal()
+				}
+				if table == app.portfolioView.TabbedView.IndexTable {
+					// The composition carries full ticker@mic symbols, so the
+					// instrument goes through the existing order path unchanged.
+					if symbol := app.selectedIndexSymbol(); symbol != "" {
+						app.OpenOrderModalWithTicker(symbol)
+					}
 				}
 				return nil
 			case 'x', 'X', 'ч', 'Ч':
@@ -174,6 +215,7 @@ func setupInputHandlers(app *App) {
 	setupTableNavigation(app.portfolioView.TabbedView.PositionsTable)
 	setupTableNavigation(app.portfolioView.TabbedView.HistoryTable)
 	setupTableNavigation(app.portfolioView.TabbedView.OrdersTable)
+	setupTableNavigation(app.portfolioView.TabbedView.IndexTable)
 
 	app.portfolioView.AccountTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
@@ -324,15 +366,8 @@ func setupInputHandlers(app *App) {
 			return nil
 		case tcell.KeyTab, tcell.KeyBacktab:
 			if app.app.GetFocus() == app.portfolioView.AccountTable {
-				// Switch to the active tab's table
-				switch app.portfolioView.TabbedView.ActiveTab {
-				case TabPositions:
-					app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
-				case TabHistory:
-					app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
-				case TabOrders:
-					app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-				}
+				// Switch to the active tab's table, Index included.
+				app.app.SetFocus(app.activeTabTable())
 			} else {
 				// Switch back to Account Table
 				app.app.SetFocus(app.portfolioView.AccountTable)

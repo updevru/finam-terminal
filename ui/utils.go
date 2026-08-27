@@ -133,3 +133,20 @@ func parseFloat(s string) (float64, error) {
 	s = strings.ReplaceAll(s, ",", ".")
 	return strconv.ParseFloat(s, 64)
 }
+
+// brokerDataError is what the user sees when data could not be loaded from the
+// broker.
+//
+// The broker's own wording is unfit for the screen — it arrives as a gRPC status
+// string, sometimes with an internal code and the English and Russian texts run
+// together — and it tells a trader nothing they can act on. The cause is written
+// to the log for diagnosis; the interface states what happened and what to do.
+func brokerDataError() string {
+	return "Ошибка при загрузке данных от брокера. Попробуйте обновить позже."
+}
+
+// brokerDataErrorWithKey is brokerDataError for views that offer a manual
+// refresh, naming the key that triggers it.
+func brokerDataErrorWithKey(key string) string {
+	return fmt.Sprintf("Ошибка при загрузке данных от брокера. Попробуйте обновить позже — клавиша %s.", key)
+}

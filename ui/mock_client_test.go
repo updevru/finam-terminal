@@ -1,8 +1,10 @@
 package ui
 
 import (
-	"finam-terminal/models"
+	"sync/atomic"
 	"time"
+
+	"finam-terminal/models"
 
 	"github.com/FinamWeb/finam-trade-api/go/grpc/tradeapi/v1/marketdata"
 )
@@ -22,6 +24,7 @@ type mockClient struct {
 	EnsureLotSizeFunc     func(accountID, symbol string) float64
 	StartQuoteStreamFunc  func(onQuote func(models.Quote), onState func(up bool))
 	SetQuoteSymbolsFunc   func(symbols []string)
+	SubscribedSymbolsFunc func() []string
 	GetInstrumentNameFunc func(key string) string
 
 	GetTradeHistoryFunc func(accountID string) ([]models.Trade, error)
@@ -36,6 +39,9 @@ type mockClient struct {
 	GetDividendsFunc  func(symbol string) ([]models.Dividend, error)
 	GetSplitsFunc     func(symbol string) ([]models.Split, error)
 	GetBondEventsFunc func(symbol string) ([]models.BondEvent, error)
+
+	GetIndexConstituentsFunc  func(indexSymbol string) ([]models.IndexConstituent, error)
+	GetIndexConstituentsCalls atomic.Int64
 }
 
 func (m *mockClient) GetAccounts() ([]models.AccountInfo, error) {
@@ -104,6 +110,13 @@ func (m *mockClient) SetQuoteSymbols(symbols []string) {
 	if m.SetQuoteSymbolsFunc != nil {
 		m.SetQuoteSymbolsFunc(symbols)
 	}
+}
+
+func (m *mockClient) SubscribedSymbols() []string {
+	if m.SubscribedSymbolsFunc != nil {
+		return m.SubscribedSymbolsFunc()
+	}
+	return nil
 }
 
 func (m *mockClient) EnsureLotSize(accountID, symbol string) float64 {
@@ -186,6 +199,14 @@ func (m *mockClient) GetSplits(symbol string) ([]models.Split, error) {
 func (m *mockClient) GetBondEvents(symbol string) ([]models.BondEvent, error) {
 	if m.GetBondEventsFunc != nil {
 		return m.GetBondEventsFunc(symbol)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) GetIndexConstituents(indexSymbol string) ([]models.IndexConstituent, error) {
+	m.GetIndexConstituentsCalls.Add(1)
+	if m.GetIndexConstituentsFunc != nil {
+		return m.GetIndexConstituentsFunc(indexSymbol)
 	}
 	return nil, nil
 }

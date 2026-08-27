@@ -76,6 +76,7 @@ type Quote struct {
 	High         string
 	Low          string
 	Close        string
+	Change       string
 	OpenInterest string
 	Timestamp    time.Time
 }
@@ -255,4 +256,17 @@ type Order struct {
 	TPPrice          string
 	TriggeredOrderID string // ID of the exchange order spawned by this stop order (2.17.0)
 	CreationTime     time.Time
+}
+
+// IndexConstituent is one component of a stock index, as
+// AssetsService.GetConstituents returns it. Ticker is the part of Symbol before
+// "@" and is what the UI shows; Symbol is the full ticker@mic the quote stream
+// and the order path need. Weight is 0 when the API sends none — the value is
+// only used for sorting, since its normalisation is not documented.
+type IndexConstituent struct {
+	Symbol string
+	Ticker string
+	Name   string
+	Sector string
+	Weight float64
 }

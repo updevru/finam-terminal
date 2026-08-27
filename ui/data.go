@@ -384,6 +384,11 @@ func (a *App) backgroundRefresh() {
 		case <-ticker.C:
 			// access UI state (selectedIdx) safely on the UI thread
 			a.app.QueueUpdateDraw(func() {
+				// The Index tab is account-independent, and its fallback batch
+				// decides for itself whether it is allowed to run.
+				a.evaluateIndexStreamHealth()
+				a.pollIndexQuotesAsync(false)
+
 				// Prioritize the active account
 				if a.selectedIdx >= 0 && a.selectedIdx < len(a.accounts) {
 					activeID := a.accounts[a.selectedIdx].ID
