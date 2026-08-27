@@ -234,3 +234,50 @@ func TestIntegration_GetQuotes_OrdinaryErrorSkipsSymbol(t *testing.T) {
 		t.Errorf("got %d quotes, want 1 (the failing symbol is skipped, the other survives)", len(quotes))
 	}
 }
+
+// TestIntegration_GetQuotes_WithoutAccountSkipsLotResolution guards a defect the
+// log exposed: the Index tab sweep asks for quotes with no account context, and
+// getFullSymbol still tried to warm the lot caches, so every swept symbol cost a
+// GetAsset and a GetAssetParams call that the broker rejected outright with
+// "Invalid arguments:account_id". They failed, so nothing was cached, so it
+// repeated on every pass — 494 guaranteed failures in one session.
+func TestIntegration_GetQuotes_WithoutAccountSkipsLotResolution(t *testing.T) {
+	client, ts := setupTestServer(t)
+
+	// The asset cache is warmed at startup; start counting from here.
+	assetsBefore := ts.Assets.GetAssetCallCount.Load()
+	paramsBefore := ts.Assets.GetAssetParamsCallCount.Load()
+
+	quotes, err := client.GetQuotes("", []string{"SBER@TQBR"})
+	if err != nil {
+		t.Fatalf("GetQuotes error: %v", err)
+	}
+	if len(quotes) != 1 {
+		t.Fatalf("got %d quotes, want 1", len(quotes))
+	}
+
+	if n := ts.Assets.GetAssetCallCount.Load() - assetsBefore; n != 0 {
+		t.Errorf("made %d GetAsset call(s) with no account, want 0 — they can only fail", n)
+	}
+	if n := ts.Assets.GetAssetParamsCallCount.Load() - paramsBefore; n != 0 {
+		t.Errorf("made %d GetAssetParams call(s) with no account, want 0 — they can only fail", n)
+	}
+}
+
+// TestIntegration_GetQuotes_WithAccountStillWarmsLots verifies the fix is
+// narrow: with a real account the lot caches are still warmed as a side effect,
+// which is what makes the positions view cheap.
+func TestIntegration_GetQuotes_WithAccountStillWarmsLots(t *testing.T) {
+	client, ts := setupTestServer(t)
+
+	// Use a symbol the startup cache did not already resolve.
+	assetsBefore := ts.Assets.GetAssetCallCount.Load()
+
+	if _, err := client.GetQuotes("ACC-1", []string{"LKOH@TQBR"}); err != nil {
+		t.Fatalf("GetQuotes error: %v", err)
+	}
+
+	if n := ts.Assets.GetAssetCallCount.Load() - assetsBefore; n == 0 {
+		t.Error("with an account, the lot cache should still be warmed")
+	}
+}

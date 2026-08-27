@@ -167,6 +167,8 @@ func (m *SearchModal) PerformSearch(query string) {
 	if err != nil {
 		m.app.QueueUpdateDraw(func() {
 			m.searching = false
+			// Kept for the log and for the "did it fail?" checks below; what the
+			// user sees is the plain message, not the broker's wire text.
 			m.lastError = extractUserMessage(err)
 			m.updateTable(nil)
 			m.updateFooter()
@@ -326,7 +328,7 @@ func (m *SearchModal) updateTable(quotes map[string]models.Quote) {
 	}
 
 	if m.lastError != "" {
-		m.Table.SetCell(1, 1, tview.NewTableCell("Error: "+m.lastError).
+		m.Table.SetCell(1, 1, tview.NewTableCell(brokerDataError()).
 			SetTextColor(tcell.ColorRed).
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false))
@@ -415,7 +417,7 @@ func (m *SearchModal) updateFooter() {
 	if m.searching {
 		status = " | [yellow]Searching...[white]"
 	} else if m.lastError != "" {
-		status = fmt.Sprintf(" | [red]Error: %s[white]", m.lastError)
+		status = fmt.Sprintf(" | [red]%s[white]", brokerDataError())
 	} else if len(m.results) > 0 {
 		status = fmt.Sprintf(" | [green]%d results found[white]", len(m.results))
 	}

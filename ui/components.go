@@ -154,8 +154,7 @@ func (pv *PortfolioView) UpdateSummary(acc models.AccountInfo) {
 	if acc.LoadError != "" {
 		_, _ = fmt.Fprintf(pv.SummaryArea, " Account ID: %s\n", acc.ID)
 		_, _ = fmt.Fprintf(pv.SummaryArea, " Status:     [red]Unavailable[-]\n")
-		_, _ = fmt.Fprintf(pv.SummaryArea, " Error:      [red]%s[-]\n", acc.LoadError)
-		_, _ = fmt.Fprintf(pv.SummaryArea, "             Contact broker support\n")
+		_, _ = fmt.Fprintf(pv.SummaryArea, " [red]%s[-]\n", brokerDataError())
 		return
 	}
 

@@ -200,8 +200,10 @@ func TestIndexTable_LoadingState(t *testing.T) {
 	}
 }
 
-// TestIndexTable_ErrorStateOffersRetry verifies a failed load explains itself
-// and points at the manual retry key, since nothing retries automatically.
+// TestIndexTable_ErrorStateOffersRetry verifies a failed load explains itself in
+// plain language and points at the manual retry key, since nothing retries
+// automatically. The broker's own wording stays in the log — see
+// TestIndexTable_ErrorRowHidesBrokerText.
 func TestIndexTable_ErrorStateOffersRetry(t *testing.T) {
 	app := NewApp(&mockClient{}, nil)
 	app.indexLoadErr = "backend down"
@@ -209,8 +211,8 @@ func TestIndexTable_ErrorStateOffersRetry(t *testing.T) {
 	updateIndexTable(app)
 
 	got := app.portfolioView.TabbedView.IndexTable.GetCell(1, 0).Text
-	if !strings.Contains(got, "backend down") {
-		t.Errorf("error row = %q, want it to carry the error text", got)
+	if !strings.Contains(got, "Ошибка при загрузке данных от брокера") {
+		t.Errorf("error row = %q, want the standard load-failure message", got)
 	}
 	if !strings.Contains(got, "R") {
 		t.Errorf("error row = %q, want it to point at the R retry key", got)

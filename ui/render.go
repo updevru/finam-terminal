@@ -188,7 +188,7 @@ func updatePositionsTable(app *App) {
 	if len(pos) == 0 {
 		acc := app.accounts[app.selectedIdx]
 		if acc.LoadError != "" {
-			app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell("Broker error: "+acc.LoadError).
+			app.portfolioView.TabbedView.PositionsTable.SetCell(1, 0, tview.NewTableCell(brokerDataError()).
 				SetSelectable(false).
 				SetAlign(tview.AlignCenter).
 				SetTextColor(tcell.ColorRed))
@@ -747,7 +747,7 @@ func updateIndexTable(app *App) {
 		case loading:
 			message, colour = "Loading index constituents...", tcell.ColorYellow
 		case loadErr != "":
-			message, colour = fmt.Sprintf("%s — press R to retry", loadErr), tcell.ColorRed
+			message, colour = brokerDataErrorWithKey("R"), tcell.ColorRed
 		}
 		table.SetCell(1, 0, tview.NewTableCell(message).
 			SetSelectable(false).

@@ -458,6 +458,15 @@ func (c *Client) resolveAssetLot(ticker, fetchSymbol, accountID string) string {
 // (ticker@mic): the asset lot via GetAsset and the trade lot via GetAssetParams.
 // The tiers are independent — a failure in one does not block the other.
 func (c *Client) fetchLotSize(symbol string, accountID string) {
+	// Both GetAsset and GetAssetParams require an account: without one the broker
+	// answers InvalidArgument "Invalid arguments:account_id". Attempting them
+	// anyway costs two guaranteed failures per symbol, and since nothing gets
+	// cached it repeats on every call. Callers that only want a quote (the Index
+	// tab sweep) pass no account, and for them the lot is not needed at all.
+	if accountID == "" {
+		return
+	}
+
 	// Double-check under lock to avoid duplicate API calls from concurrent goroutines
 	c.assetMutex.RLock()
 	_, hasLot := c.assetLotCache[symbol]
@@ -1517,9 +1526,6 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 		return nil, nil
 	}
 
-	ctx, cancel := c.getContext()
-	defer cancel()
-
 	quotes := make(map[string]models.Quote)
 	for _, ticker := range symbols {
 		fullSymbol := c.getFullSymbol(ticker, accountID)
@@ -1527,9 +1533,9 @@ func (c *Client) GetSnapshots(accountID string, symbols []string) (map[string]mo
 			continue
 		}
 
-		resp, err := c.marketDataClient.LastQuote(ctx, &marketdata.QuoteRequest{
-			Symbol: fullSymbol,
-		})
+		// One deadline per call rather than one for the whole batch — see the
+		// note in GetQuotes.
+		resp, err := c.lastQuote(fullSymbol)
 		if err != nil {
 			c.logGRPCError("MarketDataService", "LastQuote", err, fmt.Sprintf("Symbol: %s", fullSymbol))
 			continue
