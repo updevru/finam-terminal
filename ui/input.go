@@ -217,7 +217,6 @@ func setupInputHandlers(app *App) {
 	setupTableNavigation(app.portfolioView.TabbedView.OrdersTable)
 	setupTableNavigation(app.portfolioView.TabbedView.IndexTable)
 
-
 	app.portfolioView.AccountTable.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyDown:
@@ -367,15 +366,8 @@ func setupInputHandlers(app *App) {
 			return nil
 		case tcell.KeyTab, tcell.KeyBacktab:
 			if app.app.GetFocus() == app.portfolioView.AccountTable {
-				// Switch to the active tab's table
-				switch app.portfolioView.TabbedView.ActiveTab {
-				case TabPositions:
-					app.app.SetFocus(app.portfolioView.TabbedView.PositionsTable)
-				case TabHistory:
-					app.app.SetFocus(app.portfolioView.TabbedView.HistoryTable)
-				case TabOrders:
-					app.app.SetFocus(app.portfolioView.TabbedView.OrdersTable)
-				}
+				// Switch to the active tab's table, Index included.
+				app.app.SetFocus(app.activeTabTable())
 			} else {
 				// Switch back to Account Table
 				app.app.SetFocus(app.portfolioView.AccountTable)

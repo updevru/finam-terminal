@@ -255,3 +255,74 @@ func TestIndexState_ConcurrentAccess(t *testing.T) {
 		t.Errorf("composition ended with %d constituents, want 3", len(app.indexConstituents))
 	}
 }
+
+// TestIndexStreamGuard_SurvivesAnOutageAfterTheStreamProvedHealthy covers the
+// case seen in production on 2026-08-27: the subscription had been carrying the
+// composition happily for hours, then the machine woke from sleep with an
+// expired session and every stream dropped at once. The composition had nothing
+// to do with it, so the guard must not blame it and latch the tab off for the
+// rest of the session.
+func TestIndexStreamGuard_SurvivesAnOutageAfterTheStreamProvedHealthy(t *testing.T) {
+	var declared []string
+	mock := &mockClient{
+		SetQuoteSymbolsFunc: func(symbols []string) { declared = symbols },
+	}
+	app := NewApp(mock, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.positions["acc1"] = []models.Position{{Symbol: "SBER@MISX"}}
+	app.indexConstituents = testConstituents()
+	app.indexLoaded = true
+	app.portfolioView.TabbedView.SetTab(TabIndex)
+	app.recomputeStreamSymbols()
+
+	// The composition has been part of the subscription far longer than the
+	// guard's window.
+	app.dataMutex.Lock()
+	app.indexStreamIncludedAt = time.Now().Add(-2 * time.Hour)
+	app.dataMutex.Unlock()
+
+	// It came up carrying the composition: the suspicion is disproven.
+	app.onStreamState(true)
+
+	// Then the connection dies for an unrelated reason.
+	app.onStreamState(false)
+	app.evaluateIndexStreamHealth()
+
+	app.dataMutex.RLock()
+	disabled := app.indexStreamDisabled
+	app.dataMutex.RUnlock()
+	if disabled {
+		t.Error("the guard blamed the composition for an outage on a stream that had already proven healthy with it")
+	}
+	if !slices.Contains(declared, testConstituents()[0].Symbol) {
+		t.Errorf("subscription = %v, want the composition still included", declared)
+	}
+}
+
+// TestIndexStreamGuard_ProvenCompositionDoesNotRestartTheClock closes the other
+// half of the same defect. Positions are reloaded every five seconds and each
+// reload recomputes the subscription, so clearing the suspicion once is not
+// enough: if an ordinary recompute may restart the guard's clock, the next
+// unrelated outage a minute later still costs the tab its quotes.
+func TestIndexStreamGuard_ProvenCompositionDoesNotRestartTheClock(t *testing.T) {
+	app := NewApp(&mockClient{}, []models.AccountInfo{{ID: "acc1"}})
+	app.selectedIdx = 0
+	app.positions["acc1"] = []models.Position{{Symbol: "SBER@MISX"}}
+	app.indexConstituents = testConstituents()
+	app.indexLoaded = true
+	app.portfolioView.TabbedView.SetTab(TabIndex)
+	app.recomputeStreamSymbols()
+
+	// The subscription proves itself with the composition on board.
+	app.onStreamState(true)
+
+	// A routine refresh recomputes the same subscription.
+	app.recomputeStreamSymbols()
+
+	app.dataMutex.RLock()
+	restarted := app.indexStreamIncludedAt
+	app.dataMutex.RUnlock()
+	if !restarted.IsZero() {
+		t.Errorf("a routine recompute restarted the guard clock (%v) on a composition the stream had already accepted", restarted)
+	}
+}

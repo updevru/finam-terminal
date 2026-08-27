@@ -137,6 +137,10 @@ func newClientFromConn(conn *grpc.ClientConn, apiToken string) (*Client, error) 
 	client.refreshCancel = cancel
 	go client.subscribeJwtRenewal(refreshCtx)
 
+	// The stream is the fast path; the watchdog is what survives a dropped
+	// stream or a sleeping machine.
+	go client.watchTokenExpiry(refreshCtx)
+
 	// Load asset MIC cache
 	if err := client.loadAssetCache(); err != nil {
 		log.Printf("[WARN] Failed to load asset cache: %v", err)

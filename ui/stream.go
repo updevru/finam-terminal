@@ -129,7 +129,13 @@ func (a *App) onStreamState(up bool) {
 	a.dataMutex.Lock()
 	switch {
 	case up:
+		// The subscription came up while carrying the composition, so the
+		// composition is not what breaks it. Stopping the clock as well as the
+		// failure count is what keeps a later, unrelated outage — a sleeping
+		// machine, an expired session — from being blamed on the index.
 		a.indexStreamFailures = 0
+		a.indexStreamIncludedAt = time.Time{}
+		a.indexStreamProven = true
 	case !a.indexStreamIncludedAt.IsZero():
 		a.indexStreamFailures++
 	}
@@ -267,7 +273,7 @@ func (a *App) recomputeStreamSymbols() {
 	// The guard's window is measured from the moment the composition actually
 	// entered the subscription, so a long healthy session never trips it.
 	switch {
-	case includeIndex && len(indexSymbols) > 0 && a.indexStreamIncludedAt.IsZero():
+	case includeIndex && len(indexSymbols) > 0 && !a.indexStreamProven && a.indexStreamIncludedAt.IsZero():
 		a.indexStreamIncludedAt = time.Now()
 		a.indexStreamFailures = 0
 	case !includeIndex || len(indexSymbols) == 0:

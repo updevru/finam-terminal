@@ -388,7 +388,8 @@ func (c *Client) startShard(parent context.Context, symbols []string) *quoteShar
 // runShard keeps one subscription alive, reconnecting with exponential backoff
 // after a drop and renegotiating the shard size if the broker refuses it.
 func (c *Client) runShard(ctx context.Context, shard *quoteShard) {
-	backoff := quoteStreamInitialBackoff
+	// The delay waited before the previous attempt; zero until the first drop.
+	var backoff time.Duration
 
 	for {
 		// A cancelled shard was retired by the supervisor, not dropped by the
@@ -399,24 +400,24 @@ func (c *Client) runShard(ctx context.Context, shard *quoteShard) {
 			return
 		}
 
-		voluntary, dropped := c.runQuoteSubscription(ctx, shard)
+		outcome := c.runQuoteSubscription(ctx, shard)
 		if ctx.Err() != nil {
 			shard.live.Store(false)
 			return
 		}
-		if voluntary {
+		if outcome.voluntary {
 			// The shard size was renegotiated; the supervisor re-shards.
 			return
 		}
-		if !dropped {
+		if !outcome.dropped {
 			continue
 		}
 
+		backoff = nextShardBackoff(backoff, outcome.delivered)
 		if !sleepOrDone(ctx, backoff) {
 			shard.live.Store(false)
 			return
 		}
-		backoff = nextBackoff(backoff)
 	}
 }
 
@@ -441,11 +442,21 @@ func (c *Client) shardSize() int {
 	return defaultQuoteShardSize
 }
 
+// subscriptionOutcome describes how one shard's subscription ended.
+type subscriptionOutcome struct {
+	// voluntary: the shard size was renegotiated, so the supervisor re-shards
+	// rather than this worker reconnecting.
+	voluntary bool
+	// dropped: the stream ended unexpectedly, so the caller backs off first.
+	dropped bool
+	// delivered: the subscription received at least one message before it
+	// ended, which is what separates a blip from a stream that never worked.
+	delivered bool
+}
+
 // runQuoteSubscription opens one shard's subscription and consumes it until it
-// ends. It reports whether the end was voluntary (the shard size was
-// renegotiated, so the supervisor should re-shard) and whether the stream was
-// dropped (so the caller backs off before retrying).
-func (c *Client) runQuoteSubscription(ctx context.Context, shard *quoteShard) (voluntary, dropped bool) {
+// ends.
+func (c *Client) runQuoteSubscription(ctx context.Context, shard *quoteShard) subscriptionOutcome {
 	symbols := shard.symbols
 
 	subCtx, subCancel := c.getStreamContext(ctx)
@@ -456,37 +467,40 @@ func (c *Client) runQuoteSubscription(ctx context.Context, shard *quoteShard) (v
 	})
 	if err != nil {
 		if ctx.Err() != nil {
-			return false, false
+			return subscriptionOutcome{}
 		}
 		if c.reduceSymbolCap(err, len(symbols)) {
 			// Too many symbols for one subscription: the supervisor re-shards
 			// into smaller pieces. A negotiation, not an outage.
 			c.wakeQuoteManager()
-			return true, false
+			return subscriptionOutcome{voluntary: true}
 		}
 		c.logGRPCError("MarketDataService", "SubscribeQuote", err, fmt.Sprintf("Symbols: %v", symbols))
 		shard.live.Store(false)
 		c.refreshStreamState()
-		return false, true
+		return subscriptionOutcome{dropped: true}
 	}
 
 	log.Printf("[DEBUG] Quote stream subscribed to %d symbol(s): %v", len(symbols), symbols)
 
+	delivered := false
 	for {
 		resp, recvErr := stream.Recv()
 		if recvErr != nil {
 			if ctx.Err() != nil {
-				return false, false
+				return subscriptionOutcome{delivered: delivered}
 			}
 			if c.reduceSymbolCap(recvErr, len(symbols)) {
 				c.wakeQuoteManager()
-				return true, false
+				return subscriptionOutcome{voluntary: true, delivered: delivered}
 			}
 			log.Printf("[WARN] Quote stream (%d symbols) disconnected: %v. Reconnecting...", len(symbols), recvErr)
 			shard.live.Store(false)
 			c.refreshStreamState()
-			return false, true
+			return subscriptionOutcome{dropped: true, delivered: delivered}
 		}
+
+		delivered = true
 
 		// The shard is proven alive only by data: gRPC opens streams lazily.
 		if !shard.live.Swap(true) {
@@ -677,4 +691,21 @@ func (c *Client) trimStreamQuotes(symbols []string) {
 			delete(c.lastStreamQuotes, symbol)
 		}
 	}
+}
+
+// nextShardBackoff returns how long the shard waits before its next reconnect,
+// given the delay it waited last time (0 = it has not waited yet).
+//
+// A subscription that actually delivered data starts over: a blip on a stream
+// that had been healthy for hours is not evidence that the broker is refusing
+// it, and inheriting a grown delay would leave the terminal without quotes for
+// up to half a minute for nothing.
+func nextShardBackoff(current time.Duration, delivered bool) time.Duration {
+	if delivered || current <= 0 {
+		return quoteStreamInitialBackoff
+	}
+	if next := current * 2; next < quoteStreamMaxBackoff {
+		return next
+	}
+	return quoteStreamMaxBackoff
 }

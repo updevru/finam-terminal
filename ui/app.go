@@ -116,7 +116,12 @@ type App struct {
 	// for the rest of the session and the tab falls back to batches.
 	indexStreamIncludedAt time.Time
 	indexStreamFailures   int
-	indexStreamDisabled   bool
+	// indexStreamProven records that the subscription has already come up while
+	// carrying the composition, which settles the question the guard exists to
+	// ask. Without it every recompute would restart the guard's clock and the
+	// next unrelated outage would still cost the tab its quotes.
+	indexStreamProven   bool
+	indexStreamDisabled bool
 
 	// Profile overlay
 	profilePanel     *ProfilePanel
@@ -199,12 +204,14 @@ func NewApp(client APIClient, accounts []models.AccountInfo) *App {
 // CloseCloseModal closes the close position modal
 func (a *App) CloseCloseModal() {
 	a.pages.HidePage("close_modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	// Overlays are reachable from every tab, so focus goes back to the tab
+	// that is actually on screen — not to a hidden table.
+	a.app.SetFocus(a.activeTabTable())
 }
 func (a *App) CloseOrderModal() {
 	a.orderModal.RestoreCallback()
 	a.pages.HidePage("modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	a.app.SetFocus(a.activeTabTable())
 }
 
 // OpenSearchModal opens the security search modal
@@ -222,7 +229,7 @@ func (a *App) OpenSearchModal() {
 // CloseSearchModal closes the security search modal
 func (a *App) CloseSearchModal() {
 	a.pages.HidePage("search_modal")
-	a.app.SetFocus(a.portfolioView.TabbedView.PositionsTable)
+	a.app.SetFocus(a.activeTabTable())
 }
 
 // IsSearchModalOpen returns true if the search modal is currently open
